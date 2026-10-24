@@ -429,3 +429,6 @@ FodyWeavers.xsd
 
 # Claude Code (personal settings, never shared)
 .claude/settings.local.json
+
+# Raw personal data (real trips used for calibration) - never committed
+private/
