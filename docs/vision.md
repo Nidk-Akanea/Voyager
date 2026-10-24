@@ -108,6 +108,14 @@ transport disponibles et des créneaux réservés ? La réponse s'affine avec le
 estimation générique (distance, temps de trajet moyen) jusqu'au plus précis (ligne de bus, arrêts,
 horaires, prix).
 
+## Où on l'utilise
+
+- **Sur l'ordinateur**, pour préparer : une application de bureau « intelligente », installée, avec sa
+  propre fenêtre, comme Teams ou le client Claude.
+- **Sur le téléphone**, pendant le voyage *(à confirmer)* : consulter le programme et saisir les
+  dépenses, **même sans réseau** ; tout se synchronise au retour du réseau.
+- Un **serveur partagé** par le groupe centralise les données et synchronise les membres.
+
 ## Les vues
 
 Les mêmes données se regardent de plusieurs façons :

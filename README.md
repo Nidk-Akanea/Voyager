@@ -10,6 +10,7 @@ réservations, budget) et le carnet de voyage (notes, photos, carte) autour d'un
 - [Vision produit](docs/vision.md)
 - [Backlog et questions ouvertes](docs/backlog.md)
 - [Glossaire](docs/glossaire.md)
+- [Schéma fonctionnel](docs/schemas/fonctionnel.md) et [schéma technique](docs/schemas/technique.md)
 - [Décisions d'architecture (ADR)](docs/adr/README.md)
 - [Spécifications fonctionnelles](docs/specs/README.md)
 

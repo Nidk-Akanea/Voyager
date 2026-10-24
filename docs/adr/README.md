@@ -10,3 +10,5 @@ plus modifié ; s'il devient caduc, un nouvel ADR le **remplace**.
 | -------------------------------------------------------------- | ---------------------------------------------- | -------- | ---------- |
 | [0001](0001-consigner-les-decisions.md)                        | Consigner les décisions                        | Acceptée | 2026-10-24 |
 | [0002](0002-architecture-modulaire-par-contrats-et-plugins.md) | Architecture modulaire par contrats et plugins | Acceptée | 2026-10-24 |
+| [0003](0003-choix-de-la-stack.md)                              | Choix de la stack                              | Acceptée | 2026-10-24 |
+| [0004](0004-stockage-des-donnees.md)                           | Stockage des données                           | Acceptée | 2026-10-24 |
