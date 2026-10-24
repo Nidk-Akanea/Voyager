@@ -17,15 +17,19 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 ### E0 — Cadrage
 
 - [ ] Valider la [vision produit](vision.md) v1
-- [ ] Calibrer avec des voyages réels : reconstituer un ou deux voyages déjà faits (à partir des
-  tableurs existants) pour vérifier que le modèle couvre tout, et repérer ce qui est pertinent.
-  Données brutes dans `private/` (ignoré par git) ; seule une version anonymisée entre dans le repo
+- [ ] Calibrer avec des voyages réels — **fait par l'utilisateur, de son côté**, à partir de ses
+  voyages passés : il confronte le modèle à ce qu'il a vécu et remonte ses remarques sous forme de
+  questions ou de corrections. Ses tableurs ne sont pas partagés, pour ne pas orienter la conception
 - [x] Trancher les questions ouvertes bloquantes pour la stack (Q1, Q2 ; Q4 reportée à l'ADR d'hébergement)
 - [ ] Définir le périmètre exact du MVP
 - [x] ADR : architecture modulaire par contrats et plugins ([ADR-0002](adr/0002-architecture-modulaire-par-contrats-et-plugins.md), acceptée)
 - [x] ADR : choix de la stack ([ADR-0003](adr/0003-choix-de-la-stack.md), acceptée)
 - [ ] ADR : hébergement de l'instance du groupe (Q4)
 - [x] ADR : stockage des données ([ADR-0004](adr/0004-stockage-des-donnees.md), acceptée)
+- [x] ADR : architecture du code ([ADR-0005](adr/0005-architecture-du-code-hexagonale-par-domaine.md), acceptée)
+- [x] Conventions de code ([docs/conventions/](conventions/README.md))
+- [x] ADR : dépendances principales ([ADR-0006](adr/0006-dependances-principales.md), acceptée)
+- [ ] ADR : authentification des membres sur le serveur du groupe
 - [ ] ADR : synchronisation entre le service local et le serveur du groupe
 - [ ] ADR : format d'échange des données de référence (après la calibration, voir Q16)
 - [ ] Une fois la stack choisie : squelette de solution, build, tests, CI
