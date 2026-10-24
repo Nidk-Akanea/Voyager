@@ -1,7 +1,7 @@
 # Schéma fonctionnel
 
 > Première version, issue de la [vision](../vision.md) et du [glossaire](../glossaire.md). Le modèle
-> de domaine est une esquisse : il sera ajusté par la calibration avec des voyages réels.
+> de domaine est une esquisse : l'utilisateur le confrontera à ses voyages réels.
 
 ## Le cycle de vie d'un voyage
 
@@ -87,7 +87,7 @@ erDiagram
     Member ||--o{ Settlement : "rembourse"
 ```
 
-Points à valider pendant la calibration :
+Points à valider par l'utilisateur :
 
 - les dépenses réelles pendant le voyage sont-elles des lignes de devis, ou un objet à part ?
 - où se rattachent les coûts indirects (repas) : à un jour, à un voyageur, aux deux ?

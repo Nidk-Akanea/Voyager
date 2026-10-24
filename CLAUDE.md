@@ -45,6 +45,7 @@ docs/
   backlog.md              épics, idées, questions à trancher
   glossaire.md            termes métier FR ↔ noms de code EN
   schemas/                schémas fonctionnel et technique (Mermaid, à tenir à jour avec les ADR)
+  conventions/            règles de code : organisation, C#, TypeScript, gRPC, tests
   adr/                    décisions d'architecture (une par fichier, numérotées)
   specs/                  spécifications fonctionnelles (une par fonctionnalité)
 .claude/
@@ -96,6 +97,29 @@ Lance le lint Markdown après avoir modifié de la documentation.
 - **Du générique au précis** : une donnée peut être une estimation puis s'affiner ; aucun calcul ne doit
   bloquer sur une information manquante.
 - **Traçabilité** : chaque donnée externe garde sa source et sa date.
+- **Hexagonale, rangée par domaine**
+  ([ADR-0005](docs/adr/0005-architecture-du-code-hexagonale-par-domaine.md)) : `Voyager.Core` ne
+  dépend d'aucune technique ; EF Core, gRPC et plugins sont des adaptateurs autour.
+
+## Conventions de code
+
+Lis [docs/conventions/](docs/conventions/README.md) avant d'écrire du code. L'essentiel :
+
+- **Rangement** : [organisation du code](docs/conventions/organisation-du-code.md) — `src/dotnet/`,
+  `src/ts/`, `proto/`, `plugins/`, `tests/`. Un plugin ne référence que le SDK.
+- **Aucun calcul métier hors de `Voyager.Core`** : l'interface formate et saisit, rien de plus.
+- **Strict** : avertissements = erreurs (.NET), `--max-warnings 0` (ESLint), formatage vérifié en CI.
+- **Nommage** : conventions Microsoft (C#) et communauté (TypeScript), sauf les **constantes, en
+  MAJUSCULES séparées par `_`** (`MAX_TRAVELERS`) dans les deux langages.
+- **Types** : `Money` (décimal + devise) ; NodaTime pour le temps (`LocalDate`, `Instant` + fuseau
+  IANA, `IClock`) ; identifiants fortement typés en UUID v7.
+- **Dépendances** : uniquement celles de l'[ADR-0006](docs/adr/0006-dependances-principales.md)
+  (Microsoft DI, Serilog dans les hôtes, NodaTime, EF Core, Polly, AwesomeAssertions…) ; pas de
+  MediatR ni d'AutoMapper.
+- **Erreurs** : `Result` pour un échec métier attendu, exception pour un bug ou une panne.
+- **Contrats** : `.proto` versionnés, vérifiés par Buf ; jamais de renumérotation de champ.
+- **Tests** : MSTest, `Behavior_Condition_ExpectedResult`, données toujours fictives.
+- **Journaux** : structurés, sans aucune donnée personnelle.
 
 ## Points d'attention métier
 
