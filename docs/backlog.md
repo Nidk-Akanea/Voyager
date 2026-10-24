@@ -32,7 +32,14 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 - [ ] ADR : authentification des membres sur le serveur du groupe
 - [ ] ADR : synchronisation entre le service local et le serveur du groupe
 - [ ] ADR : format d'échange des données de référence (après la calibration, voir Q16)
-- [ ] Une fois la stack choisie : squelette de solution, build, tests, CI
+- [x] Outils de Claude : règles par langage, agents de relecture et de tests, skills `/ship`,
+  `/after-merge`, `/backlog`, hook de lint Markdown
+- [x] ADR : Git Flow et versions GitVersion ([ADR-0007](adr/0007-git-flow-et-versions-gitversion.md), acceptée)
+- [ ] Une fois la stack choisie : squelette de solution, build, tests, CI ; injecter la version
+  GitVersion dans les assemblies, les `package.json` et les `plugin.json` ; mettre au point le calcul
+  par composant (SDK, plugins)
+- [ ] Avec le squelette : hook de formatage du code (`dotnet format`, Prettier) et skills
+  `/feature`, `/new-use-case`, `/new-plugin`
 
 ### E1 — Projet de voyage et idéation
 

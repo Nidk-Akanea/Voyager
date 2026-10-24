@@ -16,17 +16,16 @@ qu'on bricole d'habitude.
 
 Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](docs/glossaire.md).
 
-## État actuel : cadrage
+## État actuel
 
-- **Aucun code applicatif pour l'instant.** On construit d'abord la vision, le backlog et les décisions.
-- **La stack est choisie** :
-  - [ADR-0003](docs/adr/0003-choix-de-la-stack.md) : Electron + React/TypeScript pour l'interface, un
-    service local .NET 10 pour la logique et le hors-ligne, un serveur de groupe ASP.NET Core, et
-    gRPC (pas de REST) ;
-  - [ADR-0004](docs/adr/0004-stockage-des-donnees.md) : PostgreSQL + PostGIS (serveur), SQLite (local).
-- Le squelette de solution se crée **sur demande** de l'utilisateur. À ce moment-là, mets à jour : la
-  section [Commandes](#commandes) ci-dessous, `.editorconfig`, `.gitignore` et la CI
-  (`.github/workflows/`). Les schémas de `docs/schemas/` suivent l'architecture réelle.
+- **Aucun code applicatif pour l'instant.** Vision, backlog, ADR et conventions sont posés.
+- **Les décisions techniques sont prises** (ADR 0002 à 0007) : Electron + React/TypeScript pour
+  l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur de groupe
+  ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite (local), architecture
+  hexagonale rangée par domaine, Git Flow avec versions calculées par GitVersion.
+- Le squelette de solution se crée **sur demande** de l'utilisateur. À ce moment-là, mets à jour la
+  section [Commandes](#commandes), `.gitignore`, la CI (`.github/workflows/`) et le hook de formatage
+  du code.
 
 ## Langues
 
@@ -41,98 +40,112 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
 CLAUDE.md                 ce fichier
 README.md                 présentation courte du projet
 docs/
-  vision.md               le produit, ses utilisateurs, ses principes, les questions ouvertes
+  vision.md               le produit, ses utilisateurs, ses principes
   backlog.md              épics, idées, questions à trancher
   glossaire.md            termes métier FR ↔ noms de code EN
-  schemas/                schémas fonctionnel et technique (Mermaid, à tenir à jour avec les ADR)
+  schemas/                schémas fonctionnel et technique (Mermaid)
   conventions/            règles de code : organisation, C#, TypeScript, gRPC, tests
   adr/                    décisions d'architecture (une par fichier, numérotées)
   specs/                  spécifications fonctionnelles (une par fonctionnalité)
 .claude/
-  settings.json           permissions partagées de Claude Code
-  skills/                 skills du projet (/new-adr, /new-spec)
-.github/workflows/        CI
+  settings.json           permissions et hooks partagés
+  rules/                  règles chargées selon les fichiers touchés
+  agents/                 agents de relecture et d'écriture de tests
+  skills/                 procédures du projet (/new-adr, /new-spec, /backlog, /ship, /after-merge,
+                          /release, /hotfix, /update-instructions)
+  hooks/                  scripts des hooks
+.github/workflows/        CI (lint de la doc, calcul de version)
+GitVersion.yml            calcul des numéros de version (ADR-0007)
+private/                  données réelles de l'utilisateur, ignorées par git
 ```
+
+Le code suivra [l'organisation du code](docs/conventions/organisation-du-code.md) : `proto/`,
+`src/dotnet/`, `src/ts/`, `plugins/`, `tests/`, `deploy/`.
 
 ## Façon de travailler
 
-1. **Une idée, un besoin** → une ligne dans [docs/backlog.md](docs/backlog.md).
-2. **Une fonctionnalité à construire** → une spec dans `docs/specs/` (skill `/new-spec`).
+1. **Une idée, un besoin** → `/backlog`.
+2. **Une fonctionnalité à construire** → une spec dans `docs/specs/` (`/new-spec`).
    On n'implémente qu'une spec au statut « Validée ».
 3. **Une décision structurante** (stack, stockage, architecture, hébergement, librairie majeure,
-   format de données) → un ADR dans `docs/adr/` (skill `/new-adr`).
+   format de données) → un ADR (`/new-adr`).
    - Tu rédiges l'ADR au statut « Proposée », avec les options comparées honnêtement.
    - **Seul l'utilisateur fait passer un ADR ou une spec à « Acceptée » / « Validée ».**
-     Ne change jamais ce statut toi-même.
    - Un ADR accepté ne se modifie plus : on en crée un nouveau qui le remplace.
 4. Quand un comportement change, mets à jour la spec et le glossaire dans le même commit.
 5. Si une question n'a pas de réponse évidente, ajoute-la aux questions ouvertes du backlog plutôt
    que de trancher seul.
+6. Avant de dire « fini », applique la [definition of done](.claude/rules/definition-of-done.md).
+7. L'utilisateur découvre GitHub et les PR : explique ce que tu fais en termes simples.
+
+## Outils de Claude
+
+| Outil                         | Quand l'utiliser                                                                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Agent `architecture-reviewer` | Après une modification de code ou de `.proto` : conformité aux ADR et conventions                                                                            |
+| Agent `code-reviewer`         | Après une modification de code : bugs, cas limites, fuites mémoire, performance                                                                              |
+| Agent `privacy-reviewer`      | Quand journaux, données de test, exemples ou configuration Electron changent                                                                                 |
+| Agent `code-polish`           | Sur du code qui fonctionne : refactorings locaux (et propositions plus larges), journaux, messages d'erreur, libellés, commentaires et documentation du code |
+| Agent `test-writer`           | Pour écrire les tests d'un cas d'usage ou d'un calcul du cœur                                                                                                |
+| `/ship`                       | Livrer une feature : vérifications, commit, push, PR vers `develop`, lecture de la CI                                                                        |
+| `/after-merge`                | Après la fusion d'une PR par l'utilisateur : remettre la branche cible à jour, nettoyer                                                                      |
+| `/backlog`                    | Ajouter une idée, une tâche d'épic ou une question ouverte                                                                                                   |
+| `/release`, `/hotfix`         | À la demande de l'utilisateur : préparer et publier une version, corriger en urgence une version publiée                                                     |
+| `/new-adr`, `/new-spec`       | Rédiger une décision ou une spec                                                                                                                             |
+| `/update-instructions`        | À la demande de l'utilisateur, après une étape importante : relire et mettre à jour ces instructions, créer des `CLAUDE.md` locaux si utile                  |
+
+Les relecteurs travaillent sur le code, pas sur ton raisonnement : donne-leur la liste des fichiers
+ou la branche, pas tes conclusions.
 
 ## Git
 
 - Messages de commit en anglais, format [Conventional Commits](https://www.conventionalcommits.org/) :
   `feat:`, `fix:`, `docs:`, `chore:`, `ci:`, `refactor:`, `test:`.
-- Branches : `feat/<sujet>`, `fix/<sujet>`, `docs/<sujet>`, `chore/<sujet>`.
-- Ne committe et ne pousse que sur demande. Le travail se fait sur une branche puis une PR vers `main`.
+- **Git Flow** ([ADR-0007](docs/adr/0007-git-flow-et-versions-gitversion.md)) : `main` = versions
+  publiées et taguées ; `develop` = intégration, branche par défaut ; tout travail sur
+  `feature/<sujet>` depuis `develop` (`/ship`) ; versions via `release/<x.y.z>` (`/release`) ;
+  correctifs urgents via `hotfix/<x.y.z>` (`/hotfix`). Jamais de commit direct sur `main` ni `develop`.
+- Fusions : feature → `develop` en **squash** ; release et hotfix → `main` puis `develop` en
+  **commit de fusion**.
+- **Versions calculées par GitVersion** (`GitVersion.yml`), pilotées par Conventional Commits ; un
+  numéro pour l'application (`v*`), le SDK (`sdk/v*`) et chaque plugin (`plugins/<id>/v*`). Ne
+  jamais écrire un numéro de version à la main, ni déplacer ou supprimer un tag.
+- Ne committe et ne pousse que sur demande ; ne fusionne une PR que si l'utilisateur le demande.
 - Aucun secret dans le repo (`.env` est ignoré).
 
 ## Commandes
 
-| Action                  | Commande                  |
-| ----------------------- | ------------------------- |
-| Vérifier le Markdown    | `npx markdownlint-cli2`   |
-| Build / tests / lancer  | à définir avec la stack   |
-
-Lance le lint Markdown après avoir modifié de la documentation.
+| Action                           | Commande                                                |
+| -------------------------------- | ------------------------------------------------------- |
+| Vérifier le Markdown             | `npx markdownlint-cli2`                                 |
+| Calculer la version (PowerShell) | `dnx GitVersion.Tool --yes -- /showvariable FullSemVer` |
+| Build / tests / lancer           | à définir avec le squelette                             |
 
 ## Principes d'architecture
 
-- **Tout est modulaire** ([ADR-0002](docs/adr/0002-architecture-modulaire-par-contrats-et-plugins.md),
-  acceptée) : un cœur minimal, des contrats versionnés, et des plugins qui les implémentent — y compris
-  pour les fonctionnalités de base. Ne crée un point d'extension que si au moins deux implémentations
-  sont connues ou prévues.
-- **Multi-membres dès le départ** : même si la collaboration arrive après le MVP, le modèle de données
-  doit la prévoir.
-- **Du générique au précis** : une donnée peut être une estimation puis s'affiner ; aucun calcul ne doit
-  bloquer sur une information manquante.
-- **Traçabilité** : chaque donnée externe garde sa source et sa date.
+- **Tout est modulaire** ([ADR-0002](docs/adr/0002-architecture-modulaire-par-contrats-et-plugins.md)) :
+  un cœur minimal, des contrats versionnés, des plugins — y compris pour les fonctionnalités de base.
+  Pas de point d'extension sans au moins deux implémentations connues ou prévues.
 - **Hexagonale, rangée par domaine**
   ([ADR-0005](docs/adr/0005-architecture-du-code-hexagonale-par-domaine.md)) : `Voyager.Core` ne
   dépend d'aucune technique ; EF Core, gRPC et plugins sont des adaptateurs autour.
+- **Aucun calcul métier hors de `Voyager.Core`** : l'interface formate et saisit.
+- **Multi-membres dès le départ** : le modèle prévoit la collaboration, même si elle vient après le MVP.
+- **Du générique au précis** : aucun calcul ne bloque sur une information manquante.
+- **Traçabilité** : chaque donnée externe garde sa source et sa date.
 
-## Conventions de code
-
-Lis [docs/conventions/](docs/conventions/README.md) avant d'écrire du code. L'essentiel :
-
-- **Rangement** : [organisation du code](docs/conventions/organisation-du-code.md) — `src/dotnet/`,
-  `src/ts/`, `proto/`, `plugins/`, `tests/`. Un plugin ne référence que le SDK.
-- **Aucun calcul métier hors de `Voyager.Core`** : l'interface formate et saisit, rien de plus.
-- **Strict** : avertissements = erreurs (.NET), `--max-warnings 0` (ESLint), formatage vérifié en CI.
-- **Nommage** : conventions Microsoft (C#) et communauté (TypeScript), sauf les **constantes, en
-  MAJUSCULES séparées par `_`** (`MAX_TRAVELERS`) dans les deux langages.
-- **Types** : `Money` (décimal + devise) ; NodaTime pour le temps (`LocalDate`, `Instant` + fuseau
-  IANA, `IClock`) ; identifiants fortement typés en UUID v7.
-- **Dépendances** : uniquement celles de l'[ADR-0006](docs/adr/0006-dependances-principales.md)
-  (Microsoft DI, Serilog dans les hôtes, NodaTime, EF Core, Polly, AwesomeAssertions…) ; pas de
-  MediatR ni d'AutoMapper.
-- **Erreurs** : `Result` pour un échec métier attendu, exception pour un bug ou une panne.
-- **Contrats** : `.proto` versionnés, vérifiés par Buf ; jamais de renumérotation de champ.
-- **Tests** : MSTest, `Behavior_Condition_ExpectedResult`, données toujours fictives.
-- **Journaux** : structurés, sans aucune donnée personnelle.
+Les règles détaillées de chaque langage sont dans `.claude/rules/` (chargées automatiquement) et
+[docs/conventions/](docs/conventions/README.md).
 
 ## Points d'attention métier
 
-Ces règles valent quelle que soit la stack retenue :
-
 - **Données personnelles** : itinéraires, photos géolocalisées et documents de voyage sont sensibles.
   Ne mets jamais de vraies données personnelles dans les exemples, fixtures ou captures.
-  **Le repo GitHub est public.** Les voyages réels de l'utilisateur (tableurs, réservations) vont dans
-  `private/`, ignoré par git ; seule une version anonymisée (voyageurs A, B, C ; sans noms, références
-  de réservation ni coordonnées personnelles) peut être committée.
-- **Dates et fuseaux** : un voyage traverse des fuseaux horaires. Stocke les instants en UTC avec le
-  fuseau du lieu concerné ; les dates « de calendrier » (jour d'une étape) restent des dates sans heure.
+  **Le repo GitHub est public.** Les données réelles de l'utilisateur vont dans `private/`, ignoré par
+  git. L'utilisateur confronte lui-même le modèle à ses voyages passés : ne lui demande pas ses
+  tableurs.
+- **Dates et fuseaux** : un voyage traverse des fuseaux horaires. Instants en UTC avec le fuseau du
+  lieu ; dates « de calendrier » (jour d'une étape) sans heure.
 - **Argent** : montants en décimal (jamais en flottant) accompagnés d'un code devise ISO 4217.
 - **Lieux** : coordonnées en WGS 84 (latitude, longitude), comme les GPS et les EXIF des photos.
-- **Hors-ligne** : on écrit souvent son carnet sans réseau. L'exigence exacte est une question ouverte
-  du backlog ; garde-la en tête dans les choix d'architecture.
+- **Hors-ligne** : consulter le programme et saisir les dépenses sans réseau, puis synchroniser.
