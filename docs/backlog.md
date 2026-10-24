@@ -3,52 +3,144 @@
 Liste vivante des épics, idées et questions. Une fonctionnalité prête à être construite obtient une
 spec dans [specs/](specs/) ; une décision technique obtient un ADR dans [adr/](adr/).
 
+## Priorités
+
+1. **Remplacer le tableur** : E1 à E5 — c'est le MVP.
+2. **Travailler à plusieurs** : E6 — mais le modèle doit prévoir le multi-membres dès le départ.
+3. **Alimenter les données** : E7 — sources externes, API, extraction ciblée.
+4. **Raconter le voyage** : E8 — le carnet, après la réussite du reste.
+
+E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de suite.
+
 ## Épics
 
 ### E0 — Cadrage
 
-- [ ] Valider la [vision produit](vision.md)
-- [ ] Trancher les questions ouvertes bloquantes (Q1 à Q3)
-- [ ] Définir le périmètre du MVP
-- [ ] ADR : choix de la stack (dépend de Q1 et Q2)
-- [ ] ADR : stockage des données et des photos
+- [ ] Valider la [vision produit](vision.md) v1
+- [ ] Calibrer avec des voyages réels : reconstituer un ou deux voyages déjà faits (à partir des
+  tableurs existants) pour vérifier que le modèle couvre tout, et repérer ce qui est pertinent.
+  Données brutes dans `private/` (ignoré par git) ; seule une version anonymisée entre dans le repo
+- [ ] Trancher les questions ouvertes bloquantes pour la stack (Q1, Q2, Q4)
+- [ ] Définir le périmètre exact du MVP
+- [ ] ADR : architecture modulaire par contrats et plugins ([ADR-0002](adr/0002-architecture-modulaire-par-contrats-et-plugins.md), proposée)
+- [ ] ADR : choix de la stack
+- [ ] ADR : stockage des données (données de référence partagées / données du voyage)
+- [ ] ADR : format d'échange des données de référence (après la calibration, voir Q16)
 - [ ] Une fois la stack choisie : squelette de solution, build, tests, CI
 
-### E1 — Planification
+### E1 — Projet de voyage et idéation
 
-- [ ] Créer / modifier / supprimer un voyage
-- [ ] Gérer les étapes d'un itinéraire (ajout, ordre, dates)
-- [ ] Rattacher des lieux aux étapes (recherche de lieu, carte)
-- [ ] Enregistrer des réservations et leurs documents
-- [ ] Suivre un budget multi-devises
+- [ ] Créer un voyage, inviter des membres, déclarer les voyageurs (avec leur catégorie)
+- [ ] Noter des envies : thèmes, destinations, activités
+- [ ] Trier, préciser, regrouper les envies (affinage)
 
-### E2 — Carnet de voyage
+### E2 — Catalogue, lieux et tarifs
+
+- [ ] Gérer la hiérarchie des lieux (pays › région › ville › lieu précis)
+- [ ] Ajouter une prestation au catalogue et la rattacher à ses lieux
+- [ ] Lui donner un ou plusieurs tarifs indicatifs : base de calcul, devise, catégorie de voyageur
+- [ ] Gérer les moyens de transport
+- [ ] Saisir une ligne de transport du générique au précis (prix seul → arrêts → horaires)
+- [ ] Garder la source et la date de chaque donnée
+- [ ] Séparer données de référence partagées et données du voyage
+
+### E3 — Devis et simulation
+
+- [ ] Créer un devis à partir des envies : programme jour par jour
+- [ ] Placer des prestations du catalogue dans les jours (et créneaux) du devis
+- [ ] Ajuster le prix d'une ligne pour ce voyage sans modifier la donnée de référence
+- [ ] Classer chaque coût : direct, induit, indirect
+- [ ] Calculer le prix du voyage et l'argent à avoir sur place
+- [ ] Dupliquer un devis pour tester une variante
+- [ ] Comparer plusieurs devis côte à côte
+- [ ] Vérifier la faisabilité d'une journée (distances, transports, horaires, créneaux)
+- [ ] Voter : chaque membre donne des points dégressifs aux devis
+- [ ] Classer les devis par score
+- [ ] Retenir un devis d'un clic (n'importe quel membre)
+- [ ] Changer de devis retenu en cours de route
+
+### E4 — Réservations, budget et répartition
+
+- [ ] Enregistrer une réservation : référence, jour, créneau, conditions d'annulation
+- [ ] Transformer réservations et paiements en engagements
+- [ ] Signaler les devis incompatibles avec les engagements, ou y intégrer le coût d'abandon
+- [ ] Répartir chaque coût entre voyageurs selon une règle de répartition
+- [ ] Afficher la part de chaque voyageur
+- [ ] Suivre prévu vs payé, ligne par ligne
+- [ ] Enregistrer qui a payé quoi
+- [ ] Calculer les remboursements qui équilibrent les comptes
+
+### E5 — Vues
+
+- [ ] Timeline
+- [ ] Planning (calendrier, avec les créneaux)
+- [ ] Carte (lieux, trajets, distances)
+- [ ] Programme lisible et partageable (export)
+- [ ] Graphiques (budget, comparaison de devis)
+
+### E6 — Collaboration
+
+- [ ] Plusieurs membres modifient le même voyage
+- [ ] Chaque membre crée ses propres devis
+- [ ] Rôles et droits
+- [ ] Partage en lecture seule (programme)
+
+### E7 — Sources de données
+
+- [ ] Contrat de connecteur (voir E9)
+- [ ] Extraction ciblée : coller l'adresse d'une page (fiche d'hôtel…) et récupérer les informations
+  utiles
+- [ ] Connecteurs API : vols, hébergements, activités
+- [ ] Configuration des clés d'API par le propriétaire de l'instance
+- [ ] Cache des résultats d'API pour limiter les coûts
+- [ ] Spécifier le format d'échange (schéma documenté, versionné, extensible par plugin)
+- [ ] Exporter et importer des paquets de données
+- [ ] Importer les standards existants : GTFS (transports), GeoJSON / OpenStreetMap (lieux)
+- [ ] Import (fichiers, mails de confirmation…)
+- [ ] Rafraîchir une donnée et voir son ancienneté
+
+### E8 — Carnet de voyage (plus tard)
 
 - [ ] Écrire une entrée de carnet (jour / étape / lieu)
-- [ ] Ajouter des photos et lire leur géolocalisation
-- [ ] Carte du voyage : prévu vs parcouru
-- [ ] Relire le récit d'un voyage terminé
+- [ ] Ajouter et taguer des photos
+- [ ] Mesurer les kilomètres parcourus
+- [ ] Lieux visités sur la carte : prévu vs réel
+- [ ] Noter des idées pour plus tard (réutilisables comme envies d'un prochain voyage)
 
-### E3 — Transverse
+### E9 — Plateforme modulaire (transverse)
 
-- [ ] Comptes utilisateurs et authentification (si Q3 l'exige)
-- [ ] Fonctionnement hors-ligne et synchronisation (selon Q2)
-- [ ] Export des données
-- [ ] Partage d'un voyage ou d'un carnet
+- [ ] Identifier les points d'extension : types de prestation, bases de calcul, règles de répartition,
+  connecteurs, vues, exports
+- [ ] Définir un contrat par point d'extension
+- [ ] Mécanisme d'installation et de chargement des plugins (dépend de la stack)
+- [ ] Les fonctionnalités de base sont elles-mêmes livrées comme plugins
 
 ## Questions ouvertes
 
-| #   | Question                                                              | Impact                    | Statut  |
-| --- | --------------------------------------------------------------------- | ------------------------- | ------- |
-| Q1  | Quelles plateformes : web, mobile natif, les deux, PWA ?              | Choix de stack            | Ouverte |
-| Q2  | Quel niveau de hors-ligne : lecture seule, saisie, tout le voyage ?   | Stack, stockage, synchro  | Ouverte |
-| Q3  | Mono-utilisateur, ou voyages partagés et édités à plusieurs ?         | Comptes, droits, synchro  | Ouverte |
-| Q4  | Où sont hébergées les données (local seul, cloud, auto-hébergé) ?     | Stockage, confidentialité | Ouverte |
-| Q5  | Quel fournisseur de cartes et de recherche de lieux (coût, licence) ? | Dépendances, coûts        | Ouverte |
-| Q6  | Partage du carnet : lien privé, export PDF, page publique ?           | Périmètre E2 / E3         | Ouverte |
+| #   | Question                                                                                                                        | Impact                           | Statut                                                                                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | Quelles plateformes : web, mobile natif, les deux, PWA ?                                                                        | Choix de stack                   | Ouverte                                                                                                                                                        |
+| Q2  | Quel niveau de hors-ligne : lecture du programme, saisie des dépenses, tout ?                                                   | Stack, stockage, synchro         | Ouverte                                                                                                                                                        |
+| Q3  | Mono-utilisateur ou voyages partagés ?                                                                                          | Comptes, droits, synchro         | **Tranchée** : plusieurs membres modifient et font leurs propres devis                                                                                         |
+| Q4  | Où sont hébergées les données (local, cloud, auto-hébergé) ? Le multi-membres impose un serveur partagé.                        | Stockage, confidentialité, coûts | Ouverte                                                                                                                                                        |
+| Q5  | Quel fournisseur de cartes, d'itinéraires et de recherche de lieux (coût, licence) ?                                            | Dépendances, coûts               | Ouverte                                                                                                                                                        |
+| Q6  | Partage du carnet : lien privé, export PDF, page publique ?                                                                     | Périmètre E8                     | Ouverte (plus tard)                                                                                                                                            |
+| Q7  | Qui retient le devis final ?                                                                                                    | Droits, E3, E4                   | **Tranchée** : vote du groupe ; choix révisable ; les réservations et paiements deviennent des engagements qui contraignent les devis                          |
+| Q8  | Le catalogue est-il propre à chaque voyage ou partagé ?                                                                         | Modèle de données, hébergement   | **Tranchée** (proposition à valider) : types génériques communs ; données de référence partagées et rattachées aux lieux ; prix concrets dans le voyage        |
+| Q9  | Extraction depuis des sites web : quel cadre ?                                                                                  | Légal, E7                        | **Tranchée** : extraction ciblée d'une page donnée, pas d'aspiration. Reste à choisir comment (voir Q15)                                                       |
+| Q10 | Plusieurs devises : quel taux de change, celui du devis ou celui du paiement ?                                                  | E3, E4                           | Ouverte                                                                                                                                                        |
+| Q11 | Plugins : qui peut en écrire (vous, des tiers) ? Comment sont-ils distribués et isolés (sécurité) ?                             | Architecture, ADR-0002           | Ouverte                                                                                                                                                        |
+| Q12 | API payantes : qui paie ?                                                                                                       | Modèle économique, E7            | **Tranchée** : le propriétaire de l'instance ; il configure les clés                                                                                           |
+| Q13 | Règles du vote ?                                                                                                                | E3, E6                           | **Tranchée** : points dégressifs, classement par score, puis un membre retient le devis d'un clic ; réversible                                                 |
+| Q14 | Qui peut créer et corriger les données de référence partagées ?                                                                 | Qualité des données, E2          | **Tranchée** : outil pour une famille ou des amis, pas une base communautaire ; les membres sont responsables de leurs saisies. Score de crédibilité plus tard |
+| Q15 | Extraction ciblée : côté serveur, via une extension de navigateur, ou par copier-coller du contenu de la page ?                 | E7, choix de stack               | Reportée : à décider après la calibration avec des voyages réels                                                                                               |
+| Q16 | Format d'échange : XML (schéma XSD, espaces de noms pour les extensions) ou JSON (JSON Schema, plus léger, natif des API web) ? | Format, plugins, E7              | Ouverte : ADR après la calibration                                                                                                                             |
+| Q17 | Paquets partagés par une communauté : sous quelle licence (ex. CC BY, ODbL) ?                                                   | Légal, E7                        | Ouverte (plus tard)                                                                                                                                            |
 
 ## Idées en vrac
 
 - Import automatique des réservations depuis les mails de confirmation.
-- Météo prévue sur les étapes.
+- Météo prévue sur les jours du programme.
 - Statistiques de fin de voyage (distance, pays, dépenses).
+- Alertes de prix sur une prestation du catalogue.
+- Score de crédibilité des données de référence, en les comparant aux données des API.

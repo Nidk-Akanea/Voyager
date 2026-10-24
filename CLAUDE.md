@@ -2,13 +2,19 @@
 
 ## Le projet
 
-Voyager est une application qui accompagne un voyage du début à la fin :
+Voyager sert à **préparer un voyage de groupe avec un budget juste**, en remplaçant le tableur
+qu'on bricole d'habitude.
 
-1. **Préparer** — planifier un voyage : itinéraire, étapes, réservations, budget.
-2. **Raconter** — tenir un carnet de voyage : notes, photos, lieux visités sur une carte.
+- **Un voyage est un projet** : des envies (thèmes, destinations, activités), puis des **devis**
+  (simulations jour par jour, que chaque membre peut créer), puis une **facture** (le devis retenu,
+  avec ce qui a réellement été payé).
+- **Le budget est le cœur** : coûts directs, induits et indirects ; tarifs avec une base de calcul
+  (par personne, par unité, forfait…) ; prévu vs payé ; part de chaque voyageur ; qui a payé quoi et
+  remboursements.
+- **Plusieurs vues** sur les mêmes données : timeline, planning, carte, programme, graphiques.
+- **Plus tard** : le carnet de voyage (photos, kilomètres, lieux visités).
 
-Les deux volets partagent le même modèle (un voyage, ses étapes, ses lieux) : ce qui a été planifié
-devient la trame du carnet. Détails et questions ouvertes : [docs/vision.md](docs/vision.md).
+Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](docs/glossaire.md).
 
 ## État actuel : cadrage
 
@@ -75,12 +81,27 @@ docs/
 
 Lance le lint Markdown après avoir modifié de la documentation.
 
+## Principes d'architecture
+
+- **Tout est modulaire** ([ADR-0002](docs/adr/0002-architecture-modulaire-par-contrats-et-plugins.md),
+  proposée) : un cœur minimal, des contrats versionnés, et des plugins qui les implémentent — y compris
+  pour les fonctionnalités de base. Ne crée un point d'extension que si au moins deux implémentations
+  sont connues ou prévues.
+- **Multi-membres dès le départ** : même si la collaboration arrive après le MVP, le modèle de données
+  doit la prévoir.
+- **Du générique au précis** : une donnée peut être une estimation puis s'affiner ; aucun calcul ne doit
+  bloquer sur une information manquante.
+- **Traçabilité** : chaque donnée externe garde sa source et sa date.
+
 ## Points d'attention métier
 
 Ces règles valent quelle que soit la stack retenue :
 
 - **Données personnelles** : itinéraires, photos géolocalisées et documents de voyage sont sensibles.
   Ne mets jamais de vraies données personnelles dans les exemples, fixtures ou captures.
+  **Le repo GitHub est public.** Les voyages réels de l'utilisateur (tableurs, réservations) vont dans
+  `private/`, ignoré par git ; seule une version anonymisée (voyageurs A, B, C ; sans noms, références
+  de réservation ni coordonnées personnelles) peut être committée.
 - **Dates et fuseaux** : un voyage traverse des fuseaux horaires. Stocke les instants en UTC avec le
   fuseau du lieu concerné ; les dates « de calendrier » (jour d'une étape) restent des dates sans heure.
 - **Argent** : montants en décimal (jamais en flottant) accompagnés d'un code devise ISO 4217.
