@@ -19,11 +19,14 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
 ## État actuel : cadrage
 
 - **Aucun code applicatif pour l'instant.** On construit d'abord la vision, le backlog et les décisions.
-- **La stack n'est pas choisie.** Le `.gitignore` Visual Studio vient de la création du repo, ce n'est
-  pas une décision. Ne crée pas de solution, de projet ni de `package.json` applicatif, et n'installe
-  aucune dépendance, tant que l'ADR de choix de stack n'est pas au statut « Acceptée ».
-- Quand la stack sera choisie, mets à jour : la section [Commandes](#commandes) ci-dessous,
-  `.editorconfig`, `.gitignore` et la CI (`.github/workflows/`).
+- **La stack est choisie** :
+  - [ADR-0003](docs/adr/0003-choix-de-la-stack.md) : Electron + React/TypeScript pour l'interface, un
+    service local .NET 10 pour la logique et le hors-ligne, un serveur de groupe ASP.NET Core, et
+    gRPC (pas de REST) ;
+  - [ADR-0004](docs/adr/0004-stockage-des-donnees.md) : PostgreSQL + PostGIS (serveur), SQLite (local).
+- Le squelette de solution se crée **sur demande** de l'utilisateur. À ce moment-là, mets à jour : la
+  section [Commandes](#commandes) ci-dessous, `.editorconfig`, `.gitignore` et la CI
+  (`.github/workflows/`). Les schémas de `docs/schemas/` suivent l'architecture réelle.
 
 ## Langues
 
@@ -41,6 +44,7 @@ docs/
   vision.md               le produit, ses utilisateurs, ses principes, les questions ouvertes
   backlog.md              épics, idées, questions à trancher
   glossaire.md            termes métier FR ↔ noms de code EN
+  schemas/                schémas fonctionnel et technique (Mermaid, à tenir à jour avec les ADR)
   adr/                    décisions d'architecture (une par fichier, numérotées)
   specs/                  spécifications fonctionnelles (une par fonctionnalité)
 .claude/

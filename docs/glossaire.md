@@ -84,7 +84,11 @@ Un terme ajouté ici doit être utilisé tel quel partout.
 | Extraction ciblée    | `PageExtraction` | Récupérer les informations utiles d'une page précise dont on donne l'adresse (la fiche d'un hôtel). Pas d'aspiration de sites entiers.                                                                 |
 | Connecteur           | `Connector`      | Un plugin qui va chercher des données dans une source (une API de vols, la page d'un site d'hôtels…).                                                                                                  |
 | Contrat              | `Contract`       | L'interface qu'un élément doit respecter pour être branché sur le cœur de Voyager.                                                                                                                     |
-| Plugin               | `Plugin`         | Un module installable qui fournit une ou plusieurs implémentations de contrats.                                                                                                                        |
+| Plugin               | `Plugin`         | Un paquet installable qui fournit une ou plusieurs implémentations de contrats : une partie .NET (logique) et, si besoin, un module d'interface React.                                                 |
+| Manifeste de plugin  | `PluginManifest` | Le fichier `plugin.json` d'un plugin : identifiant, version, versions de contrats compatibles, points d'extension fournis.                                                                             |
+| Point d'extension    | `ExtensionPoint` | Un endroit où le cœur accepte des plugins : type de prestation, base de calcul, règle de répartition, connecteur, vue, export.                                                                         |
+| Service local        | `LocalService`   | Le processus .NET embarqué dans l'application de bureau : logique métier, base locale, hors-ligne, synchronisation.                                                                                    |
+| Serveur du groupe    | `GroupServer`    | Le serveur partagé par les membres d'un groupe : centralise les données et diffuse les changements.                                                                                                    |
 | Vue                  | `View`           | Une façon de présenter un voyage : timeline, planning, carte, programme, graphiques. Fournie par un plugin.                                                                                            |
 
 ## Carnet de voyage (plus tard)

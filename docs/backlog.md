@@ -20,11 +20,13 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 - [ ] Calibrer avec des voyages réels : reconstituer un ou deux voyages déjà faits (à partir des
   tableurs existants) pour vérifier que le modèle couvre tout, et repérer ce qui est pertinent.
   Données brutes dans `private/` (ignoré par git) ; seule une version anonymisée entre dans le repo
-- [ ] Trancher les questions ouvertes bloquantes pour la stack (Q1, Q2, Q4)
+- [x] Trancher les questions ouvertes bloquantes pour la stack (Q1, Q2 ; Q4 reportée à l'ADR d'hébergement)
 - [ ] Définir le périmètre exact du MVP
 - [x] ADR : architecture modulaire par contrats et plugins ([ADR-0002](adr/0002-architecture-modulaire-par-contrats-et-plugins.md), acceptée)
-- [ ] ADR : choix de la stack
-- [ ] ADR : stockage des données (données de référence partagées / données du voyage)
+- [x] ADR : choix de la stack ([ADR-0003](adr/0003-choix-de-la-stack.md), acceptée)
+- [ ] ADR : hébergement de l'instance du groupe (Q4)
+- [x] ADR : stockage des données ([ADR-0004](adr/0004-stockage-des-donnees.md), acceptée)
+- [ ] ADR : synchronisation entre le service local et le serveur du groupe
 - [ ] ADR : format d'échange des données de référence (après la calibration, voir Q16)
 - [ ] Une fois la stack choisie : squelette de solution, build, tests, CI
 
@@ -119,10 +121,10 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 
 | #   | Question                                                                                                                        | Impact                           | Statut                                                                                                                                                         |
 | --- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1  | Quelles plateformes : web, mobile natif, les deux, PWA ?                                                                        | Choix de stack                   | Ouverte                                                                                                                                                        |
-| Q2  | Quel niveau de hors-ligne : lecture du programme, saisie des dépenses, tout ?                                                   | Stack, stockage, synchro         | Ouverte                                                                                                                                                        |
+| Q1  | Quelles plateformes ?                                                                                                           | Choix de stack                   | **Tranchée** : une application de bureau « intelligente », comme Teams ou le client Claude pour Windows ; téléphone pendant le voyage *(à confirmer)*          |
+| Q2  | Quel niveau de hors-ligne ?                                                                                                     | Stack, stockage, synchro         | **Tranchée** : consulter le programme et saisir les dépenses sans réseau ; synchronisation au retour du réseau                                                 |
 | Q3  | Mono-utilisateur ou voyages partagés ?                                                                                          | Comptes, droits, synchro         | **Tranchée** : plusieurs membres modifient et font leurs propres devis                                                                                         |
-| Q4  | Où sont hébergées les données (local, cloud, auto-hébergé) ? Le multi-membres impose un serveur partagé.                        | Stockage, confidentialité, coûts | Ouverte                                                                                                                                                        |
+| Q4  | Où tourne le serveur du groupe ?                                                                                                | Stockage, confidentialité, coûts | En partie tranchée : en local (sur un poste ou un NAS) **ou** en ligne, au choix du groupe. Options et coûts à comparer dans un ADR d'hébergement              |
 | Q5  | Quel fournisseur de cartes, d'itinéraires et de recherche de lieux (coût, licence) ?                                            | Dépendances, coûts               | Ouverte                                                                                                                                                        |
 | Q6  | Partage du carnet : lien privé, export PDF, page publique ?                                                                     | Périmètre E8                     | Ouverte (plus tard)                                                                                                                                            |
 | Q7  | Qui retient le devis final ?                                                                                                    | Droits, E3, E4                   | **Tranchée** : vote du groupe ; choix révisable ; les réservations et paiements deviennent des engagements qui contraignent les devis                          |
@@ -136,6 +138,9 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 | Q15 | Extraction ciblée : côté serveur, via une extension de navigateur, ou par copier-coller du contenu de la page ?                 | E7, choix de stack               | Reportée : à décider après la calibration avec des voyages réels                                                                                               |
 | Q16 | Format d'échange : XML (schéma XSD, espaces de noms pour les extensions) ou JSON (JSON Schema, plus léger, natif des API web) ? | Format, plugins, E7              | Ouverte : ADR après la calibration                                                                                                                             |
 | Q17 | Paquets partagés par une communauté : sous quelle licence (ex. CC BY, ODbL) ?                                                   | Légal, E7                        | Ouverte (plus tard)                                                                                                                                            |
+| Q18 | Coquille de bureau : Electron ou Tauri ?                                                                                        | ADR-0003                         | **Tranchée** : Electron                                                                                                                                        |
+| Q19 | Téléphone pendant le voyage : avec quelle technologie (Capacitor, Tauri mobile…) ?                                              | Mobile, hors-ligne               | Reportée : à traiter quand le bureau sera en place                                                                                                             |
+| Q20 | Protocole de communication ?                                                                                                    | Contrats, ADR-0002               | **Tranchée** : RPC, pas de REST ; gRPC proposé dans l'ADR-0003                                                                                                 |
 
 ## Idées en vrac
 
