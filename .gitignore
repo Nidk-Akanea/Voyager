@@ -432,3 +432,7 @@ FodyWeavers.xsd
 
 # Raw personal data (real trips used for calibration) - never committed
 private/
+
+# Not build output: the /release skill and the release notes (ADR-0007)
+!.claude/skills/release/
+!docs/releases/

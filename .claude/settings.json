@@ -14,5 +14,20 @@
       "Read(./**/.env)",
       "Read(./**/*.env)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-markdown.mjs\"",
+            "timeout": 60,
+            "statusMessage": "Linting Markdown..."
+          }
+        ]
+      }
+    ]
   }
 }

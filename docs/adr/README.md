@@ -14,3 +14,4 @@ plus modifié ; s'il devient caduc, un nouvel ADR le **remplace**.
 | [0004](0004-stockage-des-donnees.md)                           | Stockage des données                                  | Acceptée | 2026-10-24 |
 | [0005](0005-architecture-du-code-hexagonale-par-domaine.md)    | Architecture du code : hexagonale, rangée par domaine | Acceptée | 2026-10-24 |
 | [0006](0006-dependances-principales.md)                        | Dépendances principales                               | Acceptée | 2026-10-24 |
+| [0007](0007-git-flow-et-versions-gitversion.md)                | Git Flow et versions calculées par GitVersion         | Acceptée | 2026-10-24 |

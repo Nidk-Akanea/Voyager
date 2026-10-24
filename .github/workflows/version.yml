@@ -1,0 +1,26 @@
+name: Version
+
+on:
+  push:
+    branches: [main, develop, 'release/**', 'hotfix/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gitversion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: '6.x'
+      - id: version
+        uses: gittools/actions/gitversion/execute@v3
+      - name: Show version
+        run: |
+          echo "### Version calculée : ${{ steps.version.outputs.fullSemVer }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Version: ${{ steps.version.outputs.fullSemVer }}"

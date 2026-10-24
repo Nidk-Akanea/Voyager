@@ -17,6 +17,7 @@ Voyager/
 ├─ package.json                 racine de l'espace de travail pnpm (scripts communs)
 ├─ pnpm-workspace.yaml          liste des paquets TypeScript
 ├─ buf.yaml                     lint et contrôle de compatibilité des contrats .proto
+├─ GitVersion.yml               calcul des numéros de version (ADR-0007)
 ├─ proto/                       contrats gRPC : la source de vérité
 │  └─ voyager/<domaine>/v1/*.proto
 ├─ src/
