@@ -22,7 +22,7 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   Données brutes dans `private/` (ignoré par git) ; seule une version anonymisée entre dans le repo
 - [ ] Trancher les questions ouvertes bloquantes pour la stack (Q1, Q2, Q4)
 - [ ] Définir le périmètre exact du MVP
-- [ ] ADR : architecture modulaire par contrats et plugins ([ADR-0002](adr/0002-architecture-modulaire-par-contrats-et-plugins.md), proposée)
+- [x] ADR : architecture modulaire par contrats et plugins ([ADR-0002](adr/0002-architecture-modulaire-par-contrats-et-plugins.md), acceptée)
 - [ ] ADR : choix de la stack
 - [ ] ADR : stockage des données (données de référence partagées / données du voyage)
 - [ ] ADR : format d'échange des données de référence (après la calibration, voir Q16)

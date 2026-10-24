@@ -84,7 +84,7 @@ Lance le lint Markdown après avoir modifié de la documentation.
 ## Principes d'architecture
 
 - **Tout est modulaire** ([ADR-0002](docs/adr/0002-architecture-modulaire-par-contrats-et-plugins.md),
-  proposée) : un cœur minimal, des contrats versionnés, et des plugins qui les implémentent — y compris
+  acceptée) : un cœur minimal, des contrats versionnés, et des plugins qui les implémentent — y compris
   pour les fonctionnalités de base. Ne crée un point d'extension que si au moins deux implémentations
   sont connues ou prévues.
 - **Multi-membres dès le départ** : même si la collaboration arrive après le MVP, le modèle de données

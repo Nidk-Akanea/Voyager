@@ -9,4 +9,4 @@ plus modifié ; s'il devient caduc, un nouvel ADR le **remplace**.
 | ADR                                                            | Titre                                          | Statut   | Date       |
 | -------------------------------------------------------------- | ---------------------------------------------- | -------- | ---------- |
 | [0001](0001-consigner-les-decisions.md)                        | Consigner les décisions                        | Acceptée | 2026-10-24 |
-| [0002](0002-architecture-modulaire-par-contrats-et-plugins.md) | Architecture modulaire par contrats et plugins | Proposée | 2026-10-24 |
+| [0002](0002-architecture-modulaire-par-contrats-et-plugins.md) | Architecture modulaire par contrats et plugins | Acceptée | 2026-10-24 |

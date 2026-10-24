@@ -1,6 +1,6 @@
 # ADR-0002 — Architecture modulaire par contrats et plugins
 
-- **Statut** : Proposée
+- **Statut** : Acceptée
 - **Date** : 2026-10-24
 - **Remplace** : —
 
