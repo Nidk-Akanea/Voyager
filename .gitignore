@@ -451,6 +451,8 @@ out/
 *.sqlite
 *.sqlite3
 *.sqlite-*
+# Git ignores case on Windows: *.sqlite would also hide the SQLite persistence project.
+!src/dotnet/Voyager.Persistence.Sqlite/
 *.csv
 *.xls
 *.xlsx
