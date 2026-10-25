@@ -1,6 +1,6 @@
 # Organisation du code
 
-> Cible du squelette de solution, qui sera créé sur demande. Découle des ADR
+> En place depuis l'étape 1 du squelette (projets encore vides). Découle des ADR
 > [0003](../adr/0003-choix-de-la-stack.md), [0004](../adr/0004-stockage-des-donnees.md) et
 > [0005](../adr/0005-architecture-du-code-hexagonale-par-domaine.md).
 
@@ -11,11 +11,16 @@ Un seul dépôt (*monorepo*) pour tout : .NET, TypeScript, contrats et plugins.
 ```text
 Voyager/
 ├─ Voyager.slnx                 solution .NET (format .slnx)
-├─ global.json                  version du SDK .NET
+├─ global.json                  version du SDK .NET, lanceur de tests, version de MSTest.Sdk
+├─ nuget.config                 seule source de paquets : nuget.org
 ├─ Directory.Build.props        réglages communs à tous les projets .NET (rigueur, analyseurs)
 ├─ Directory.Packages.props     versions centralisées des paquets NuGet
 ├─ package.json                 racine de l'espace de travail pnpm (scripts communs)
-├─ pnpm-workspace.yaml          liste des paquets TypeScript
+├─ pnpm-workspace.yaml          liste des paquets TypeScript, délai minimal avant d'installer une version
+├─ tsconfig.base.json           réglages TypeScript communs (strict)
+├─ eslint.config.js             règles ESLint communes
+├─ .prettierrc.json             réglages Prettier
+├─ .nvmrc                       version de Node.js
 ├─ buf.yaml                     lint et contrôle de compatibilité des contrats .proto
 ├─ GitVersion.yml               calcul des numéros de version (ADR-0007)
 ├─ proto/                       contrats gRPC : la source de vérité
@@ -25,25 +30,27 @@ Voyager/
 │  └─ ts/                       paquets TypeScript
 ├─ plugins/                     plugins livrés avec Voyager (un dossier par plugin)
 ├─ tests/                       tests .NET (un projet de test par projet testé)
-├─ deploy/                      livraison du serveur du groupe (Docker Compose)
+├─ deploy/                      image Docker du serveur du groupe (GroupServer.Dockerfile)
 ├─ tools/                       scripts de développement
 └─ docs/                        documentation (vision, ADR, specs, conventions)
 ```
 
 ## Les projets .NET (`src/dotnet/`)
 
-| Projet                           | Rôle                                                                                     | Peut dépendre de                    |
-| -------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------- |
-| `Voyager.Core`                   | Le métier : domaines, cas d'usage, ports. Aucune dépendance technique                    | BCL .NET et NodaTime (ADR-0006)     |
-| `Voyager.Sdk`                    | Les points d'extension .NET que les plugins implémentent ; publié comme paquet versionné | `Voyager.Core`                      |
-| `Voyager.Contracts`              | Code C# généré depuis `proto/`                                                           | bibliothèques gRPC                  |
-| `Voyager.Persistence`            | Adaptateur EF Core commun : modèle de persistance, implémentation des ports de stockage  | `Voyager.Core`, EF Core             |
-| `Voyager.Persistence.Sqlite`     | Fournisseur et migrations SQLite (service local)                                         | `Voyager.Persistence`               |
-| `Voyager.Persistence.PostgreSql` | Fournisseur et migrations PostgreSQL + PostGIS (serveur)                                 | `Voyager.Persistence`               |
-| `Voyager.Sync`                   | Moteur de synchronisation entre service local et serveur                                 | `Voyager.Core`, `Voyager.Contracts` |
-| `Voyager.PluginHost`             | Découverte, chargement et cycle de vie des plugins                                       | `Voyager.Sdk`                       |
-| `Voyager.LocalService`           | Hôte ASP.NET Core du service local (gRPC-Web, SQLite)                                    | tous les adaptateurs                |
-| `Voyager.GroupServer`            | Hôte ASP.NET Core du serveur du groupe (gRPC, PostgreSQL)                                | tous les adaptateurs                |
+| Projet                           | Rôle                                                                                                                             | Peut dépendre de                              |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `Voyager.Core`                   | Le métier : domaines, cas d'usage, ports. Aucune dépendance technique                                                            | BCL .NET et NodaTime (ADR-0006)               |
+| `Voyager.Sdk`                    | Les points d'extension .NET que les plugins implémentent ; publié comme paquet versionné                                         | `Voyager.Core`                                |
+| `Voyager.Contracts`              | Code C# généré depuis `proto/`                                                                                                   | bibliothèques gRPC                            |
+| `Voyager.Persistence`            | Adaptateur EF Core commun : modèle de persistance, implémentation des ports de stockage                                          | `Voyager.Core`, EF Core                       |
+| `Voyager.Persistence.Sqlite`     | Fournisseur et migrations SQLite (service local)                                                                                 | `Voyager.Persistence`                         |
+| `Voyager.Persistence.PostgreSql` | Fournisseur et migrations PostgreSQL + PostGIS (serveur)                                                                         | `Voyager.Persistence`                         |
+| `Voyager.Sync`                   | Moteur de synchronisation entre service local et serveur                                                                         | `Voyager.Core`, `Voyager.Contracts`           |
+| `Voyager.PluginHost`             | Découverte, chargement et cycle de vie des plugins                                                                               | `Voyager.Sdk`                                 |
+| `Voyager.LocalService`           | Hôte ASP.NET Core du service local (gRPC-Web, SQLite)                                                                            | tous les adaptateurs                          |
+| `Voyager.GroupServer`            | Hôte ASP.NET Core du serveur du groupe (gRPC, PostgreSQL)                                                                        | tous les adaptateurs                          |
+| `Voyager.ServiceDefaults`        | Réglages techniques communs aux hôtes : télémétrie OpenTelemetry, points de santé, résilience HTTP, adresses d'écoute (ADR-0011) | paquets techniques uniquement                 |
+| `Voyager.AppHost`                | Orchestration Aspire, **en développement uniquement** : PostgreSQL + PostGIS, hôtes, tableau de bord (ADR-0011)                  | les deux hôtes ; aucun projet ne le référence |
 
 Règle d'or : **les flèches vont vers `Voyager.Core`**, jamais dans l'autre sens. Les hôtes
 (`LocalService`, `GroupServer`) sont les seuls à tout assembler.
@@ -75,7 +82,9 @@ Quotes/
    └─ CompareQuotes.cs
 ```
 
-Dépendances entre domaines, dans un seul sens (« A → B » : A utilise B) :
+Dépendances entre domaines, dans un seul sens (« A → B » : A utilise B). Les domaines sont rangés
+dans l'ordre `Shared`, `Catalog` / `Trips`, `Quotes`, `Bookings`, `Budget` : un domaine peut utiliser
+ceux qui le précèdent, jamais ceux qui le suivent. Les besoins prévus aujourd'hui :
 
 - `Catalog` → `Shared` (le catalogue est une donnée de référence : il ne connaît aucun voyage) ;
 - `Trips` → `Shared` ;
@@ -104,7 +113,7 @@ ui/src/
 │  ├─ quotes/     QuoteList.tsx, QuoteCard.tsx, useQuotes.ts…
 │  └─ budget/
 ├─ components/    composants réutilisables sans métier
-└─ i18n/          textes de l'interface (français d'abord)
+└─ i18n/          messages Fluent : fr/*.ftl, en/*.ftl (ADR-0008)
 ```
 
 ## Les plugins (`plugins/`)

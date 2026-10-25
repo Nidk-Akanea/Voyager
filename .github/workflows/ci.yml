@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'release/**', 'hotfix/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    name: .NET build, tests, format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # GitVersion.MsBuild needs the whole history to compute the version (ADR-0007).
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore Voyager.slnx
+      - run: dotnet build Voyager.slnx --configuration Release --no-restore
+      - run: dotnet test --solution Voyager.slnx --configuration Release --no-build
+      - run: dotnet format Voyager.slnx --verify-no-changes --no-restore
+
+  docker:
+    name: Group server image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --file deploy/GroupServer.Dockerfile --tag voyager-group-server:ci .
+
+  typescript:
+    name: TypeScript lint, types, tests, format, contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm format:check
+      - run: pnpm test
+      # buf.yaml declares the proto/ module only; each plugin adds its own module with its first contract.
+      - name: Lint and check compatibility of .proto contracts
+        run: |
+          if [ -z "$(find proto -name '*.proto' 2>/dev/null || true)" ]; then
+            echo "No .proto file yet: contract checks skipped."
+            exit 0
+          fi
+          pnpm proto:lint
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+            if git ls-tree -r --name-only "$base" -- proto | grep -q '\.proto$'; then
+              pnpm exec buf breaking --against ".git#ref=$base"
+            else
+              echo "The base branch has no contract yet: compatibility check skipped."
+            fi
+          fi

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Voyager.Core\Voyager.Core.csproj" />
+    <ProjectReference Include="..\Voyager.Sdk\Voyager.Sdk.csproj" />
+    <ProjectReference Include="..\Voyager.Contracts\Voyager.Contracts.csproj" />
+    <ProjectReference Include="..\Voyager.Persistence.Sqlite\Voyager.Persistence.Sqlite.csproj" />
+    <ProjectReference Include="..\Voyager.Sync\Voyager.Sync.csproj" />
+    <ProjectReference Include="..\Voyager.PluginHost\Voyager.PluginHost.csproj" />
+    <ProjectReference Include="..\Voyager.ServiceDefaults\Voyager.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

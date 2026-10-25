@@ -18,14 +18,17 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
 
 ## État actuel
 
-- **Aucun code applicatif pour l'instant.** Vision, backlog, ADR et conventions sont posés.
-- **Les décisions techniques sont prises** (ADR 0002 à 0007) : Electron + React/TypeScript pour
-  l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur de groupe
-  ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite (local), architecture
-  hexagonale rangée par domaine, Git Flow avec versions calculées par GitVersion.
-- Le squelette de solution se crée **sur demande** de l'utilisateur. À ce moment-là, mets à jour la
-  section [Commandes](#commandes), `.gitignore`, la CI (`.github/workflows/`) et le hook de formatage
-  du code.
+- **Squelette — étape 1 (fondations) en place** : solution .NET (10 projets vides, références dans
+  le bon sens), tests d'architecture, espace de travail pnpm (4 paquets vides), ESLint, Prettier, Buf,
+  CI. **Aucun code métier encore.** Étape 2 : une première tranche technique « À propos » de bout en
+  bout ; étape 3 : la preuve des plugins, après leur ADR.
+- **Les décisions techniques sont prises** (ADR 0002 à 0011) : Electron + React/TypeScript pour
+  l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
+  plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite
+  (local), architecture hexagonale rangée par domaine, Git Flow avec versions calculées par
+  GitVersion, français et anglais avec Fluent (Linguini côté .NET), installation et mises à jour avec
+  Velopack, développement orchestré par Aspire (`Voyager.AppHost`, `Voyager.ServiceDefaults`).
+- Les étapes suivantes du squelette se font **sur demande** de l'utilisateur.
 
 ## Langues
 
@@ -51,16 +54,23 @@ docs/
   settings.json           permissions et hooks partagés
   rules/                  règles chargées selon les fichiers touchés
   agents/                 agents de relecture et d'écriture de tests
-  skills/                 procédures du projet (/new-adr, /new-spec, /backlog, /ship, /after-merge,
-                          /release, /hotfix, /update-instructions)
-  hooks/                  scripts des hooks
-.github/workflows/        CI (lint de la doc, calcul de version)
+  skills/                 procédures du projet (/new-adr, /new-spec, /backlog, /feature,
+                          /new-use-case, /ship, /after-merge, /release, /hotfix,
+                          /update-instructions)
+  hooks/                  scripts des hooks (lint Markdown, formatage du code)
+.github/workflows/        CI (build et tests, lint de la doc, calcul de version)
+proto/                    contrats gRPC
+src/dotnet/               projets .NET
+src/ts/                   paquets TypeScript
+tests/                    tests .NET
+deploy/                   image Docker du serveur du groupe (ce qu'on livre à l'hébergeur)
+Voyager.slnx              solution .NET ; réglages : global.json, Directory.*.props, nuget.config
+package.json              espace de travail pnpm ; réglages : pnpm-workspace.yaml, eslint, prettier
 GitVersion.yml            calcul des numéros de version (ADR-0007)
 private/                  données réelles de l'utilisateur, ignorées par git
 ```
 
-Le code suivra [l'organisation du code](docs/conventions/organisation-du-code.md) : `proto/`,
-`src/dotnet/`, `src/ts/`, `plugins/`, `tests/`, `deploy/`.
+Détail et règles de rangement : [organisation du code](docs/conventions/organisation-du-code.md).
 
 ## Façon de travailler
 
@@ -91,6 +101,8 @@ Le code suivra [l'organisation du code](docs/conventions/organisation-du-code.md
 | `/after-merge`                | Après la fusion d'une PR par l'utilisateur : remettre la branche cible à jour, nettoyer                                                                      |
 | `/backlog`                    | Ajouter une idée, une tâche d'épic ou une question ouverte                                                                                                   |
 | `/release`, `/hotfix`         | À la demande de l'utilisateur : préparer et publier une version, corriger en urgence une version publiée                                                     |
+| `/feature`                    | Implémenter une spec validée de bout en bout, jusqu'à `/ship`                                                                                                |
+| `/new-use-case`               | Ajouter un cas d'usage dans un domaine du cœur, avec ses tests                                                                                               |
 | `/new-adr`, `/new-spec`       | Rédiger une décision ou une spec                                                                                                                             |
 | `/update-instructions`        | À la demande de l'utilisateur, après une étape importante : relire et mettre à jour ces instructions, créer des `CLAUDE.md` locaux si utile                  |
 
@@ -115,11 +127,18 @@ ou la branche, pas tes conclusions.
 
 ## Commandes
 
-| Action                           | Commande                                                |
-| -------------------------------- | ------------------------------------------------------- |
-| Vérifier le Markdown             | `npx markdownlint-cli2`                                 |
-| Calculer la version (PowerShell) | `dnx GitVersion.Tool --yes -- /showvariable FullSemVer` |
-| Build / tests / lancer           | à définir avec le squelette                             |
+| Action                                                                                                          | Commande                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Compiler                                                                                                        | `dotnet build Voyager.slnx`                                                                                                    |
+| Tester (.NET)                                                                                                   | `dotnet test --solution Voyager.slnx`                                                                                          |
+| Formater (.NET)                                                                                                 | `dotnet format Voyager.slnx` (vérifier : `--verify-no-changes`)                                                                |
+| Installer les dépendances TypeScript                                                                            | `pnpm install`                                                                                                                 |
+| Lint, types, tests, formatage (TypeScript)                                                                      | `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`                                                                |
+| Contrats `.proto`                                                                                               | `pnpm proto:lint`, `pnpm proto:breaking`                                                                                       |
+| Lancer tout en développement (Aspire : PostgreSQL + PostGIS, serveur du groupe, service local, tableau de bord) | F5 sur `Voyager.AppHost`, ou `dotnet run --project src/dotnet/Voyager.AppHost` ; tableau de bord sur `https://localhost:17180` |
+| Construire l'image du serveur du groupe                                                                         | `docker build -f deploy/GroupServer.Dockerfile .`                                                                              |
+| Vérifier le Markdown                                                                                            | `npx markdownlint-cli2`                                                                                                        |
+| Calculer la version (PowerShell)                                                                                | `dnx GitVersion.Tool --yes -- /showvariable FullSemVer`                                                                        |
 
 ## Principes d'architecture
 

@@ -1,0 +1,24 @@
+# Keep the build context small and free of personal or generated files.
+.git/
+.github/
+.claude/
+private/
+docs/
+node_modules/
+**/bin/
+**/obj/
+**/node_modules/
+src/ts/
+tests/
+*.md
+# Local configuration, secrets and data must never end up in the image.
+**/.env*
+**/*.env
+**/appsettings.Development.json
+**/appsettings.*.local.json
+**/*.pfx
+**/*.pem
+**/*.key
+**/*.db
+**/*.sqlite*
+!src/dotnet/Voyager.Persistence.Sqlite/

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Voyager.GroupServer": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

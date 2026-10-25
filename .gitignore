@@ -436,3 +436,26 @@ private/
 # Not build output: the /release skill and the release notes (ADR-0007)
 !.claude/skills/release/
 !docs/releases/
+
+# TypeScript workspace build output
+dist/
+out/
+*.tsbuildinfo
+**/src/gen/
+
+# Personal data and secrets that must never reach this public repository
+.env*
+!.env.example
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+# Git ignores case on Windows: *.sqlite would also hide the SQLite persistence project.
+!src/dotnet/Voyager.Persistence.Sqlite/
+*.csv
+*.xls
+*.xlsx
+*.ods
+*.pem
+*.key

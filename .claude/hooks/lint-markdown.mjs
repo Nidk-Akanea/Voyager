@@ -16,16 +16,22 @@ if (!filePath || !filePath.toLowerCase().endsWith('.md')) {
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const relativePath = path.relative(projectDir, filePath).split(path.sep).join('/');
-if (relativePath.startsWith('..')) {
+// Files outside the repository, including on another drive, are not ours to change.
+if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
   process.exit(0);
 }
 
 // ":" marks a literal path, so folder names such as "[Dev Perso]" are not read as globs.
 // "--no-globs" lints only this file instead of the whole repository.
 const result = spawnSync(
-  'npx',
-  ['--yes', 'markdownlint-cli2', '--no-globs', '--fix', `":${relativePath}"`],
-  { cwd: projectDir, encoding: 'utf8', shell: true },
+  'pnpm',
+  ['exec', 'markdownlint-cli2', '--no-globs', '--fix', `":${relativePath}"`],
+  {
+    cwd: projectDir,
+    encoding: 'utf8',
+    shell: true,
+    env: { ...process.env, COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' },
+  },
 );
 
 if (result.status === 0) {
@@ -33,6 +39,6 @@ if (result.status === 0) {
 }
 
 process.stderr.write(
-  `markdownlint found issues it could not fix in ${relativePath}:\n${result.stdout}${result.stderr}`,
+  `markdownlint found issues it could not fix in ${relativePath}:\n${result.stdout ?? ''}${result.stderr ?? ''}${result.error?.message ?? ''}`,
 );
 process.exit(2);

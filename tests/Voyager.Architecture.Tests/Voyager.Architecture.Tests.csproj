@@ -1,0 +1,19 @@
+<Project Sdk="MSTest.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\dotnet\Voyager.Core\Voyager.Core.csproj" />
+    <ProjectReference Include="..\..\src\dotnet\Voyager.Sdk\Voyager.Sdk.csproj" />
+    <ProjectReference Include="..\..\src\dotnet\Voyager.Contracts\Voyager.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\dotnet\Voyager.Persistence\Voyager.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\dotnet\Voyager.Persistence.Sqlite\Voyager.Persistence.Sqlite.csproj" />
+    <ProjectReference Include="..\..\src\dotnet\Voyager.Persistence.PostgreSql\Voyager.Persistence.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\dotnet\Voyager.Sync\Voyager.Sync.csproj" />
+    <ProjectReference Include="..\..\src\dotnet\Voyager.PluginHost\Voyager.PluginHost.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+</Project>

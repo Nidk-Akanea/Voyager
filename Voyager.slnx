@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/dotnet/Voyager.AppHost/Voyager.AppHost.csproj" />
+    <Project Path="src/dotnet/Voyager.Contracts/Voyager.Contracts.csproj" />
+    <Project Path="src/dotnet/Voyager.Core/Voyager.Core.csproj" />
+    <Project Path="src/dotnet/Voyager.GroupServer/Voyager.GroupServer.csproj" />
+    <Project Path="src/dotnet/Voyager.LocalService/Voyager.LocalService.csproj" />
+    <Project Path="src/dotnet/Voyager.Persistence.PostgreSql/Voyager.Persistence.PostgreSql.csproj" />
+    <Project Path="src/dotnet/Voyager.Persistence.Sqlite/Voyager.Persistence.Sqlite.csproj" />
+    <Project Path="src/dotnet/Voyager.Persistence/Voyager.Persistence.csproj" />
+    <Project Path="src/dotnet/Voyager.PluginHost/Voyager.PluginHost.csproj" />
+    <Project Path="src/dotnet/Voyager.Sdk/Voyager.Sdk.csproj" />
+    <Project Path="src/dotnet/Voyager.ServiceDefaults/Voyager.ServiceDefaults.csproj" />
+    <Project Path="src/dotnet/Voyager.Sync/Voyager.Sync.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Voyager.Architecture.Tests/Voyager.Architecture.Tests.csproj" />
+  </Folder>
+</Solution>

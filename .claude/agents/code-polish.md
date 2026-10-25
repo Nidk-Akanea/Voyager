@@ -52,7 +52,7 @@ ADR. Pour chacun : le problème, le refactoring proposé, le gain attendu, le ri
   d'origine conservée (`innerException`) quand on en relance une.
 - **Erreurs métier** (`Result`, `google.rpc.ErrorInfo`) : codes et `reason` stables et explicites ;
   ne change pas une `reason` existante, car l'interface et les plugins s'en servent — propose-le.
-- **Libellés de l'interface** : textes en français dans `i18n/fr.json`, cohérents avec le glossaire,
+- **Libellés de l'interface** : messages Fluent (`.ftl`) en français **et** en anglais, cohérents avec le glossaire,
   clairs pour un voyageur et non pour un développeur ; aucun texte en dur dans un composant.
 - Si un test vérifie un message que tu améliores, mets le test à jour dans le même passage.
 
