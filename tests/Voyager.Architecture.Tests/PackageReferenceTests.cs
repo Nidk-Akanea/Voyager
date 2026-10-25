@@ -26,6 +26,9 @@ public sealed class PackageReferenceTests
             "OpenTelemetry.Instrumentation.AspNetCore",
             "OpenTelemetry.Instrumentation.Http",
             "OpenTelemetry.Instrumentation.Runtime",
+            "Serilog",
+            "Serilog.Extensions.Logging",
+            "Serilog.Sinks.Seq",
         ],
     };
 

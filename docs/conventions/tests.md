@@ -2,17 +2,17 @@
 
 ## Outils
 
-| Partie          | Outils                                                                                                      |
-| --------------- | ----------------------------------------------------------------------------------------------------------- |
-| .NET            | **MSTest** (via `MSTest.Sdk`), lancé par Microsoft.Testing.Platform : `dotnet test --solution Voyager.slnx` |
-| Assertions      | **AwesomeAssertions** (`result.Should().Be(…)`)                                                             |
-| Simulations     | NSubstitute                                                                                                 |
-| Heure           | `FakeClock` (`NodaTime.Testing`)                                                                            |
-| Base de données | SQLite en mémoire ; PostgreSQL réel via Testcontainers                                                      |
-| gRPC            | `WebApplicationFactory` (hôte ASP.NET Core en mémoire)                                                      |
-| Architecture    | NetArchTest : règles de dépendance des ADR 0002 et 0005                                                     |
-| TypeScript      | Vitest + Testing Library                                                                                    |
-| Bout en bout    | Playwright pour Electron (plus tard)                                                                        |
+| Partie          | Outils                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------ |
+| .NET            | **MSTest** (via `MSTest.Sdk`), lancé par Microsoft.Testing.Platform : `dotnet test --solution Voyager.slnx`  |
+| Assertions      | **AwesomeAssertions** (`result.Should().Be(…)`)                                                              |
+| Simulations     | NSubstitute                                                                                                  |
+| Heure           | `FakeClock` (`NodaTime.Testing`)                                                                             |
+| Base de données | SQLite en mémoire (un fichier temporaire quand le test porte sur le fichier) ; PostgreSQL via Testcontainers |
+| gRPC            | `WebApplicationFactory` (hôte ASP.NET Core en mémoire)                                                       |
+| Architecture    | NetArchTest : règles de dépendance des ADR 0002 et 0005                                                      |
+| TypeScript      | Vitest + Testing Library                                                                                     |
+| Bout en bout    | Playwright pour Electron (plus tard)                                                                         |
 
 AwesomeAssertions est le fork maintenu et gratuit de FluentAssertions 7, avec la même syntaxe ;
 FluentAssertions 8 n'est gratuite qu'en usage non commercial ([ADR-0006](../adr/0006-dependances-principales.md)).

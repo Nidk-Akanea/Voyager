@@ -1,3 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- C# code generated at build time from proto/ (docs/conventions/grpc.md): never committed. -->
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Core.Api" />
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="..\..\..\proto\**\*.proto" ProtoRoot="..\..\..\proto" GrpcServices="Both" />
+  </ItemGroup>
+
 </Project>

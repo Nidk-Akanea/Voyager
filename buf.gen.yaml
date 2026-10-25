@@ -1,0 +1,13 @@
+# TypeScript code generated from proto/ (docs/conventions/grpc.md): never committed.
+# Run through `pnpm proto:generate`, which puts the local protoc-gen-es plugin on the PATH.
+version: v2
+# Removes the files of contracts that no longer exist before generating.
+clean: true
+inputs:
+  - directory: proto
+plugins:
+  - local: protoc-gen-es
+    out: src/ts/grpc-client/src/gen
+    opt:
+      - target=ts
+      - import_extension=js

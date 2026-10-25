@@ -18,16 +18,18 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
 
 ## État actuel
 
-- **Squelette — étape 1 (fondations) en place** : solution .NET (10 projets vides, références dans
-  le bon sens), tests d'architecture, espace de travail pnpm (4 paquets vides), ESLint, Prettier, Buf,
-  CI. **Aucun code métier encore.** Étape 2 : une première tranche technique « À propos » de bout en
-  bout ; étape 3 : la preuve des plugins, après leur ADR.
-- **Les décisions techniques sont prises** (ADR 0002 à 0011) : Electron + React/TypeScript pour
+- **Squelette — étapes 1 et 2 en place** : fondations (solution .NET, tests d'architecture, espace
+  pnpm, ESLint, Prettier, Buf, CI, Aspire) et une tranche technique « À propos » de bout en bout :
+  Electron → interface React (Fluent UI, français et anglais) → gRPC-Web → service local → SQLite.
+  **Aucun code métier encore.** Reste à faire : le paquet installable (Velopack, `tools/release.ps1`),
+  puis l'étape 3, la preuve des plugins, après leur ADR.
+- **Les décisions techniques sont prises** (ADR 0002 à 0012) : Electron + React/TypeScript pour
   l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
   plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite
   (local), architecture hexagonale rangée par domaine, Git Flow avec versions calculées par
   GitVersion, français et anglais avec Fluent (Linguini côté .NET), installation et mises à jour avec
-  Velopack, développement orchestré par Aspire (`Voyager.AppHost`, `Voyager.ServiceDefaults`).
+  Velopack, développement orchestré par Aspire (`Voyager.AppHost`, `Voyager.ServiceDefaults`),
+  journaux de développement écrits dans Seq par Serilog.
 - Les étapes suivantes du squelette se font **sur demande** de l'utilisateur.
 
 ## Langues
@@ -127,18 +129,19 @@ ou la branche, pas tes conclusions.
 
 ## Commandes
 
-| Action                                                                                                          | Commande                                                                                                                       |
-| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Compiler                                                                                                        | `dotnet build Voyager.slnx`                                                                                                    |
-| Tester (.NET)                                                                                                   | `dotnet test --solution Voyager.slnx`                                                                                          |
-| Formater (.NET)                                                                                                 | `dotnet format Voyager.slnx` (vérifier : `--verify-no-changes`)                                                                |
-| Installer les dépendances TypeScript                                                                            | `pnpm install`                                                                                                                 |
-| Lint, types, tests, formatage (TypeScript)                                                                      | `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`                                                                |
-| Contrats `.proto`                                                                                               | `pnpm proto:lint`, `pnpm proto:breaking`                                                                                       |
-| Lancer tout en développement (Aspire : PostgreSQL + PostGIS, serveur du groupe, service local, tableau de bord) | F5 sur `Voyager.AppHost`, ou `dotnet run --project src/dotnet/Voyager.AppHost` ; tableau de bord sur `https://localhost:17180` |
-| Construire l'image du serveur du groupe                                                                         | `docker build -f deploy/GroupServer.Dockerfile .`                                                                              |
-| Vérifier le Markdown                                                                                            | `npx markdownlint-cli2`                                                                                                        |
-| Calculer la version (PowerShell)                                                                                | `dnx GitVersion.Tool --yes -- /showvariable FullSemVer`                                                                        |
+| Action                                                                                                                                            | Commande                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Compiler                                                                                                                                          | `dotnet build Voyager.slnx`                                                                                                                                 |
+| Tester (.NET)                                                                                                                                     | `dotnet test --solution Voyager.slnx`                                                                                                                       |
+| Formater (.NET)                                                                                                                                   | `dotnet format Voyager.slnx` (vérifier : `--verify-no-changes`)                                                                                             |
+| Installer les dépendances TypeScript (génère aussi le client gRPC)                                                                                | `pnpm install`                                                                                                                                              |
+| Lint, types, tests, formatage (TypeScript)                                                                                                        | `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`                                                                                             |
+| Construire l'interface et l'application de bureau                                                                                                 | `pnpm build`                                                                                                                                                |
+| Contrats `.proto` (et régénérer le client TypeScript)                                                                                             | `pnpm proto:lint`, `pnpm proto:breaking`, `pnpm proto:generate`                                                                                             |
+| Lancer tout en développement (Aspire : PostgreSQL + PostGIS, serveur du groupe, service local, interface Vite, fenêtre Electron, tableau de bord) | `pnpm install` une fois, puis F5 sur `Voyager.AppHost` ou `dotnet run --project src/dotnet/Voyager.AppHost` ; tableau de bord sur `https://localhost:17180` |
+| Construire l'image du serveur du groupe                                                                                                           | `docker build -f deploy/GroupServer.Dockerfile .`                                                                                                           |
+| Vérifier le Markdown                                                                                                                              | `npx markdownlint-cli2`                                                                                                                                     |
+| Calculer la version (PowerShell)                                                                                                                  | `dnx GitVersion.Tool --yes -- /showvariable FullSemVer`                                                                                                     |
 
 ## Principes d'architecture
 

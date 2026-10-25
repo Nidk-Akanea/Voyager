@@ -3,7 +3,8 @@
 Préparer un voyage de groupe avec un budget juste : Voyager réunit les envies, les devis jour par
 jour, les réservations, la répartition des coûts entre voyageurs et, plus tard, le carnet de voyage.
 
-> Projet en construction : les fondations techniques sont posées, pas encore de fonctionnalité.
+> Projet en construction : les fondations techniques sont posées et un premier écran « À propos »
+> traverse toute l'application ; pas encore de fonctionnalité.
 
 ## Documentation
 
@@ -38,7 +39,8 @@ pnpm lint
 
 Lancer tout ce qu'il faut pour développer avec [Aspire](docs/adr/0011-aspire-pour-le-developpement.md) :
 PostgreSQL + PostGIS (Docker doit tourner), le serveur du groupe (`http://localhost:5180`), le
-service local et le tableau de bord. Dans Visual Studio : `Voyager.AppHost` comme projet de
+service local, l'interface servie par Vite, la fenêtre Electron qui l'affiche et le tableau de bord.
+Lancez d'abord `pnpm install` une fois. Dans Visual Studio : `Voyager.AppHost` comme projet de
 démarrage, puis F5. En ligne de commande :
 
 ```bash
@@ -57,6 +59,21 @@ La base garde ses données d'un
 lancement à l'autre (volume Docker `voyager-postgres-data`) ; son mot de passe est conservé dans vos
 secrets utilisateur. Si la base refuse un jour son mot de passe (« password authentication failed »),
 supprimez ce volume et le conteneur `postgres-…` dans Docker Desktop, puis relancez.
+
+Si vous avez un serveur [Seq](https://datalust.co/seq), le service local et le serveur du groupe y
+écrivent aussi leurs journaux en développement
+([ADR-0012](docs/adr/0012-journaux-de-developpement-dans-seq-avec-serilog.md)). Activez-le dans les
+secrets utilisateur de `Voyager.AppHost`, hors du dépôt :
+
+```bash
+dotnet user-secrets set "Seq:ServerUrl" "http://localhost:5341" --project src/dotnet/Voyager.AppHost
+```
+
+Si votre Seq demande une clé d'API, ajoutez-la de la même façon sous `Seq:ApiKey`. Dans Seq, filtrez
+avec `Application = 'Voyager.LocalService'` ou `Application = 'Voyager.GroupServer'`. Utilisez un Seq
+installé sur votre poste, ou joignable en HTTPS ; sous Docker, publiez son port sur `127.0.0.1`
+seulement (`-p 127.0.0.1:5341:80`). Seq garde les journaux sur disque. L'application installée n'écrit
+jamais dans Seq.
 
 Les autres commandes (formatage, contrats, version) sont listées dans [CLAUDE.md](CLAUDE.md#commandes).
 

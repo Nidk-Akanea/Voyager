@@ -48,6 +48,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm format:check
       - run: pnpm test
+      # Builds the user interface and the Electron main process and preload script.
+      - run: pnpm build
       # buf.yaml declares the proto/ module only; each plugin adds its own module with its first contract.
       - name: Lint and check compatibility of .proto contracts
         run: |

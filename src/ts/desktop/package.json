@@ -4,10 +4,17 @@
   "private": true,
   "description": "Electron application: main process, preload script, local service lifecycle, plugin management.",
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
   "scripts": {
+    "build": "tsc --noEmit -p . && vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts",
+    "start": "electron .",
+    "dev": "pnpm run build && electron .",
     "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "electron": "^44.7.0"
+  },
+  "main": "dist/main.js",
+  "dependencies": {
+    "@voyager/grpc-client": "workspace:*"
   }
 }

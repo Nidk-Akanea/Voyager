@@ -7,6 +7,8 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG VERSION=0.0.0-dev
 WORKDIR /src
 COPY global.json nuget.config Directory.Build.props Directory.Packages.props .editorconfig ./
+# Voyager.Contracts generates its C# code from the .proto contracts at build time.
+COPY proto/ proto/
 COPY src/dotnet/ src/dotnet/
 RUN dotnet publish src/dotnet/Voyager.GroupServer/Voyager.GroupServer.csproj \
     --configuration Release \

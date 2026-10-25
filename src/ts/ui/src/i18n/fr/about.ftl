@@ -1,0 +1,12 @@
+about-title = À propos de Voyager
+about-version = Version
+about-runtime = Moteur d'exécution
+about-environment = Mode
+about-started-at = Démarré le
+about-database = Base de données locale
+about-database-available = Disponible
+about-database-unavailable = Indisponible
+about-database-unknown = Inconnue
+about-loading = Connexion au service local…
+about-error = Le service local ne répond pas.
+about-retry = Réessayer

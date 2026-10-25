@@ -93,7 +93,8 @@ Les noms métier viennent du [glossaire](../glossaire.md) : on écrit `Quote`, p
 
 ## Journalisation
 
-- Le code utilise `ILogger<T>` ; seuls les hôtes connaissent Serilog, qui écrit les journaux.
+- Le code utilise `ILogger<T>` ; seuls les hôtes et `Voyager.ServiceDefaults`, qu'ils sont seuls à
+  référencer, connaissent Serilog, qui écrit les journaux (ADR-0006, ADR-0012).
 - `ILogger<T>` avec des messages structurés : `logger.LogInformation("Quote {QuoteId} accepted", id)`,
   jamais d'interpolation de chaîne dans le message.
 - **Aucune donnée personnelle dans les journaux** : pas de noms, d'adresses, de références de
