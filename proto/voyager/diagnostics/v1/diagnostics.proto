@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package voyager.diagnostics.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Voyager.Contracts.Diagnostics.V1";
+
+// Technical information about a running Voyager service, shown on the "About" screen.
+service DiagnosticsService {
+  // Returns the version of the service, its environment and the health of its database.
+  rpc GetServiceInfo(GetServiceInfoRequest) returns (GetServiceInfoResponse);
+}
+
+// Request of DiagnosticsService.GetServiceInfo. Intentionally empty.
+message GetServiceInfoRequest {}
+
+// Response of DiagnosticsService.GetServiceInfo.
+message GetServiceInfoResponse {
+  // Version of the service, computed by GitVersion from the Git history (ADR-0007).
+  string version = 1;
+  // Description of the .NET runtime the service runs on, for example ".NET 10.0.1".
+  string runtime = 2;
+  // Hosting environment of the service: "Development" or "Production".
+  string environment = 3;
+  // When the service started.
+  google.protobuf.Timestamp started_at = 4;
+  // Whether the database of the service can be reached.
+  DatabaseStatus database_status = 5;
+}
+
+// Health of a database.
+enum DatabaseStatus {
+  // The status is not known.
+  DATABASE_STATUS_UNSPECIFIED = 0;
+  // The database answers.
+  DATABASE_STATUS_AVAILABLE = 1;
+  // The database cannot be reached.
+  DATABASE_STATUS_UNAVAILABLE = 2;
+}

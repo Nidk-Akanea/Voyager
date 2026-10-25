@@ -47,7 +47,7 @@ AutoMapper, FluentValidation, Moq. Correspondances écrites à la main dans les 
 
 ## Journaux
 
-`ILogger<T>`, messages structurés, **aucune donnée personnelle**. Seuls les hôtes connaissent Serilog.
+`ILogger<T>`, messages structurés, **aucune donnée personnelle**. Seuls les hôtes et `Voyager.ServiceDefaults` connaissent Serilog.
 
 ## Tests
 

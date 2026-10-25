@@ -10,4 +10,14 @@
     <ProjectReference Include="..\Voyager.ServiceDefaults\Voyager.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.AspNetCore.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The integration tests start this host in memory (WebApplicationFactory<Program>). -->
+    <InternalsVisibleTo Include="Voyager.LocalService.Tests" />
+  </ItemGroup>
+
 </Project>

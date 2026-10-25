@@ -17,7 +17,31 @@ builder.AddProject<Projects.Voyager_GroupServer>("group-server")
     .WithReference(database)
     .WaitFor(database);
 
-builder.AddProject<Projects.Voyager_LocalService>("local-service")
-    .WithHttpEndpoint();
+// Shared secret between the desktop app and the local service, generated anew on every run.
+var localToken = builder.AddParameter(
+    "local-token",
+    new GenerateParameterDefault { MinLength = 43, Special = false },
+    secret: true,
+    persist: false);
+
+// The TypeScript packages must be installed beforehand (pnpm install at the repository root).
+var userInterface = builder.AddViteApp("ui", "../../ts/ui")
+    .WithPnpm(install: false);
+
+var localService = builder.AddProject<Projects.Voyager_LocalService>("local-service")
+    .WithHttpEndpoint()
+    .WithEnvironment("Voyager__LocalToken", localToken)
+    // The user interface served by Vite calls the local service from its own origin.
+    .WithEnvironment("Voyager__AllowedOrigins__0", userInterface.GetEndpoint("http"));
+
+// The Electron window shows the Vite user interface and talks to the local service started above,
+// instead of starting its own.
+builder.AddJavaScriptApp("desktop", "../../ts/desktop", "dev")
+    .WithPnpm(install: false)
+    .WithEnvironment("VOYAGER_UI_URL", userInterface.GetEndpoint("http"))
+    .WithEnvironment("VOYAGER_LOCAL_SERVICE_URL", localService.GetEndpoint("http"))
+    .WithEnvironment("VOYAGER_LOCAL_TOKEN", localToken)
+    .WaitFor(userInterface)
+    .WaitFor(localService);
 
 await builder.Build().RunAsync();

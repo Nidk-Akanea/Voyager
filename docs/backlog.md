@@ -42,12 +42,19 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   `/after-merge`, `/backlog`, hook de lint Markdown
 - [x] ADR : Git Flow et versions GitVersion ([ADR-0007](adr/0007-git-flow-et-versions-gitversion.md), acceptée)
 - [x] ADR : globalisation français / anglais avec Fluent et Linguini ([ADR-0008](adr/0008-globalisation-fluent-et-linguini.md), acceptée)
-- [x] ADR : installation et mises à jour avec Velopack ([ADR-0009](adr/0009-installation-et-mises-a-jour-velopack.md), acceptée) ; script `tools/release.ps1` avec l'étape 2 du squelette
+- [x] ADR : installation et mises à jour avec Velopack ([ADR-0009](adr/0009-installation-et-mises-a-jour-velopack.md), acceptée) ; script `tools/release.ps1` avec le paquet installable
 - [x] Squelette, étape 1 — fondations : solution .NET, tests d'architecture, espace pnpm, ESLint,
   Prettier, Buf, CI, version GitVersion dans les assemblies
-- [ ] Squelette, étape 2 — tranche technique « À propos » de bout en bout (Electron → React →
-  gRPC-Web → service local → SQLite), serveur du groupe + PostgreSQL (Docker), version dans les
-  `package.json`
+- [x] Squelette, étape 2 — tranche technique « À propos » de bout en bout (Electron → React →
+  gRPC-Web → service local → SQLite), lancée par Aspire avec le serveur du groupe et PostgreSQL
+- [ ] Paquet installable (sorti de l'étape 2 du squelette, décision du 2026-10-25) : service local
+  publié avec l'application, Velopack, script
+  `tools/release.ps1`, version GitVersion dans les `package.json` (ADR-0009) ; journaux en fichiers
+  sur le poste (electron-log, Serilog, ADR-0006) ; *fuses* Electron verrouillés (`RunAsNode`,
+  `EnableNodeOptionsEnvironmentVariable`, `EnableNodeCliInspectArguments` désactivés,
+  `OnlyLoadAppFromAsar` activé)
+- [ ] Surveillance du service local : le relancer s'il s'arrête pendant que l'application tourne,
+  et proposer « Réessayer » quand il n'a pas pu démarrer
 - [ ] Squelette, étape 3 — preuve des plugins, après l'ADR du mécanisme de plugins ; calcul de version
   par composant (SDK, plugins)
 - [x] Hook de formatage du code (`dotnet format`, Prettier), skills `/feature` et `/new-use-case`

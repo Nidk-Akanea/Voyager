@@ -6,7 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.UseDefaultUrlsWhenNotConfigured("http://localhost:5180");
 
-var app = builder.Build();
+// Disposed even when startup fails, so that the last logs still reach their destination.
+await using var app = builder.Build();
 
 app.MapDefaultEndpoints();
 

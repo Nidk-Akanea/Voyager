@@ -1,5 +1,6 @@
 // ESLint rules shared by every TypeScript package (docs/conventions/typescript.md).
 import eslint from '@eslint/js';
+import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -45,6 +46,10 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    files: ['**/*.tsx'],
+    extends: [reactHooks.configs.flat['recommended-latest']],
   },
   {
     files: ['**/*.{js,mjs,cjs}'],

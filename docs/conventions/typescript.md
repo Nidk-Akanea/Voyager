@@ -61,7 +61,8 @@ Le nommage est vérifié par la règle ESLint `@typescript-eslint/naming-convent
 - L'interface est en **français d'abord**, mais **aucun texte en dur** dans les composants : tout
   passe par des messages Fluent ([ADR-0008](../adr/0008-globalisation-fluent-et-linguini.md)) :
   `@fluent/react`, fichiers `src/i18n/<langue>/<zone>.ftl`, en **français et en anglais**.
-- Les clés sont en anglais et décrivent le sens : `quotes.compare.title`.
+- Les identifiants de message sont en anglais, en kebab-case, préfixés par la zone, et décrivent le
+  sens : `quotes-compare-title`.
 
 ## Electron
 
@@ -75,4 +76,4 @@ Le nommage est vérifié par la règle ESLint `@typescript-eslint/naming-convent
 - Un plugin importe **uniquement** `@voyager/plugin-sdk` (et React, fourni par l'hôte).
 - Il déclare ce qu'il fournit auprès du registre ; il ne modifie jamais l'interface de l'hôte
   autrement.
-- Ses textes passent par sa propre clé de traduction (`plugins.lodging.…`).
+- Ses textes passent par ses propres messages, préfixés par son identifiant (`lodging-…`).

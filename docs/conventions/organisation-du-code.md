@@ -1,6 +1,7 @@
 # Organisation du code
 
-> En place depuis l'étape 1 du squelette (projets encore vides). Découle des ADR
+> En place depuis l'étape 1 du squelette ; l'étape 2 a rempli le service local, l'interface et
+> l'application de bureau pour l'écran « À propos ». Découle des ADR
 > [0003](../adr/0003-choix-de-la-stack.md), [0004](../adr/0004-stockage-des-donnees.md) et
 > [0005](../adr/0005-architecture-du-code-hexagonale-par-domaine.md).
 
@@ -37,20 +38,20 @@ Voyager/
 
 ## Les projets .NET (`src/dotnet/`)
 
-| Projet                           | Rôle                                                                                                                             | Peut dépendre de                              |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| `Voyager.Core`                   | Le métier : domaines, cas d'usage, ports. Aucune dépendance technique                                                            | BCL .NET et NodaTime (ADR-0006)               |
-| `Voyager.Sdk`                    | Les points d'extension .NET que les plugins implémentent ; publié comme paquet versionné                                         | `Voyager.Core`                                |
-| `Voyager.Contracts`              | Code C# généré depuis `proto/`                                                                                                   | bibliothèques gRPC                            |
-| `Voyager.Persistence`            | Adaptateur EF Core commun : modèle de persistance, implémentation des ports de stockage                                          | `Voyager.Core`, EF Core                       |
-| `Voyager.Persistence.Sqlite`     | Fournisseur et migrations SQLite (service local)                                                                                 | `Voyager.Persistence`                         |
-| `Voyager.Persistence.PostgreSql` | Fournisseur et migrations PostgreSQL + PostGIS (serveur)                                                                         | `Voyager.Persistence`                         |
-| `Voyager.Sync`                   | Moteur de synchronisation entre service local et serveur                                                                         | `Voyager.Core`, `Voyager.Contracts`           |
-| `Voyager.PluginHost`             | Découverte, chargement et cycle de vie des plugins                                                                               | `Voyager.Sdk`                                 |
-| `Voyager.LocalService`           | Hôte ASP.NET Core du service local (gRPC-Web, SQLite)                                                                            | tous les adaptateurs                          |
-| `Voyager.GroupServer`            | Hôte ASP.NET Core du serveur du groupe (gRPC, PostgreSQL)                                                                        | tous les adaptateurs                          |
-| `Voyager.ServiceDefaults`        | Réglages techniques communs aux hôtes : télémétrie OpenTelemetry, points de santé, résilience HTTP, adresses d'écoute (ADR-0011) | paquets techniques uniquement                 |
-| `Voyager.AppHost`                | Orchestration Aspire, **en développement uniquement** : PostgreSQL + PostGIS, hôtes, tableau de bord (ADR-0011)                  | les deux hôtes ; aucun projet ne le référence |
+| Projet                           | Rôle                                                                                                                                                                           | Peut dépendre de                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| `Voyager.Core`                   | Le métier : domaines, cas d'usage, ports. Aucune dépendance technique                                                                                                          | BCL .NET et NodaTime (ADR-0006)               |
+| `Voyager.Sdk`                    | Les points d'extension .NET que les plugins implémentent ; publié comme paquet versionné                                                                                       | `Voyager.Core`                                |
+| `Voyager.Contracts`              | Code C# généré depuis `proto/`                                                                                                                                                 | bibliothèques gRPC                            |
+| `Voyager.Persistence`            | Adaptateur EF Core commun : modèle de persistance, implémentation des ports de stockage                                                                                        | `Voyager.Core`, EF Core                       |
+| `Voyager.Persistence.Sqlite`     | Fournisseur et migrations SQLite (service local)                                                                                                                               | `Voyager.Persistence`                         |
+| `Voyager.Persistence.PostgreSql` | Fournisseur et migrations PostgreSQL + PostGIS (serveur)                                                                                                                       | `Voyager.Persistence`                         |
+| `Voyager.Sync`                   | Moteur de synchronisation entre service local et serveur                                                                                                                       | `Voyager.Core`, `Voyager.Contracts`           |
+| `Voyager.PluginHost`             | Découverte, chargement et cycle de vie des plugins                                                                                                                             | `Voyager.Sdk`                                 |
+| `Voyager.LocalService`           | Hôte ASP.NET Core du service local (gRPC-Web, SQLite)                                                                                                                          | tous les adaptateurs                          |
+| `Voyager.GroupServer`            | Hôte ASP.NET Core du serveur du groupe (gRPC, PostgreSQL)                                                                                                                      | tous les adaptateurs                          |
+| `Voyager.ServiceDefaults`        | Réglages techniques communs aux hôtes : télémétrie OpenTelemetry, journaux dans Seq en développement, points de santé, résilience HTTP, adresses d'écoute (ADR-0011, ADR-0012) | paquets techniques uniquement                 |
+| `Voyager.AppHost`                | Orchestration Aspire, **en développement uniquement** : PostgreSQL + PostGIS, hôtes, tableau de bord (ADR-0011)                                                                | les deux hôtes ; aucun projet ne le référence |
 
 Règle d'or : **les flèches vont vers `Voyager.Core`**, jamais dans l'autre sens. Les hôtes
 (`LocalService`, `GroupServer`) sont les seuls à tout assembler.
@@ -115,6 +116,19 @@ ui/src/
 ├─ components/    composants réutilisables sans métier
 └─ i18n/          messages Fluent : fr/*.ftl, en/*.ftl (ADR-0008)
 ```
+
+Dans `desktop`, un dossier par processus d'Electron :
+
+```text
+desktop/src/
+├─ main/          processus principal : fenêtre, protocole voyager://, lancement du service local,
+│                 verrouillage (navigation, permissions)
+├─ preload/       script preload : la seule porte entre l'interface et Electron (contextBridge)
+└─ shared/        ce que les deux partagent : noms des canaux IPC
+```
+
+Les adaptateurs gRPC d'un hôte .NET (services générés depuis `proto/`, intercepteurs) sont rangés
+dans son dossier `Api/` (`Voyager.LocalService/Api/`).
 
 ## Les plugins (`plugins/`)
 

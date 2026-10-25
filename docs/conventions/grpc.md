@@ -15,7 +15,8 @@ plugins/lodging/proto/voyager/plugins/lodging/v1/lodging.proto
                                                 package voyager.plugins.lodging.v1;
 ```
 
-- Un paquet par domaine et par version majeure.
+- Un paquet par domaine et par version majeure. Les services techniques, sans domaine métier, ont
+  aussi le leur : `voyager.diagnostics.v1` (écran « À propos »).
 - `option csharp_namespace = "Voyager.Contracts.Quotes.V1";`
 
 ## Nommage
@@ -38,6 +39,9 @@ plugins/lodging/proto/voyager/plugins/lodging/v1/lodging.proto
 | Instant            | `google.protobuf.Timestamp` + champ `string time_zone` (identifiant IANA)    |
 | Identifiant        | `string` contenant un UUID                                                   |
 | Coordonnées        | `google.type.LatLng`                                                         |
+
+Un instant purement technique, qui ne se rattache à aucun lieu (l'heure de démarrage d'un service),
+se passe de `time_zone`.
 
 Côté C#, les adaptateurs convertissent ces types vers le domaine : `google.type.Date` ↔ `LocalDate`,
 `Timestamp` ↔ `Instant`, `time_zone` ↔ `DateTimeZone` (NodaTime), `google.type.Money` ↔ `Money`.
