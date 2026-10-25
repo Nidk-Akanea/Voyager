@@ -23,6 +23,7 @@ describe('resolveUserInterfaceFile', () => {
     ['a parent folder', '/../secret.txt'],
     ['an encoded parent folder', '/%2e%2e/secret.txt'],
     ['an encoded backslash', '/..%5csecret.txt'],
+    ['an encoded null character', '/index.html%00.txt'],
     ['an absolute path', '/%2fetc%2fpasswd/../../../../etc/passwd'],
     ['the folder itself', '/assets/..'],
     ['a malformed escape', '/%E0%A4%A'],

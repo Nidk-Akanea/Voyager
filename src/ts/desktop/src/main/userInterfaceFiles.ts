@@ -13,6 +13,11 @@ export function resolveUserInterfaceFile(directory: string, urlPath: string): st
   } catch {
     return undefined;
   }
+  // A backslash is a folder separator on Windows only, and a null character ends a path early: no file
+  // of the user interface has either, so refusing them keeps the check the same on every system.
+  if (path.includes('\\') || path.includes('\0')) {
+    return undefined;
+  }
   const file = normalize(join(directory, path === '/' || path === '' ? INDEX_FILE : path));
   const fromDirectory = relative(directory, file);
   const leavesDirectory =
