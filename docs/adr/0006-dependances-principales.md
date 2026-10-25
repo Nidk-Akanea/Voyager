@@ -3,6 +3,9 @@
 - **Statut** : Acceptée
 - **Date** : 2026-10-24
 - **Remplace** : —
+- **Complétée par** : [ADR-0008](0008-globalisation-fluent-et-linguini.md) (traductions),
+  [ADR-0009](0009-installation-et-mises-a-jour-velopack.md) (installation),
+  [ADR-0011](0011-aspire-pour-le-developpement.md) (Aspire, OpenTelemetry)
 
 ## Contexte
 

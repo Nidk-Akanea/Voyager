@@ -25,6 +25,12 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-markdown.mjs\"",
             "timeout": 60,
             "statusMessage": "Linting Markdown..."
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/format-code.mjs\"",
+            "timeout": 60,
+            "statusMessage": "Formatting code..."
           }
         ]
       }

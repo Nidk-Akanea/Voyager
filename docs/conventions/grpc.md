@@ -49,7 +49,16 @@ Côté C#, les adaptateurs convertissent ces types vers le domaine : `google.typ
 - Ajouter un champ ou une méthode est compatible. Renommer, changer un type ou supprimer ne l'est
   pas : cela crée une **nouvelle version** du paquet (`v2`), l'ancienne reste servie le temps de la
   transition.
-- `buf breaking` compare chaque PR à `main` et bloque toute rupture non assumée.
+- `buf breaking` compare chaque PR à sa branche cible (`develop`, ADR-0007) et bloque toute rupture
+  non assumée.
+
+## Code généré
+
+- Le code généré depuis `proto/` **n'est pas committé** : il est produit au build (C#) et par
+  `buf generate` (TypeScript, dossiers `src/gen/` ignorés par git), en local comme en CI, avant la
+  vérification des types.
+- Le premier contrat qui utilise les types Google (`google.type.Money`…) ajoute
+  `buf.build/googleapis/googleapis` aux dépendances de `buf.yaml`.
 
 ## Erreurs
 

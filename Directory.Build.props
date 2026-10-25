@@ -1,0 +1,27 @@
+<Project>
+  <!-- Shared settings for every .NET project (docs/conventions/csharp.md). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Required for IDE0005 (unnecessary usings) to be reported at build time. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- XML documentation is mandatory only for Voyager.Sdk, which turns CS1591 back on. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Authors>Voyager contributors</Authors>
+    <Product>Voyager</Product>
+    <RepositoryUrl>https://github.com/Nidk-Akanea/Voyager</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Stamps assemblies with the version computed from Git history (ADR-0007). -->
+    <PackageReference Include="GitVersion.MsBuild">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

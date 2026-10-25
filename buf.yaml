@@ -1,0 +1,10 @@
+# Protocol Buffers contracts (ADR-0002, docs/conventions/grpc.md).
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE

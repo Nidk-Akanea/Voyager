@@ -4,8 +4,8 @@
     // Prose is wrapped by hand around 100 columns; long table rows and links are allowed.
     "MD013": false,
     // Same heading text is fine under different parents (e.g. "Options" in each ADR).
-    "MD024": { "siblings_only": true }
+    "MD024": { "siblings_only": true },
   },
   "globs": ["**/*.md"],
-  "ignores": ["node_modules/**", "**/bin/**", "**/obj/**"]
+  "ignores": ["node_modules/**", "**/bin/**", "**/obj/**"],
 }

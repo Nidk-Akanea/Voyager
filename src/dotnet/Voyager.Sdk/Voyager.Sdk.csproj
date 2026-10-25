@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Plugin authors read this API: XML documentation is mandatory here. -->
+    <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Voyager.Core\Voyager.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,6 @@
+packages:
+  - src/ts/*
+  - plugins/*/ui
+
+# Supply-chain safety: never install a version published less than 14 days ago (in minutes).
+minimumReleaseAge: 20160

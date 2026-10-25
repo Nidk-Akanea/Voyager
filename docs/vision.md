@@ -35,10 +35,14 @@ groupe en retient un **par vote**.
 
 ### Pour qui
 
-Une **famille ou un groupe d'amis** qui organise ses voyages ensemble. Voyager n'est pas une base
-communautaire centralisée : chaque groupe a sa propre instance, ses propres données, et la
-responsabilité de leur exactitude. Les groupes peuvent en revanche **s'échanger des fichiers de
-données** dans un format standard (voir [Les données](#les-données)).
+Une **famille ou un groupe d'amis** qui organise ses voyages ensemble, **sans compétence
+technique** : les membres installent l'application et rejoignent leur groupe par une invitation ; ils
+n'installent jamais de serveur ([ADR-0010](adr/0010-hebergement-serveur-heberge-multi-groupes.md)).
+
+Voyager n'est pas une base communautaire centralisée : un serveur hébergé accueille plusieurs groupes,
+mais chaque groupe ne voit que ses propres données et reste responsable de leur exactitude. Les
+groupes peuvent en revanche **s'échanger des fichiers de données** dans un format standard (voir
+[Les données](#les-données)). On peut aussi utiliser Voyager **seul, sans serveur**.
 
 ### Le vote
 

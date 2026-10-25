@@ -1,0 +1,13 @@
+{
+  "name": "@voyager/plugin-sdk",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Plugin SDK for the user interface: extension point registry and host-provided services.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  }
+}

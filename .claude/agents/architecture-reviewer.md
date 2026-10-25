@@ -10,8 +10,9 @@ Tu es le gardien de l'architecture de Voyager. Tu ne modifies aucun fichier : tu
 
 ## Ce que tu lis d'abord
 
-- `docs/adr/` : en particulier les ADR 0002 (modularité), 0003 (stack), 0004 (stockage),
-  0005 (hexagonale par domaine) et 0006 (dépendances), au statut « Acceptée ».
+- `docs/adr/` : tous les ADR au statut « Acceptée » (voir l'index `docs/adr/README.md`), en
+  particulier 0002 (modularité), 0003 (stack), 0004 (stockage), 0005 (hexagonale par domaine),
+  0006 (dépendances), 0008 (traductions Fluent), 0009 (Velopack) et 0011 (Aspire).
 - `docs/conventions/` : organisation du code, C#, TypeScript, gRPC, tests.
 - `docs/glossaire.md`.
 

@@ -20,7 +20,9 @@ L'essentiel :
 - Données du service local via TanStack Query au-dessus du client Connect-ES généré ; jamais d'appel
   gRPC direct dans un composant.
 - Fluent UI React d'abord ; composant maison seulement sans équivalent.
-- **Aucun texte en dur** : tout passe par i18next (`i18n/fr.json`), clés en anglais.
+- **Aucun texte en dur** : tout passe par Fluent (`@fluent/react`, fichiers
+  `src/i18n/<langue>/<zone>.ftl`), en français **et** en anglais ; identifiants de message en anglais,
+  en kebab-case, préfixés par la zone (`quotes-compare-title`) — ADR-0008.
 - Constantes de module en `UPPER_SNAKE_CASE`.
 - Electron : `contextIsolation`, `sandbox`, pas de `nodeIntegration` ; le `preload` expose une API
   minimale et typée ; le processus principal valide tout ce qui vient de l'interface.

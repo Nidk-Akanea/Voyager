@@ -88,7 +88,10 @@ Un terme ajouté ici doit être utilisé tel quel partout.
 | Manifeste de plugin  | `PluginManifest` | Le fichier `plugin.json` d'un plugin : identifiant, version, versions de contrats compatibles, points d'extension fournis.                                                                             |
 | Point d'extension    | `ExtensionPoint` | Un endroit où le cœur accepte des plugins : type de prestation, base de calcul, règle de répartition, connecteur, vue, export.                                                                         |
 | Service local        | `LocalService`   | Le processus .NET embarqué dans l'application de bureau : logique métier, base locale, hors-ligne, synchronisation.                                                                                    |
-| Serveur du groupe    | `GroupServer`    | Le serveur partagé par les membres d'un groupe : centralise les données et diffuse les changements.                                                                                                    |
+| Serveur du groupe    | `GroupServer`    | Le serveur hébergé qui accueille plusieurs groupes : il centralise les données de chacun, séparément, et diffuse les changements à leurs membres.                                                      |
+| Groupe               | `Group`          | Les personnes qui organisent leurs voyages ensemble dans Voyager ; un membre peut appartenir à plusieurs groupes, et ne voit que les données des siens.                                                |
+| Invitation           | `Invitation`     | Le lien qui permet à une personne de rejoindre un groupe comme membre.                                                                                                                                 |
+| Mode solo            | `SoloMode`       | L'utilisation de Voyager sans serveur, avec le seul service local.                                                                                                                                     |
 | Vue                  | `View`           | Une façon de présenter un voyage : timeline, planning, carte, programme, graphiques. Fournie par un plugin.                                                                                            |
 
 ## Carnet de voyage (plus tard)

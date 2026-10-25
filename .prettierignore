@@ -1,0 +1,13 @@
+# Prettier formats the TypeScript workspace only.
+# Markdown is handled by markdownlint, C# by dotnet format.
+*.md
+docs/
+src/dotnet/
+tests/
+private/
+.claude/
+.github/
+pnpm-lock.yaml
+**/gen/
+**/dist/
+**/out/

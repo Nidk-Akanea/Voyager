@@ -1,0 +1,21 @@
+<Project Sdk="Aspire.AppHost.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Keeps the generated database password across runs, so the data volume stays usable. -->
+    <UserSecretsId>voyager-apphost-6f3c2a8e</UserSecretsId>
+    <!-- ASPIRE010: we run without the Aspire CLI bundle; the dashboard, containers and projects work
+         without it (checked with Aspire 13.6.1). Revisit if a feature we need requires the bundle. -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);ASPIRE010</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Voyager.GroupServer\Voyager.GroupServer.csproj" />
+    <ProjectReference Include="..\Voyager.LocalService\Voyager.LocalService.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+
+</Project>

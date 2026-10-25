@@ -97,7 +97,17 @@ Les noms métier viennent du [glossaire](../glossaire.md) : on écrit `Quote`, p
 - `ILogger<T>` avec des messages structurés : `logger.LogInformation("Quote {QuoteId} accepted", id)`,
   jamais d'interpolation de chaîne dans le message.
 - **Aucune donnée personnelle dans les journaux** : pas de noms, d'adresses, de références de
-  réservation, de coordonnées précises. Des identifiants techniques seulement.
+  réservation, de coordonnées précises. Des identifiants techniques seulement. La règle vaut aussi
+  pour les **scopes** de journalisation, les **attributs de traces** et les **routes** : la télémétrie
+  peut être envoyée hors de la machine (ADR-0011).
+
+## Textes destinés à l'utilisateur
+
+- `Voyager.Core` ne traduit rien : il renvoie des codes stables (`reason`) et des valeurs ; la
+  traduction se fait à la frontière, dans les hôtes ou l'interface ([ADR-0008](../adr/0008-globalisation-fluent-et-linguini.md)).
+- Côté .NET, les messages sont des fichiers Fluent (`.ftl`) en français **et** en anglais, lus par
+  Linguini derrière l'abstraction `ILocalizer` des hôtes ; jamais de texte d'interface en dur.
+- Nombres, montants et dates sont formatés selon la langue de l'utilisateur.
 
 ## Commentaires et documentation
 
@@ -109,6 +119,9 @@ Les noms métier viennent du [glossaire](../glossaire.md) : on écrit `Quote`, p
 ## Dépendances externes
 
 - La liste des dépendances autorisées est dans l'[ADR-0006](../adr/0006-dependances-principales.md).
-- Toute nouvelle bibliothèque dans `Voyager.Core` ou `Voyager.Sdk` passe par un ADR.
+- Toute nouvelle bibliothèque dans `Voyager.Core` ou `Voyager.Sdk` passe par un ADR ; un test
+  d'architecture vérifie leur liste. Les outils de build privés communs à tous les projets
+  (`GitVersion.MsBuild` dans `Directory.Build.props`) ne sont pas des dépendances d'exécution et n'y
+  comptent pas.
 - Ailleurs, on vérifie la licence (pas de licence commerciale imposée, pas de copyleft fort) et la
   maintenance du projet avant de l'ajouter.

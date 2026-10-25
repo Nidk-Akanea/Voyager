@@ -2,15 +2,16 @@
 
 ## Outils
 
-| Outil                   | Réglage                                                                                                                                                 |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Node.js                 | version LTS, fixée dans `package.json` (`engines`) et `.nvmrc`                                                                                          |
-| Gestionnaire de paquets | **pnpm** (espace de travail multi-paquets, rapide, strict sur les dépendances)                                                                          |
-| TypeScript              | `strict: true`, `noUncheckedIndexedAccess: true`, `noImplicitOverride: true`                                                                            |
-| Lint                    | ESLint + `typescript-eslint` (configurations `strict-type-checked` et `stylistic-type-checked`), `eslint-plugin-react-hooks` ; `--max-warnings 0` en CI |
-| Formatage               | Prettier, vérifié en CI (`prettier --check`)                                                                                                            |
-| Tests                   | Vitest + Testing Library                                                                                                                                |
-| Build                   | Vite                                                                                                                                                    |
+| Outil                        | Réglage                                                                                                                                                                                               |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node.js                      | version LTS, fixée dans `package.json` (`engines`) et `.nvmrc`                                                                                                                                        |
+| Gestionnaire de paquets      | **pnpm 10**, version fixée dans `package.json` (`packageManager`) et fournie par Corepack ; pnpm refuse toute version publiée depuis moins de 14 jours (`minimumReleaseAge`)                          |
+| TypeScript                   | `strict: true`, `noUncheckedIndexedAccess: true`, `noImplicitOverride: true`                                                                                                                          |
+| Lint                         | ESLint + `typescript-eslint` (configurations `strict-type-checked` et `stylistic-type-checked`), `eslint-plugin-react-hooks` (ajouté avec React, à l'étape 2 du squelette) ; `--max-warnings 0` en CI |
+| Formatage                    | Prettier, vérifié en CI (`prettier --check`)                                                                                                                                                          |
+| Tests                        | Vitest + Testing Library                                                                                                                                                                              |
+| Build                        | Vite                                                                                                                                                                                                  |
+| Installation et mises à jour | Velopack (ADR-0009) ; Electron construit et lance l'application                                                                                                                                       |
 
 ## La règle d'or
 
@@ -58,7 +59,8 @@ Le nommage est vérifié par la règle ESLint `@typescript-eslint/naming-convent
 ## Textes de l'interface
 
 - L'interface est en **français d'abord**, mais **aucun texte en dur** dans les composants : tout
-  passe par des clés de traduction (`i18n/fr.json`). Ajouter une langue plus tard ne coûtera rien.
+  passe par des messages Fluent ([ADR-0008](../adr/0008-globalisation-fluent-et-linguini.md)) :
+  `@fluent/react`, fichiers `src/i18n/<langue>/<zone>.ftl`, en **français et en anglais**.
 - Les clés sont en anglais et décrivent le sens : `quotes.compare.title`.
 
 ## Electron
