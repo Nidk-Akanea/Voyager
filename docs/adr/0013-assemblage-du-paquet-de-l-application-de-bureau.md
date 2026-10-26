@@ -1,6 +1,6 @@
 # ADR-0013 — Assemblage du paquet de l'application de bureau
 
-- **Statut** : Proposée
+- **Statut** : Acceptée
 - **Date** : 2026-10-26
 - **Remplace** : — (complète [ADR-0009](0009-installation-et-mises-a-jour-velopack.md), qui laisse ouvert
   l'outil assemblant le dossier de l'application, et précise la ligne « Electron + Electron Forge » de
