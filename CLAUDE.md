@@ -25,15 +25,16 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   (`tools/release.ps1`, Velopack, journaux en fichiers, verrous Electron), avec un écran de démarrage et
   une mise à jour automatique au démarrage (ADR-0014, proposée) ; le service local est surveillé. Reste à
   faire : l'essai d'installation et de mise à jour, la première release publiée, puis l'étape 3, la
-  preuve des plugins, après leur ADR.
-- **Les décisions techniques sont prises** (ADR 0002 à 0013) : Electron + React/TypeScript pour
+  preuve des plugins (ADR-0015 acceptée ; la spec de la preuve reste à écrire).
+- **Les décisions techniques sont prises** (ADR 0002 à 0013 et 0015) : Electron + React/TypeScript pour
   l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
   plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite
   (local), architecture hexagonale rangée par domaine, Git Flow avec versions calculées par
   GitVersion, français et anglais avec Fluent (Linguini côté .NET), installation et mises à jour avec
   Velopack, développement orchestré par Aspire (`Voyager.AppHost`, `Voyager.ServiceDefaults`),
   journaux de développement écrits dans Seq par Serilog, paquet assemblé avec `@electron/packager`
-  (fuses verrouillées, identifiant de paquet `VoyagerApp`, journaux en fichiers sur le poste).
+  (fuses verrouillées, identifiant de paquet `VoyagerApp`, journaux en fichiers sur le poste),
+  mécanisme de plugins (un contexte de chargement par plugin, interface par `import()`).
 - Les étapes suivantes du squelette se font **sur demande** de l'utilisateur.
 
 ## Langues
