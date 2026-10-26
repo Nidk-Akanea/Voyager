@@ -236,6 +236,38 @@ describe('superviseLocalService', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it('settles once the service is ready', async () => {
+    const { supervisor } = supervise([ANNOUNCES_AND_WAITS]);
+
+    await supervisor.whenSettled();
+
+    expect(supervisor.state().status).toBe('ready');
+  });
+
+  it('settles when the service failed, and when it could not even be launched', async () => {
+    const { supervisor } = supervise([FAILS_AT_STARTUP]);
+    await supervisor.whenSettled();
+    expect(supervisor.state().status).toBe('failed');
+
+    const unlaunchable = superviseLocalService({
+      launch: () => {
+        throw new Error('no such executable');
+      },
+    });
+    supervisors.push(unlaunchable);
+    await unlaunchable.whenSettled();
+    expect(unlaunchable.state().status).toBe('failed');
+  });
+
+  it('settles when stopped while still starting, so that nothing waits for it for ever', async () => {
+    const { supervisor } = supervise([STARTS_SLOWLY]);
+    const settled = supervisor.whenSettled();
+
+    await supervisor.stop();
+
+    await expect(settled).resolves.toBeUndefined();
+  });
+
   it('is ready at once for a service someone else runs', async () => {
     const connection = { url: 'http://127.0.0.1:5000', token: 'token' };
     const supervisor = superviseLocalService({ launch: () => attachToRunningLocalService(connection) });

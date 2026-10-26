@@ -21,9 +21,11 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
 - **Squelette — étapes 1 et 2 en place** : fondations (solution .NET, tests d'architecture, espace
   pnpm, ESLint, Prettier, Buf, CI, Aspire) et une tranche technique « À propos » de bout en bout :
   Electron → interface React (Fluent UI, français et anglais) → gRPC-Web → service local → SQLite.
-  **Aucun code métier encore.** Le paquet installable est en place, sans publication automatique (`tools/release.ps1`,
-  Velopack, journaux en fichiers, verrous Electron) et le service local est surveillé. Reste à faire : la
-  première release publiée, puis l'étape 3, la preuve des plugins, après leur ADR.
+  **Aucun code métier encore.** Le paquet installable est en place, sans publication automatique
+  (`tools/release.ps1`, Velopack, journaux en fichiers, verrous Electron), avec un écran de démarrage et
+  une mise à jour automatique au démarrage (ADR-0014, proposée) ; le service local est surveillé. Reste à
+  faire : l'essai d'installation et de mise à jour, la première release publiée, puis l'étape 3, la
+  preuve des plugins, après leur ADR.
 - **Les décisions techniques sont prises** (ADR 0002 à 0013) : Electron + React/TypeScript pour
   l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
   plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite

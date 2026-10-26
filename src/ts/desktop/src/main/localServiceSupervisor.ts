@@ -2,6 +2,7 @@
 // again when it dies, and gives up with an explicit "failed" state the user can retry from.
 import type { LocalServiceState } from '@voyager/grpc-client';
 
+import { describeError } from './describeError';
 import type { LocalService } from './localService';
 
 // One entry per automatic restart allowed within the window: the wait before each of them.
@@ -11,7 +12,7 @@ const RESTART_WINDOW_MS = 60_000;
 export interface SupervisorOptions {
   /** Starts the service; called again for every restart. */
   readonly launch: () => LocalService;
-  /** Where the failures go; never the user interface. */
+  /** Where the failures and abnormal events go (a death, a failed start); never the user interface. */
   readonly report?: (message: string) => void;
   /** Where the notable steps of a normal life go (service ready, retry requested); never the user interface. */
   readonly inform?: (message: string) => void;
@@ -28,6 +29,11 @@ export interface LocalServiceSupervisor {
   readonly state: () => LocalServiceState;
   /** Calls the listener at every change of state; returns the function that removes it. */
   readonly onChange: (listener: (state: LocalServiceState) => void) => () => void;
+  /**
+   * Resolves once the service is ready or has failed (no longer on its way), or once it is stopped: the
+   * app never waits for a service that will not come.
+   */
+  readonly whenSettled: () => Promise<void>;
   /** Starts the service again after a failure; does nothing in any other state. */
   readonly retry: () => void;
   /** Stops the service for good: nothing is restarted afterwards. */
@@ -51,18 +57,25 @@ export function superviseLocalService({
   // Tells the launch whose news still counts: a previous one may answer after being replaced.
   let generation = 0;
   let deaths: number[] = [];
+  let markSettled: () => void = () => undefined;
+  const settled = new Promise<void>((resolve) => {
+    markSettled = resolve;
+  });
 
   const update = (next: LocalServiceState): void => {
     if (next.status === current.status && next.status !== 'ready') {
       return;
     }
     current = next;
+    if (next.status === 'ready' || next.status === 'failed') {
+      markSettled();
+    }
     for (const listener of listeners) {
       // A listener that fails (a window being destroyed) must not stop the supervision.
       try {
         listener(next);
       } catch (error: unknown) {
-        report(`A listener of the local service state failed: ${describe(error)}`);
+        report(`A listener of the local service state failed: ${describeError(error)}`);
       }
     }
   };
@@ -81,7 +94,7 @@ export function superviseLocalService({
     try {
       launched = launch();
     } catch (error: unknown) {
-      report(`The local service could not be launched: ${describe(error)}`);
+      report(`The local service could not be launched: ${describeError(error)}`);
       update({ status: 'failed' });
       return;
     }
@@ -102,7 +115,7 @@ export function superviseLocalService({
       },
       (error: unknown) => {
         if (id === generation) {
-          fail(`The local service could not start: ${describe(error)}`, launched);
+          fail(`The local service could not start: ${describeError(error)}`, launched);
         }
       },
     );
@@ -139,6 +152,7 @@ export function superviseLocalService({
         listeners.delete(listener);
       };
     },
+    whenSettled: () => settled,
     retry: () => {
       if (stopped || current.status !== 'failed') {
         return;
@@ -149,14 +163,11 @@ export function superviseLocalService({
     },
     stop: async () => {
       stopped = true;
+      markSettled();
       generation++;
       clearTimeout(restartTimer);
       listeners.clear();
       await service?.stop();
     },
   };
-}
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

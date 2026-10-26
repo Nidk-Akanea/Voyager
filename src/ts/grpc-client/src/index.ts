@@ -28,6 +28,16 @@ export type LocalServiceState =
   | { readonly status: 'restarting' }
   | { readonly status: 'failed' };
 
+/**
+ * What the app is doing before its window opens: looking for a newer version (and installing it, which
+ * restarts the app), then waiting for the local service. The startup screen shows it.
+ */
+export type StartupState =
+  | { readonly status: 'checking-updates' }
+  | { readonly status: 'downloading-update'; readonly version: string; readonly percent: number }
+  | { readonly status: 'installing-update'; readonly version: string }
+  | { readonly status: 'starting-service' };
+
 /** Clients for every service exposed by the local service. */
 export interface LocalServiceClients {
   readonly diagnostics: Client<typeof DiagnosticsService>;

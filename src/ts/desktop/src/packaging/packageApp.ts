@@ -11,6 +11,7 @@ import { parseArgs } from 'node:util';
 import { flipFuses, getCurrentFuseWire } from '@electron/fuses';
 import { packager } from '@electron/packager';
 
+import { isAllowedUpdateUrl, UPDATE_SOURCE_REQUIREMENT, UPDATE_SOURCE_SETTING } from '../main/updateSource';
 import { APP_FUSES, findWrongFuses } from './fuses';
 
 const APP_NAME = 'Voyager';
@@ -49,7 +50,12 @@ async function copyRuntimeDependency(
 }
 
 /** The files the packaged app is made of: what `vite build` produced, and the code it cannot bundle. */
-async function stageApp(version: string, packageRoot: string, stagingFolder: string): Promise<void> {
+async function stageApp(
+  version: string,
+  updateSource: string | undefined,
+  packageRoot: string,
+  stagingFolder: string,
+): Promise<void> {
   await rm(stagingFolder, { recursive: true, force: true });
   await mkdir(stagingFolder, { recursive: true });
 
@@ -77,6 +83,8 @@ async function stageApp(version: string, packageRoot: string, stagingFolder: str
         type: 'module',
         // The packager looks for who made the app, and which Electron runs it, in this file.
         author: APP_NAME,
+        // Where the app looks for updates, if not in the releases of the repository (ADR-0014).
+        ...(updateSource === undefined ? {} : { [UPDATE_SOURCE_SETTING]: updateSource }),
         dependencies,
       },
       undefined,
@@ -108,6 +116,7 @@ async function verifyFuses(executable: string): Promise<void> {
   }
 }
 
+/** Reads the arguments given by tools/release.ps1, then stages, packs and checks the app folder. */
 async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {
@@ -115,11 +124,14 @@ async function main(): Promise<void> {
       service: { type: 'string' },
       ui: { type: 'string' },
       out: { type: 'string' },
+      'update-source': { type: 'string' },
     },
   });
   const { version, service, ui, out } = values;
   if (version === undefined || service === undefined || ui === undefined || out === undefined) {
-    throw new Error('Usage: packageApp --version <x.y.z> --service <folder> --ui <folder> --out <folder>');
+    throw new Error(
+      'Usage: packageApp --version <x.y.z> --service <folder> --ui <folder> --out <folder> [--update-source <https address>]',
+    );
   }
 
   const packageRoot = process.cwd();
@@ -127,7 +139,12 @@ async function main(): Promise<void> {
   const stagingFolder = join(outFolder, 'app-source');
   const extraFolder = join(outFolder, 'extra');
 
-  await stageApp(version, packageRoot, stagingFolder);
+  const updateSource = values['update-source'];
+  if (updateSource !== undefined && !isAllowedUpdateUrl(updateSource)) {
+    throw new Error(`--update-source must be ${UPDATE_SOURCE_REQUIREMENT}.`);
+  }
+
+  await stageApp(version, updateSource, packageRoot, stagingFolder);
 
   // The app finds them in its resources folder: local-service/ and ui/ (src/main/main.ts).
   await rm(extraFolder, { recursive: true, force: true });

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { LocalServiceState } from '@voyager/grpc-client';
 
 import type { Locale } from '../i18n/localization';
-import type { VoyagerBridge } from './bridge';
+import type { LocalServiceBridge } from './bridge';
 import { LocalServiceGate } from './LocalServiceGate';
 import { ShellProviders } from './ShellProviders';
 import { useAppContext } from './appContext';
@@ -18,7 +18,7 @@ function readyAt(port: number): LocalServiceState {
 /** A bridge the test drives by hand, the way the desktop app pushes changes. */
 function fakeBridge(initial: LocalServiceState) {
   let listener: ((state: LocalServiceState) => void) | undefined;
-  const bridge: VoyagerBridge = {
+  const bridge: LocalServiceBridge = {
     getLocalServiceState: () => Promise.resolve(initial),
     onLocalServiceStateChange: (given) => {
       listener = given;
@@ -41,7 +41,7 @@ function AddressOfService() {
   return <p>{useAppContext().locale}</p>;
 }
 
-function renderGate(bridge: VoyagerBridge, locale: Locale = 'fr') {
+function renderGate(bridge: LocalServiceBridge, locale: Locale = 'fr') {
   return render(
     <ShellProviders locale={locale}>
       <LocalServiceGate bridge={bridge} locale={locale}>
@@ -123,7 +123,7 @@ describe('LocalServiceGate', () => {
   it('prefers a change pushed before the first answer', async () => {
     let answer: (state: LocalServiceState) => void = () => undefined;
     let push: (state: LocalServiceState) => void = () => undefined;
-    const bridge: VoyagerBridge = {
+    const bridge: LocalServiceBridge = {
       getLocalServiceState: () => new Promise((resolve) => (answer = resolve)),
       onLocalServiceStateChange: (listener) => {
         push = listener;
