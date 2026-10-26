@@ -1,6 +1,6 @@
 # ADR-0015 — Mécanisme de plugins : découverte, chargement et preuve
 
-- **Statut** : Proposée
+- **Statut** : Acceptée
 - **Date** : 2026-10-26
 - **Remplace** : — (complète [ADR-0002](0002-architecture-modulaire-par-contrats-et-plugins.md) et
   [ADR-0003](0003-choix-de-la-stack.md), qui renvoient à cet ADR le mécanisme concret ; précise la
