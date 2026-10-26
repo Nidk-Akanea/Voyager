@@ -168,6 +168,45 @@ puis Electron, à qui il passe leurs adresses et le jeton (`VOYAGER_UI_URL`,
 service. L'application installée ignore ces variables, et ne transmet à son service local que les
 variables système du poste (chemins, dossier temporaire…), en mode Production.
 
+## Le démarrage de l'application installée
+
+Mis en place par [ADR-0014](../adr/0014-ecran-de-demarrage-et-mise-a-jour-au-demarrage.md). La fenêtre
+de démarrage est la même interface, page `?screen=startup` : elle est traduite comme le reste.
+
+```mermaid
+sequenceDiagram
+    participant P as Processus principal Electron
+    participant S as Fenêtre de démarrage
+    participant U as Serveur de mises à jour
+    participant L as Service local
+    participant W as Fenêtre principale
+    P->>S: Ouvre la petite fenêtre
+    P-->>S: « Recherche de mises à jour »
+    P->>U: Cherche une version plus récente (8 s au plus)
+    alt Une version plus récente existe
+        U-->>P: Fichier de versions
+        P-->>S: « Téléchargement… » avec le pourcentage
+        P->>U: Télécharge le paquet
+        P-->>S: « Installation, Voyager va redémarrer »
+        P->>P: Passe la main à Velopack et quitte
+        Note over P: Velopack installe la nouvelle version<br/>et relance l'application
+    else À jour, hors-ligne ou erreur
+        P-->>S: « Démarrage de Voyager »
+        P->>L: Lance le service (voir plus haut)
+        L-->>P: Prêt (ou échec)
+        P->>W: Ouvre la fenêtre principale
+        P->>S: Ferme la petite fenêtre
+    end
+```
+
+Le service local n'est lancé qu'une fois la mise à jour écartée : il garde des fichiers du dossier que
+Velopack va remplacer. La source des mises à jour est celle écrite dans le paquet à sa fabrication
+(`tools/release.ps1 -UpdateSource`), sinon les *releases* GitHub ; elle doit être en `https` (ou en
+`http` vers la machine) car une mise à jour est du code que l'application exécute et qu'aucune
+signature ne garantit encore. En développement, la fenêtre de démarrage n'apparaît pas, sauf avec la variable
+`VOYAGER_SHOW_STARTUP_SCREEN` (ignorée par l'application installée) ; le service local ne reçoit pas les
+messages de cette fenêtre : seule la fenêtre principale connaît son adresse et son jeton.
+
 ## Le paquet installable et les journaux
 
 Mis en place par `tools/release.ps1` ([ADR-0009](../adr/0009-installation-et-mises-a-jour-velopack.md)).
@@ -188,10 +227,9 @@ l'archive `app.asar`, hors les modules natifs (Velopack) qui restent à côté. 
 sont posées sur l'exécutable et relues avant d'emballer ; le canal (`stable`, `beta`, `alpha`) vient du
 suffixe de la version.
 
-Au démarrage, l'application installée cherche une version plus récente dans les releases GitHub du
-dépôt et la télécharge ; elle s'installe au lancement suivant. Hors-ligne, ou sans release publiée,
-elle continue sans rien dire à l'utilisateur (une ligne dans le journal). Une application lancée depuis un
-simple dossier (non installée) ne cherche rien.
+Au démarrage, l'application installée cherche une version plus récente, la télécharge et la fait
+installer (voir plus haut). Hors-ligne, ou sans release publiée, elle continue et s'ouvre (une ligne dans
+le journal). Une application lancée depuis un simple dossier (non installée) ne cherche rien.
 
 **Journaux** : un fichier pour l'application (`desktop.log`) et un par jour pour le service local
 (`Voyager.LocalService-AAAAMMJJ.log`), dans `%LOCALAPPDATA%\Voyager\logs`, à côté de la base. Les

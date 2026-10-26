@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 
 import type { LocalServiceState } from '@voyager/grpc-client';
 
-import type { VoyagerBridge } from './bridge';
+import type { LocalServiceBridge } from './bridge';
 
 /** Where the desktop app's local service stands, kept up to date as it restarts. */
-export function useLocalServiceState(bridge: VoyagerBridge): LocalServiceState {
+export function useLocalServiceState(bridge: LocalServiceBridge): LocalServiceState {
   const [state, setState] = useState<LocalServiceState>({ status: 'starting' });
 
   useEffect(() => {

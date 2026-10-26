@@ -8,7 +8,7 @@ import { createLocalServiceClients } from '@voyager/grpc-client';
 
 import type { Locale } from '../i18n/localization';
 import { AppProviders } from './AppProviders';
-import type { VoyagerBridge } from './bridge';
+import type { LocalServiceBridge } from './bridge';
 import { useLocalServiceState } from './useLocalServiceState';
 
 const useStyles = makeStyles({
@@ -23,7 +23,7 @@ const useStyles = makeStyles({
 
 export interface LocalServiceGateProps {
   /** What the desktop app exposes: the state of the local service and the way to start it again. */
-  readonly bridge: VoyagerBridge;
+  readonly bridge: LocalServiceBridge;
   readonly locale: Locale;
   /** Drawn, inside {@link AppProviders}, only while the local service is ready. */
   readonly children: ReactNode;

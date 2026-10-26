@@ -89,8 +89,29 @@ Le script calcule la version avec GitVersion, publie le service local, construit
 l'application de bureau, puis fabrique avec Velopack l'installateur et les paquets de mise à jour dans
 `artifacts/release/`. Rien n'est publié. L'application installée écrit ses journaux (la sienne et celle
 du service local) dans `%LOCALAPPDATA%\Voyager\logs`, sans nom de compte (le dossier personnel y est remplacé par `~`) ni donnée de voyage. Au
-démarrage, l'application installée interroge les releases GitHub du dépôt pour chercher une version
-plus récente : seule l'adresse IP et la version courante sont visibles de GitHub.
+démarrage, l'application installée interroge son serveur de mises à jour (par défaut les releases
+GitHub du dépôt) pour chercher une version plus récente : seules l'adresse IP et la version courante
+sont visibles de ce serveur.
+
+### Essayer l'installation et la mise à jour
+
+Sans rien publier sur GitHub, avec un serveur web qui sert un dossier en `https` (ou en `http` vers
+votre propre machine). L'adresse n'est écrite que dans le paquet, jamais dans le dépôt, et ne doit contenir ni identifiant ni
+paramètre. Un paquet fabriqué pour `http://localhost` est un paquet d'essai : il ne se distribue pas :
+
+```powershell
+pwsh tools/release.ps1 -Version 0.1.0-alpha.1 -UpdateSource https://votre-serveur/voyager/
+```
+
+1. Copiez le contenu de `artifacts/release/` dans le dossier servi, puis installez
+   `VoyagerApp-alpha-Setup.exe` : l'application s'installe dans `%LOCALAPPDATA%\VoyagerApp`.
+2. Fabriquez une version plus récente avec la même adresse (`-Version 0.1.0-alpha.2`) et copiez de
+   nouveau `artifacts/release/` dans le dossier servi.
+3. Lancez l'application installée : la petite fenêtre cherche, télécharge avec une barre de progression,
+   installe, et Voyager redémarre dans la `0.1.0-alpha.2` (le numéro est dans la page « À propos »).
+
+Pour désinstaller : « Applications installées » de Windows. Vos données restent dans
+`%LOCALAPPDATA%\Voyager`.
 
 ## Contribuer
 

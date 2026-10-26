@@ -17,15 +17,25 @@
     The version to build, such as 0.2.0-beta.3. Defaults to the one GitVersion computes for the
     current branch.
 
+.PARAMETER UpdateSource
+    The https address (or http://localhost...) of a folder served by a web server, where the app built
+    looks for updates instead of the GitHub releases. This is how an update is tried without publishing
+    anything: build a version, copy artifacts/release/ to that folder, install it, then build a newer
+    version and copy it there too. The address is written in the package, never in the repository.
+
 .PARAMETER Docker
     Also builds the Docker image of the group server (needs Docker).
 
 .EXAMPLE
     pwsh tools/release.ps1
+
+.EXAMPLE
+    pwsh tools/release.ps1 -Version 0.2.0 -UpdateSource http://localhost:8080/
 #>
 [CmdletBinding()]
 param(
     [string] $Version,
+    [string] $UpdateSource,
     [switch] $Docker
 )
 
@@ -56,11 +66,12 @@ if (-not $Version) {
     }
 }
 if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
-    throw "Not a version: '$Version'."
+    throw "Not a version: '$Version'. Expected x.y.z, optionally followed by a suffix, such as 0.2.0-beta.3."
 }
 # main gives stable versions, release/* and hotfix/* beta ones; develop ones are for local trials.
 $channel = if ($Version -notmatch '-') { 'stable' } elseif ($Version -match '-beta\.\d+$') { 'beta' } else { 'alpha' }
 Write-Host "Version $Version, channel $channel"
+Write-Host $(if ($UpdateSource) { "Updates come from $UpdateSource" } else { 'Updates come from the GitHub releases' })
 
 $service = Join-Path $artifacts 'local-service'
 Invoke-Step 'Publish the local service' {
@@ -79,8 +90,12 @@ Invoke-Step 'Build the user interface and the desktop app' { pnpm build }
 Invoke-Step 'Assemble the app folder' {
     Push-Location -LiteralPath $desktop
     try {
-        node dist-tools/packageApp.mjs --version $Version --service $service `
-            --ui (Join-Path $root 'src/ts/ui/dist') --out $artifacts
+        $packageArguments = @('--version', $Version, '--service', $service,
+            '--ui', (Join-Path $root 'src/ts/ui/dist'), '--out', $artifacts)
+        if ($UpdateSource) {
+            $packageArguments += @('--update-source', $UpdateSource)
+        }
+        node dist-tools/packageApp.mjs @packageArguments
     }
     finally {
         Pop-Location

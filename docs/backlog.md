@@ -56,8 +56,13 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   vérification de bout en bout de la mise à jour automatique, impossible tant qu'aucune release n'existe ;
   essai d'installation, de désinstallation et de réinstallation avec `Setup.exe` : la base
   (`%LOCALAPPDATA%\Voyager\voyager.db`) doit rester intacte ([ADR-0013](adr/0013-assemblage-du-paquet-de-l-application-de-bureau.md))
-- [ ] Prévenir l'utilisateur qu'une mise à jour est téléchargée (bandeau « Redémarrer pour mettre à
-  jour »), au lieu de l'installer silencieusement au prochain lancement
+- [x] Écran de démarrage et écran de mise à jour (recherche, téléchargement avec progression,
+  installation, redémarrage), source de mises à jour choisie à la fabrication
+  ([ADR-0014](adr/0014-ecran-de-demarrage-et-mise-a-jour-au-demarrage.md), proposée)
+- [ ] Design de l'écran de démarrage et de l'écran de mise à jour (aujourd'hui sobres), avec celui de
+  l'application, avant de commencer le métier
+- [ ] Essai d'installation puis de mise à jour avec `Setup.exe` et un serveur web (voir le README) ;
+  vérifier au passage que Velopack refuse une redirection de `https` vers `http`
 - [ ] Icône de l'application (installateur, fenêtre, raccourcis) et nom de l'éditeur dans l'installateur
 - [ ] Signature de code du paquet, avant une diffusion hors du groupe (SmartScreen avertit sans elle)
 - [x] Surveillance du service local : relancé (3 fois en 60 s au plus) s'il s'arrête pendant que

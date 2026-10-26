@@ -21,3 +21,4 @@ plus modifié ; s'il devient caduc, un nouvel ADR le **remplace**.
 | [0011](0011-aspire-pour-le-developpement.md)                    | Aspire pour le développement                            | Acceptée | 2026-10-25 |
 | [0012](0012-journaux-de-developpement-dans-seq-avec-serilog.md) | Journaux de développement écrits dans Seq avec Serilog  | Acceptée | 2026-10-25 |
 | [0013](0013-assemblage-du-paquet-de-l-application-de-bureau.md) | Assemblage du paquet de l'application de bureau         | Acceptée | 2026-10-26 |
+| [0014](0014-ecran-de-demarrage-et-mise-a-jour-au-demarrage.md)  | Écran de démarrage et mise à jour au démarrage          | Proposée | 2026-10-26 |

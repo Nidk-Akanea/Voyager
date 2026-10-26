@@ -5,8 +5,10 @@ import { ReactLocalization } from '@fluent/react';
 
 import enAbout from './en/about.ftl?raw';
 import enApp from './en/app.ftl?raw';
+import enStartup from './en/startup.ftl?raw';
 import frAbout from './fr/about.ftl?raw';
 import frApp from './fr/app.ftl?raw';
+import frStartup from './fr/startup.ftl?raw';
 
 export const SUPPORTED_LOCALES = ['fr', 'en'] as const;
 
@@ -16,8 +18,8 @@ export const DEFAULT_LOCALE: Locale = 'fr';
 
 /** Message files of each language; every file must exist in both languages. */
 export const MESSAGE_FILES: Readonly<Record<Locale, readonly string[]>> = {
-  fr: [frApp, frAbout],
-  en: [enApp, enAbout],
+  fr: [frApp, frAbout, frStartup],
+  en: [enApp, enAbout, enStartup],
 };
 
 /** Picks the first supported language among the user's preferences, or French. */
