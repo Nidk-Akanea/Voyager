@@ -54,6 +54,8 @@ const SYSTEM_VARIABLES = new Set([
 export interface LocalService {
   /** Resolves once the service accepts calls; rejects if it cannot start. */
   readonly connection: Promise<LocalServiceConnection>;
+  /** Resolves when the service process is gone, whether it was stopped or died; never for a service started by someone else. */
+  readonly exited: Promise<void>;
   /** Asks the service to stop, kills it if it has not stopped in time, and resolves once it is gone. */
   readonly stop: () => Promise<void>;
 }
@@ -76,7 +78,11 @@ export interface LaunchOptions {
 
 /** A service started, and stopped, by someone else: Aspire in development. */
 export function attachToRunningLocalService(connection: LocalServiceConnection): LocalService {
-  return { connection: Promise.resolve(connection), stop: () => Promise.resolve() };
+  return {
+    connection: Promise.resolve(connection),
+    exited: new Promise<void>(() => undefined),
+    stop: () => Promise.resolve(),
+  };
 }
 
 /** Starts the local service as a child process of the app. */
@@ -153,5 +159,5 @@ export function launchLocalService({
     return stopping;
   };
 
-  return { connection, stop };
+  return { connection, exited: gone, stop };
 }

@@ -1,12 +1,17 @@
-// Main process of the desktop app: starts the local service, opens the window on the user
-// interface and hands the interface the local service's address through the preload script.
+// Main process of the desktop app: keeps the local service running, opens the window on the user
+// interface and tells the interface where the service listens through the preload script.
 import { join } from 'node:path';
 
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
 
-import { GET_LOCAL_SERVICE_CHANNEL } from '../shared/ipc';
+import {
+  GET_LOCAL_SERVICE_STATE_CHANNEL,
+  LOCAL_SERVICE_STATE_CHANGED_CHANNEL,
+  RETRY_LOCAL_SERVICE_CHANNEL,
+} from '../shared/ipc';
 import { APP_ENTRY_URL, isAppUrl, registerAppScheme, serveUserInterface } from './appProtocol';
 import { launchLocalService, attachToRunningLocalService, type LocalService } from './localService';
+import { superviseLocalService } from './localServiceSupervisor';
 import { denyAllPermissions, lockDownWebContents } from './security';
 
 const WINDOW_WIDTH = 1024;
@@ -91,9 +96,22 @@ function createWindow(): BrowserWindow {
 }
 
 function start(): void {
-  const localService = startLocalService();
-  localService.connection.catch((error: unknown) => {
-    console.error('The local service could not start:', error instanceof Error ? error.message : error);
+  const localService = superviseLocalService({
+    launch: startLocalService,
+    report: (message) => {
+      console.error(message);
+    },
+    inform: (message) => {
+      console.info(message);
+    },
+  });
+  localService.onChange((state) => {
+    // Only the user interface gets to know where the service listens, and its token.
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.webContents.isDestroyed() && isUserInterface(window.webContents.getURL())) {
+        window.webContents.send(LOCAL_SERVICE_STATE_CHANGED_CHANNEL, state);
+      }
+    }
   });
 
   // Quitting waits for the local service to stop, so that it never writes to a database left behind.
@@ -109,11 +127,18 @@ function start(): void {
     });
   });
 
-  ipcMain.handle(GET_LOCAL_SERVICE_CHANNEL, (event) => {
+  const checkCaller = (event: IpcMainInvokeEvent): void => {
     if (!isUserInterface(event.senderFrame?.url ?? '')) {
-      throw new Error('Only the Voyager user interface can ask for the local service.');
+      throw new Error('Only the Voyager user interface can use the local service.');
     }
-    return localService.connection;
+  };
+  ipcMain.handle(GET_LOCAL_SERVICE_STATE_CHANNEL, (event) => {
+    checkCaller(event);
+    return localService.state();
+  });
+  ipcMain.handle(RETRY_LOCAL_SERVICE_CHANNEL, (event) => {
+    checkCaller(event);
+    localService.retry();
   });
 
   lockDownWebContents(isUserInterface);

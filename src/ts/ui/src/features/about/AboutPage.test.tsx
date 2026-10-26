@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DatabaseStatus, GetServiceInfoResponseSchema, type LocalServiceClients } from '@voyager/grpc-client';
 
 import { AppProviders } from '../../app/AppProviders';
+import { ShellProviders } from '../../app/ShellProviders';
 import type { Locale } from '../../i18n/localization';
 import { AboutPage } from './AboutPage';
 
@@ -24,9 +25,11 @@ function renderAboutPage(getServiceInfo: () => Promise<unknown>, locale: Locale 
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const clients = { diagnostics: { getServiceInfo: vi.fn(getServiceInfo) } } as unknown as LocalServiceClients;
   render(
-    <AppProviders locale={locale} clients={clients} queryClient={queryClient}>
-      <AboutPage />
-    </AppProviders>,
+    <ShellProviders locale={locale}>
+      <AppProviders locale={locale} clients={clients} queryClient={queryClient}>
+        <AboutPage />
+      </AppProviders>
+    </ShellProviders>,
   );
   return clients;
 }

@@ -1,4 +1,6 @@
 app-title = Voyager
 app-not-in-desktop = Voyager must be opened from its desktop application.
-app-local-service-failed = The Voyager local service could not start. Close and reopen the application.
+app-local-service-failed = The Voyager local service stopped and could not restart.
+app-local-service-restarting = The Voyager local service stopped, restarting…
+app-retry = Try again
 app-starting = Starting Voyager…

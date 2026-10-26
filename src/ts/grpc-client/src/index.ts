@@ -18,6 +18,16 @@ export interface LocalServiceConnection {
   readonly token: string;
 }
 
+/**
+ * What the desktop app tells the user interface about its local service. Failure details stay in the
+ * app's own log: they can hold paths, and so the name of the user's account.
+ */
+export type LocalServiceState =
+  | { readonly status: 'starting' }
+  | { readonly status: 'ready'; readonly connection: LocalServiceConnection }
+  | { readonly status: 'restarting' }
+  | { readonly status: 'failed' };
+
 /** Clients for every service exposed by the local service. */
 export interface LocalServiceClients {
   readonly diagnostics: Client<typeof DiagnosticsService>;
