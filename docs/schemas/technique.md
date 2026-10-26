@@ -108,13 +108,37 @@ sequenceDiagram
     L->>L: Met la base SQLite à jour (migrations)
     L->>L: Écoute sur 127.0.0.1, sur un port libre qu'il choisit
     L-->>P: Annonce son adresse (VOYAGER_LISTENING …)
-    W->>P: preload : getLocalService()
+    W->>P: preload : getLocalServiceState() et abonnement aux changements
     P->>P: Vérifie que l'appel vient bien de voyager://app
-    P-->>W: Adresse et jeton du service local
+    P-->>W: État du service local : prêt, avec son adresse et son jeton
     W->>L: gRPC-Web + en-tête x-voyager-token
     L->>L: Refuse sans le bon jeton ; CORS : seule l'origine voyager://app
     L-->>W: GetServiceInfo : version, moteur, mode, démarrage, état de la base
 ```
+
+### Si le service local s'arrête
+
+Le processus principal surveille le service qu'il a lancé (`localServiceSupervisor.ts`). L'interface
+n'affiche ses écrans que lorsqu'il est prêt (`LocalServiceGate`).
+
+```mermaid
+sequenceDiagram
+    participant P as Processus principal Electron
+    participant L as Service local
+    participant W as Fenêtre (interface React)
+    L--xP: S'arrête alors que l'application tourne
+    P-->>W: État « redémarrage » (poussé)
+    P->>L: Relance après 1 s, puis 2 s, puis 4 s (3 fois en 60 s au plus)
+    L-->>P: Nouvelle adresse (nouveau port) et nouveau jeton
+    P-->>W: État « prêt » avec la nouvelle adresse et le nouveau jeton
+    W->>W: Nouveaux clients gRPC, cache de données vidé
+    Note over P,W: Au-delà : état « échec », bouton « Réessayer »<br/>(retryLocalService) qui relance depuis zéro
+```
+
+Un service qui n'arrive pas à démarrer n'est pas relancé en boucle : l'état « échec » est immédiat. La
+raison de l'échec reste dans le journal de l'application ; elle n'est pas envoyée à l'interface (elle
+peut contenir des chemins, donc le nom du compte). En développement, le service appartient à Aspire :
+il n'est pas surveillé.
 
 Le service local reste lié à l'application : Electron garde ouverte son entrée standard, et le
 service s'arrête dès qu'elle se ferme. À la fermeture normale, Electron attend qu'il ait fini
@@ -122,9 +146,9 @@ service s'arrête dès qu'elle se ferme. À la fermeture normale, Electron atten
 
 Ce qui protège le service local, que tout programme de la machine pourrait appeler :
 
-- il n'écoute que sur `127.0.0.1`, sur un port choisi à chaque lancement ;
-- chaque appel doit porter le **jeton** tiré au démarrage, que le processus principal ne remet
-  qu'à la page de l'interface ;
+- il n'écoute que sur `127.0.0.1`, sur un port choisi à chaque lancement (donc après chaque relance) ;
+- chaque appel doit porter le **jeton** tiré au démarrage (un nouveau à chaque relance), que le
+  processus principal ne remet qu'à la page de l'interface ;
 - CORS n'autorise que l'origine de l'interface (`voyager://app`).
 
 Le jeton protège des pages web ouvertes dans un navigateur, des autres comptes de la machine et des

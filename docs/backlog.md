@@ -53,8 +53,8 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   sur le poste (electron-log, Serilog, ADR-0006) ; *fuses* Electron verrouillés (`RunAsNode`,
   `EnableNodeOptionsEnvironmentVariable`, `EnableNodeCliInspectArguments` désactivés,
   `OnlyLoadAppFromAsar` activé)
-- [ ] Surveillance du service local : le relancer s'il s'arrête pendant que l'application tourne,
-  et proposer « Réessayer » quand il n'a pas pu démarrer
+- [x] Surveillance du service local : relancé (3 fois en 60 s au plus) s'il s'arrête pendant que
+  l'application tourne, puis « Réessayer » quand il n'a pas pu démarrer ou redémarrer
 - [ ] Squelette, étape 3 — preuve des plugins, après l'ADR du mécanisme de plugins ; calcul de version
   par composant (SDK, plugins)
 - [x] Hook de formatage du code (`dotnet format`, Prettier), skills `/feature` et `/new-use-case`
@@ -173,6 +173,7 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 | Q20 | Protocole de communication ?                                                                                                                                                                              | Contrats, ADR-0002                    | **Tranchée** : RPC, pas de REST ; gRPC proposé dans l'ADR-0003                                                                                                 |
 | Q21 | Que réexpose le SDK de `Voyager.Core` aux plugins ? Le SDK peut-il exposer les abstractions `Microsoft.Extensions` (injection, journalisation) ? Le SDK suit-il ses propres tags `sdk/v…` dès l'étape 3 ? | ADR des plugins, tests d'architecture | Ouverte                                                                                                                                                        |
 | Q22 | Quel hébergeur pour le serveur en ligne (VPS en Europe, service de conteneurs managé…) ? Quel coût mensuel accepté ?                                                                                      | Mise en ligne, RGPD, coûts            | Ouverte (quand une version sera ouverte à un groupe)                                                                                                           |
+| Q23 | Quand le service local redémarre, l'interface remplace tous les écrans par un message (et perd une saisie en cours) : faut-il plutôt un bandeau au-dessus de l'écran, en gardant les écrans ouverts ?     | Saisie (E4), service local            | Ouverte (à traiter avec le premier formulaire de saisie)                                                                                                       |
 
 ## Idées en vrac
 

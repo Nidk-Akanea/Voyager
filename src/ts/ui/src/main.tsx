@@ -1,15 +1,15 @@
 // Entry point of the user interface, loaded by the desktop app (src/ts/desktop).
-import { createLocalServiceClients, type LocalServiceClients } from '@voyager/grpc-client';
 import { createRoot } from 'react-dom/client';
 
 import './app/bridge';
-import { AppProviders } from './app/AppProviders';
+import { LocalServiceGate } from './app/LocalServiceGate';
+import { ShellProviders } from './app/ShellProviders';
 import { AboutPage } from './features/about/AboutPage';
 import { createLocalization, pickLocale } from './i18n/localization';
 
 const ROOT_ELEMENT_ID = 'root';
 
-async function start(): Promise<void> {
+function start(): void {
   const container = document.getElementById(ROOT_ELEMENT_ID);
   if (container === null) {
     throw new Error(`The page has no #${ROOT_ELEMENT_ID} element.`);
@@ -30,24 +30,13 @@ async function start(): Promise<void> {
     return;
   }
 
-  // The desktop app may still be starting the local service.
-  root.render(<p>{localization.getString('app-starting')}</p>);
-
-  let clients: LocalServiceClients;
-  try {
-    clients = createLocalServiceClients(await window.voyager.getLocalService());
-  } catch (error: unknown) {
-    // Shown in the developer tools; the user sees a message telling them what to do.
-    console.error('The local service is not available:', error instanceof Error ? error.message : error);
-    root.render(<p>{localization.getString('app-local-service-failed')}</p>);
-    return;
-  }
-
   root.render(
-    <AppProviders locale={locale} clients={clients} prefersDarkTheme={prefersDarkTheme}>
-      <AboutPage />
-    </AppProviders>,
+    <ShellProviders locale={locale} prefersDarkTheme={prefersDarkTheme}>
+      <LocalServiceGate bridge={window.voyager} locale={locale}>
+        <AboutPage />
+      </LocalServiceGate>
+    </ShellProviders>,
   );
 }
 
-void start();
+start();

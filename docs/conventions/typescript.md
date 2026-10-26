@@ -69,7 +69,11 @@ Le nommage est vérifié par la règle ESLint `@typescript-eslint/naming-convent
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false` pour toutes les fenêtres.
 - Le script `preload` expose une API minimale et typée (`contextBridge`) ; l'interface n'accède
   jamais directement à Node.js ni au système de fichiers.
-- Le processus principal valide tout ce qui arrive de l'interface.
+- Le processus principal valide tout ce qui arrive de l'interface : chaque canal IPC vérifie que
+  l'expéditeur est la page de l'interface, et le processus principal ne pousse un message (adresse
+  et jeton du service local, par exemple) qu'à la fenêtre de l'interface.
+- Un abonnement exposé par le `preload` renvoie la fonction qui le retire, et ne donne jamais à la
+  page l'objet d'événement d'Electron.
 
 ## Plugins (côté interface)
 
