@@ -70,8 +70,8 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 - [ ] ADR du mécanisme de plugins : [ADR-0015](adr/0015-mecanisme-de-plugins.md) (proposée)
 - [ ] Squelette, étape 3 — preuve des plugins, après l'ADR du mécanisme de plugins ; calcul de version
   par composant (SDK, plugins)
-  - [ ] Spec de la preuve (point d'extension « source de faits de diagnostic », deux plugins), noms au
-    glossaire
+  - [x] Spec de la preuve : [plateforme-preuve-des-plugins](specs/plateforme-preuve-des-plugins.md)
+    (brouillon, à valider)
   - [ ] `Voyager.Sdk` (`IPlugin`, `IPluginBuilder`, le contrat de la source de faits) et `@voyager/plugin-sdk`
     (registre d'extensions, services de l'hôte)
   - [ ] `Voyager.PluginHost` : manifeste, contexte de chargement par plugin, conteneur privé, plugin écarté
