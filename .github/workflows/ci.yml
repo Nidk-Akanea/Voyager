@@ -21,7 +21,10 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet restore Voyager.slnx
-      - run: dotnet build Voyager.slnx --configuration Release --no-restore
+      # One project at a time: GitVersion.MsBuild runs once per project, and on Linux two runs starting
+      # together can both try to create its named lock and one fails ("The system cannot open the
+      # device or file specified: Global\gitversion...").
+      - run: dotnet build Voyager.slnx --configuration Release --no-restore --maxcpucount:1
       - run: dotnet test --solution Voyager.slnx --configuration Release --no-build
       - run: dotnet format Voyager.slnx --verify-no-changes --no-restore
 
