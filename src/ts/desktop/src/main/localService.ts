@@ -2,6 +2,7 @@
 // its own choosing, waits for the address it announces, and stops it cleanly with the app.
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -67,6 +68,8 @@ export interface LaunchOptions {
   readonly args?: readonly string[];
   /** How long to wait for the service to announce its address. */
   readonly startupTimeoutMs?: number;
+  /** Receives each line the service writes on its error output; defaults to the console. */
+  readonly onOutput?: (line: string) => void;
   /** Variables added to, or replacing, those the app inherited. */
   readonly environment?: Readonly<Record<string, string>>;
   /**
@@ -90,6 +93,9 @@ export function launchLocalService({
   executable,
   args = [],
   startupTimeoutMs = STARTUP_TIMEOUT_MS,
+  onOutput = (line) => {
+    console.error('[local service]', line);
+  },
   environment = {},
   isolated = false,
 }: LaunchOptions): LocalService {
@@ -106,14 +112,14 @@ export function launchLocalService({
       // The open standard input ties the service to the app: it stops when the app quits or crashes.
       Voyager__StopWhenInputCloses: 'true',
     },
+    // ASP.NET Core looks for appsettings.json in the working directory, not next to the executable.
+    cwd: dirname(executable),
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
   });
   // Writing to a service that already stopped fails; there is nothing more to do then.
   child.stdin.on('error', () => undefined);
-  createInterface({ input: child.stderr }).on('line', (line) => {
-    console.error('[local service]', line);
-  });
+  createInterface({ input: child.stderr }).on('line', onOutput);
 
   const gone = new Promise<void>((resolve) => {
     child.once('exit', () => {

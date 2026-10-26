@@ -28,6 +28,7 @@ public sealed class PackageReferenceTests
             "OpenTelemetry.Instrumentation.Runtime",
             "Serilog",
             "Serilog.Extensions.Logging",
+            "Serilog.Sinks.File",
             "Serilog.Sinks.Seq",
         ],
     };

@@ -3,6 +3,7 @@
 import { join } from 'node:path';
 
 import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
+import { GithubSource, UpdateManager, VelopackApp } from 'velopack';
 
 import {
   GET_LOCAL_SERVICE_STATE_CHANNEL,
@@ -12,14 +13,30 @@ import {
 import { APP_ENTRY_URL, isAppUrl, registerAppScheme, serveUserInterface } from './appProtocol';
 import { launchLocalService, attachToRunningLocalService, type LocalService } from './localService';
 import { superviseLocalService } from './localServiceSupervisor';
+import { configureLogging, desktopLog } from './logging';
 import { denyAllPermissions, lockDownWebContents } from './security';
+import { downloadUpdate } from './updates';
 
 const WINDOW_WIDTH = 1024;
 const WINDOW_HEIGHT = 768;
 const EXECUTABLE_NAME = process.platform === 'win32' ? 'Voyager.LocalService.exe' : 'Voyager.LocalService';
+// Updates come from the releases of the repository (ADR-0009).
+const RELEASES_REPOSITORY_URL = 'https://github.com/Nidk-Akanea/Voyager';
+
+/** The folder of the log files, for the app and its local service: next to the local database. */
+function logDirectory(): string {
+  return join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'Voyager', 'logs');
+}
+
 // The installed app always runs its service in Production, isolated from the machine's settings:
 // development ones (logs sent to Seq or to a dashboard, health endpoints) never apply to it.
-const PACKAGED_SERVICE_ENVIRONMENT = { DOTNET_ENVIRONMENT: 'Production', ASPNETCORE_ENVIRONMENT: 'Production' };
+function packagedServiceEnvironment(): Record<string, string> {
+  return {
+    DOTNET_ENVIRONMENT: 'Production',
+    ASPNETCORE_ENVIRONMENT: 'Production',
+    Voyager__LogDirectory: logDirectory(),
+  };
+}
 
 // Only the loopback interface: the page talks to the local service and nothing else.
 const CONTENT_SECURITY_POLICY = [
@@ -69,7 +86,10 @@ function startLocalService(): LocalService {
   return launchLocalService({
     executable:
       developmentSetting('VOYAGER_LOCAL_SERVICE_PATH') ?? join(process.resourcesPath, 'local-service', EXECUTABLE_NAME),
-    environment: app.isPackaged ? PACKAGED_SERVICE_ENVIRONMENT : {},
+    onOutput: (line) => {
+      desktopLog.warn('[local service]', line);
+    },
+    environment: app.isPackaged ? packagedServiceEnvironment() : {},
     isolated: app.isPackaged,
   });
 }
@@ -99,10 +119,10 @@ function start(): void {
   const localService = superviseLocalService({
     launch: startLocalService,
     report: (message) => {
-      console.error(message);
+      desktopLog.error(message);
     },
     inform: (message) => {
-      console.info(message);
+      desktopLog.info(message);
     },
   });
   localService.onChange((state) => {
@@ -147,6 +167,9 @@ function start(): void {
   });
 
   void app.whenReady().then(() => {
+    if (app.isPackaged) {
+      void updateInstalledApp();
+    }
     denyAllPermissions();
     serveUserInterface(userInterfaceDirectory(), CONTENT_SECURITY_POLICY);
     const window = createWindow();
@@ -161,6 +184,36 @@ function start(): void {
   });
 }
 
+/** Looks for a newer version of the installed app; an app run from a plain folder has nothing to update. */
+async function updateInstalledApp(): Promise<void> {
+  let updates: UpdateManager;
+  try {
+    // A version with a suffix (0.3.0-beta.2) comes from the beta channel: its releases are pre-releases.
+    const prerelease = app.getVersion().includes('-');
+    updates = new UpdateManager(new GithubSource(RELEASES_REPOSITORY_URL, undefined, prerelease));
+  } catch (error: unknown) {
+    // Not installed by its installer (run from a plain folder): there is nothing to update.
+    desktopLog.info(
+      'Updates are off: the app is not installed by its installer.',
+      error instanceof Error ? error.message : String(error),
+    );
+    return;
+  }
+  await downloadUpdate(updates, desktopLog);
+}
+
+configureLogging({ directory: logDirectory(), toFile: app.isPackaged });
+if (app.isPackaged) {
+  // Before anything else: the installer and the updater start the app to run their own steps.
+  VelopackApp.build()
+    // A version downloaded earlier is installed here, as the app starts (this is Velopack's default).
+    .setAutoApplyOnStartup(true)
+    .setLogger((level, message) => {
+      // Velopack's own levels are kept: its debug and trace lines stay out of the file, which starts at info.
+      desktopLog[level === 'trace' ? 'debug' : level]('[velopack]', message);
+    })
+    .run();
+}
 registerAppScheme();
 app.enableSandbox();
 

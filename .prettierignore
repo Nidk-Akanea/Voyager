@@ -10,4 +10,6 @@ private/
 pnpm-lock.yaml
 **/gen/
 **/dist/
+**/dist-tools/
+artifacts/
 **/out/

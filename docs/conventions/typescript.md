@@ -69,6 +69,11 @@ Le nommage est vérifié par la règle ESLint `@typescript-eslint/naming-convent
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false` pour toutes les fenêtres.
 - Le script `preload` expose une API minimale et typée (`contextBridge`) ; l'interface n'accède
   jamais directement à Node.js ni au système de fichiers.
+- L'application installée a ses **fuses** Electron verrouillés (`src/ts/desktop/src/packaging/fuses.ts`) :
+  `RunAsNode`, `NODE_OPTIONS` et `--inspect` désactivés, code chargé uniquement depuis l'archive asar
+  contrôlée. Une nouvelle fuse d'Electron doit être décidée là avant que l'application se construise.
+- Les journaux de l'application passent par `electron-log` (`src/main/logging.ts`), jamais par
+  `console` ; le dossier personnel y est masqué (`~`), comme dans les journaux du service.
 - Le processus principal valide tout ce qui arrive de l'interface : chaque canal IPC vérifie que
   l'expéditeur est la page de l'interface, et le processus principal ne pousse un message (adresse
   et jeton du service local, par exemple) qu'à la fenêtre de l'interface.

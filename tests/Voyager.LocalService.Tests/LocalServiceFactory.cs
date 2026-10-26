@@ -25,20 +25,24 @@ internal sealed class LocalServiceFactory : WebApplicationFactory<Program>
     private readonly IClock? _clock;
     private readonly string? _seqServerUrl;
     private readonly string? _environment;
+    private readonly string? _logDirectory;
 
     /// <param name="localToken">The token given to the service, or null to start it without one.</param>
     /// <param name="databasePath">The SQLite file, or null for a new temporary file.</param>
     /// <param name="clock">The clock of the service, or null for the system clock.</param>
     /// <param name="seqServerUrl">The Seq server to write logs to, or null for none.</param>
     /// <param name="environment">The hosting environment, or null for Development.</param>
+    /// <param name="logDirectory">The folder for log files, or null for none.</param>
     public LocalServiceFactory(
         string? localToken = LOCAL_TOKEN,
         string? databasePath = null,
         IClock? clock = null,
         string? seqServerUrl = null,
-        string? environment = null)
+        string? environment = null,
+        string? logDirectory = null)
     {
         _environment = environment;
+        _logDirectory = logDirectory;
         _localToken = localToken;
         _clock = clock;
         _seqServerUrl = seqServerUrl;
@@ -65,6 +69,8 @@ internal sealed class LocalServiceFactory : WebApplicationFactory<Program>
         builder.UseSetting("Voyager:DatabasePath", DatabasePath);
         // Tests never write to a Seq server, even one set in the machine's environment.
         builder.UseSetting("Seq:ServerUrl", _seqServerUrl ?? string.Empty);
+        // Tests never write log files to the machine's own folder, even one set in its environment.
+        builder.UseSetting("Voyager:LogDirectory", _logDirectory ?? string.Empty);
         if (_localToken is not null)
         {
             builder.UseSetting("Voyager:LocalToken", _localToken);

@@ -1,3 +1,5 @@
+import { dirname } from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { launchLocalService, type LaunchOptions } from './localService';
@@ -46,6 +48,16 @@ describe('launchLocalService', () => {
     const service = reportVariable('DOTNET_ENVIRONMENT', { environment: { DOTNET_ENVIRONMENT: 'Production' } });
 
     await expect(service.connection).resolves.toMatchObject({ url: 'Production' });
+    await service.stop();
+  });
+
+  it('starts the service in the folder of its executable, where its settings files are', async () => {
+    const service = launchLocalService({
+      executable: process.execPath,
+      args: ['-e', "console.log('VOYAGER_LISTENING ' + process.cwd()); process.stdin.resume();"],
+    });
+
+    await expect(service.connection).resolves.toMatchObject({ url: dirname(process.execPath) });
     await service.stop();
   });
 
