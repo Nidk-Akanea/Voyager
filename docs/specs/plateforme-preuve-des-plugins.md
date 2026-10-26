@@ -64,8 +64,11 @@ l'[ADR-0015](../adr/0015-mecanisme-de-plugins.md).
  2. Un plugin écarté **ne gêne ni le démarrage ni les autres plugins**. Il apparaît dans la liste avec la
     raison de son écartement, dans la langue de l'utilisateur.
  3. Un plugin qui échoue ou tarde trop **pendant un appel** (la demande de ses faits) est signalé « en
-    erreur » et ses faits sont omis ; les autres sources s'affichent. Un module d'interface qui ne se
-    charge pas, ou qui plante en s'affichant, est traité de même : le reste de la page s'affiche.
+    erreur » et ses faits sont omis ; les autres sources s'affichent. Le délai est de **5 secondes** par
+    plugin. Un module d'interface qui ne se charge pas, ou qui plante en s'affichant, est traité de même :
+    le reste de la page s'affiche.
+    Un plugin fournit **50 faits au plus** : au-delà, les premiers sont gardés, les autres omis, et la
+    section du plugin le dit.
 
 ### Langues et versions
 
@@ -91,7 +94,7 @@ l'[ADR-0015](../adr/0015-mecanisme-de-plugins.md).
 ## Les deux plugins de démonstration
 
 Ils servent à prouver le mécanisme ; ils seront remplacés par les premiers vrais plugins. Les noms et les
-faits sont des **propositions** (voir les questions ouvertes).
+faits ont été **retenus par l'utilisateur** sur ma proposition (voir « Décisions prises »).
 
 | Plugin                | Ce qu'il apporte                                                                            | Partie d'interface               |
 | --------------------- | ------------------------------------------------------------------------------------------- | -------------------------------- |
@@ -99,7 +102,7 @@ faits sont des **propositions** (voir les questions ouvertes).
 | `diagnostics-clock`   | Faits sur le temps : l'instant courant du service et la durée depuis son démarrage          | Oui : un panneau avec Actualiser |
 
 Un **plugin cassé** existe seulement dans les tests, jamais dans le paquet : il sert à vérifier les règles
-10 à 12.
+de la section « Quand un plugin est refusé ou plante ».
 
 ## Critères d'acceptation
 
@@ -118,8 +121,10 @@ Un **plugin cassé** existe seulement dans les tests, jamais dans le paquet : il
   le second est écarté et le premier reste chargé.
 - **Étant donné** un plugin qui lève une exception en fournissant ses faits, **quand** j'ouvre la page,
   **alors** il est marqué « en erreur », ses faits sont absents, et tout le reste s'affiche.
-- **Étant donné** un plugin qui n'a pas fini de fournir ses faits dans le délai, **quand** j'ouvre la
+- **Étant donné** un plugin qui n'a pas fini de fournir ses faits en 5 secondes, **quand** j'ouvre la
   page, **alors** il est traité comme en erreur et la page ne reste pas bloquée.
+- **Étant donné** un plugin qui fournit plus de 50 faits, **quand** j'ouvre la page, **alors** les 50
+  premiers s'affichent et sa section indique que les autres sont omis.
 - **Étant donné** un plugin qui enregistre un point d'extension absent de son manifeste, **quand** il
   se charge, **alors** cette inscription est refusée et le plugin est écarté.
 - **Étant donné** la page « À propos » avec plusieurs plugins d'interface, **quand** elle s'affiche,
@@ -147,7 +152,7 @@ Un **plugin cassé** existe seulement dans les tests, jamais dans le paquet : il
 - **Langue** : un libellé de plugin manquant dans la langue de l'utilisateur retombe sur le français ; un
   libellé absent des deux langues affiche son identifiant plutôt que rien.
 - **Hors-ligne** : sans effet, les plugins sont locaux.
-- **Données personnelles** : voir la règle 9 ; les journaux du chargement des plugins suivent la même
+- **Données personnelles** : voir la règle sur les faits sans donnée personnelle (section « Le point d'extension de la preuve ») ; les journaux du chargement des plugins suivent la même
   règle.
 - **Service local relancé** par le superviseur après un plantage : les plugins sont rechargés comme au
   démarrage.
@@ -164,20 +169,27 @@ Un **plugin cassé** existe seulement dans les tests, jamais dans le paquet : il
 - Désactiver un plugin qui fait planter le service en boucle (question Q26).
 - Le design des écrans : ils sont sobres, le design vient avant le métier.
 
-## Questions ouvertes
+## Décisions prises
 
-- **Noms et faits des plugins de démonstration** : `diagnostics-runtime` et `diagnostics-clock`, avec
-  les faits proposés ci-dessus, te conviennent-ils ?
-- **Délai maximal** d'un plugin pour fournir ses faits (la règle 12 le prévoit, l'ADR-0015 ne chiffre pas) :
-  quelques secondes ? À fixer avant l'implémentation.
-- **Nombre maximal de faits** par plugin, pour qu'une source bavarde ne noie pas la page : une limite
-  (par exemple 50) ou aucune ?
-- **Où montrer la liste des plugins** : dans la page « À propos » (proposé pour la preuve, simple), ou
-  dans une page « Plugins » à elle ? Le design reviendra dessus.
-- **Que deviennent les deux plugins de démonstration** une fois les premiers vrais plugins là : retirés
-  du paquet, ou gardés comme exemples pour les auteurs ?
+Sur proposition de Claude, retenues par l'utilisateur :
+
+- **Plugins de démonstration** : `diagnostics-runtime` et `diagnostics-clock`, avec les faits du tableau
+  ci-dessus.
+- **Délai maximal** pour fournir ses faits : 5 secondes par plugin (section « Quand un plugin est refusé ou plante »).
+- **Nombre maximal de faits** : 50 par plugin, les suivants omis (même section).
+- **Liste des plugins** : dans la page « À propos » pour la preuve ; une page « Plugins » à part pourra
+  venir avec le design.
+- **Plugins de démonstration après les vrais plugins** : gardés dans le dépôt comme exemples pour les
+  auteurs ; leur présence dans le paquet sera revue quand les premiers vrais plugins arriveront.
+- **Squelette de `/new-plugin`** : un plugin minimal (manifeste, partie .NET, partie d'interface,
+  textes, test). Pas de modèle de `.proto` : les services gRPC d'un plugin sont hors périmètre.
+
+## Renvoyé au plan d'implémentation
+
 - **Chemin de développement des plugins d'interface avec Vite** (question Q25) : on reconstruit à chaque
   modification (décidé) ; la façon dont la page servie par Vite charge le module est un point technique,
   à fixer dans le plan d'implémentation et non ici.
-- **Contenu du squelette créé par `/new-plugin`** : un plugin minimal (manifeste, partie .NET, partie
-  d'interface, textes, test) suffit-il, ou veux-tu aussi un modèle pour les `.proto` d'un plugin ?
+
+## Questions ouvertes
+
+Aucune ne bloque la validation.
