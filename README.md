@@ -77,6 +77,21 @@ jamais dans Seq.
 
 Les autres commandes (formatage, contrats, version) sont listées dans [CLAUDE.md](CLAUDE.md#commandes).
 
+## Construire le paquet installable
+
+Sous Windows, avec .NET, Node.js et pnpm installés :
+
+```powershell
+pwsh tools/release.ps1
+```
+
+Le script calcule la version avec GitVersion, publie le service local, construit l'interface et
+l'application de bureau, puis fabrique avec Velopack l'installateur et les paquets de mise à jour dans
+`artifacts/release/`. Rien n'est publié. L'application installée écrit ses journaux (la sienne et celle
+du service local) dans `%LOCALAPPDATA%\Voyager\logs`, sans nom de compte (le dossier personnel y est remplacé par `~`) ni donnée de voyage. Au
+démarrage, l'application installée interroge les releases GitHub du dépôt pour chercher une version
+plus récente : seule l'adresse IP et la version courante sont visibles de GitHub.
+
 ## Contribuer
 
 Git Flow : le travail part de `develop` sur une branche `feature/…` et y revient par une PR

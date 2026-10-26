@@ -95,6 +95,9 @@ Les noms métier viennent du [glossaire](../glossaire.md) : on écrit `Quote`, p
 
 - Le code utilise `ILogger<T>` ; seuls les hôtes et `Voyager.ServiceDefaults`, qu'ils sont seuls à
   référencer, connaissent Serilog, qui écrit les journaux (ADR-0006, ADR-0012).
+- L'application installée écrit aussi ses journaux dans des fichiers (un par jour, 10 Mo au plus,
+  14 conservés) dans le dossier donné par `Voyager:LogDirectory`, `%LOCALAPPDATA%\Voyager\logs`.
+  Ils restent sur le poste, mais peuvent être joints à un rapport de bogue : même règle que ci-dessous.
 - `ILogger<T>` avec des messages structurés : `logger.LogInformation("Quote {QuoteId} accepted", id)`,
   jamais d'interpolation de chaîne dans le message.
 - **Aucune donnée personnelle dans les journaux** : pas de noms, d'adresses, de références de

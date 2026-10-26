@@ -9,6 +9,8 @@ export default defineConfig({
     minify: false,
     sourcemap: true,
     lib: { entry: 'src/main/main.ts', formats: ['es'], fileName: () => 'main.js' },
-    rolldownOptions: { external: ['electron', /^node:/] },
+    // velopack holds native code and electron-log needs the real Node.js modules: both ship as they
+    // are, next to the app, not bundled (src/packaging/packageApp.ts).
+    rolldownOptions: { external: ['electron', 'velopack', /^electron-log(\/|$)/, /^node:/] },
   },
 });

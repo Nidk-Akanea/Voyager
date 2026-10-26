@@ -6,7 +6,16 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/out/**', '**/gen/**', '**/node_modules/**', 'src/dotnet/**', 'tests/**'],
+    ignores: [
+      '**/dist/**',
+      '**/dist-tools/**',
+      'artifacts/**',
+      '**/out/**',
+      '**/gen/**',
+      '**/node_modules/**',
+      'src/dotnet/**',
+      'tests/**',
+    ],
   },
   eslint.configs.recommended,
   tseslint.configs.strictTypeChecked,

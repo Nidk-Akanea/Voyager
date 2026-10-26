@@ -17,13 +17,14 @@ using OpenTelemetry.Trace;
 using Serilog;
 using Serilog.Debugging;
 using Serilog.Extensions.Logging;
+using Serilog.Formatting.Display;
 
 namespace Voyager.ServiceDefaults;
 
 /// <summary>
 /// Technical defaults shared by the Voyager hosts (ADR-0011): telemetry, logs sent to Seq in
-/// development, health checks, resilience of outgoing HTTP calls, service discovery, and listening
-/// addresses.
+/// development and written to files on the user's machine, health checks, resilience of outgoing
+/// HTTP calls, service discovery, and listening addresses.
 /// </summary>
 public static class ServiceDefaultsExtensions
 {
@@ -34,6 +35,11 @@ public static class ServiceDefaultsExtensions
     private const string HEALTH_ENDPOINT_PATH = "/health";
     private const string KESTREL_ENDPOINTS_SECTION = "Kestrel:Endpoints";
     private const string LIVENESS_TAG = "live";
+    private const string LOG_DIRECTORY_SETTING = "Voyager:LogDirectory";
+    private const int LOG_FILES_KEPT = 14;
+    private const long LOG_FILE_SIZE_LIMIT_BYTES = 10 * 1024 * 1024;
+    private const string LOG_LINE_TEMPLATE =
+        "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}";
     private const string OTLP_ENDPOINT_SETTING = "OTEL_EXPORTER_OTLP_ENDPOINT";
     private const string SEQ_API_KEY_SETTING = "Seq:ApiKey";
 
@@ -62,20 +68,21 @@ public static class ServiceDefaultsExtensions
     }
 
     /// <summary>
-    /// Also writes the logs to <paramref name="seqServer"/> with Serilog (ADR-0012), with Seq:ApiKey if
-    /// the server asks for one. Serilog is added next to the other log outputs (console, OpenTelemetry),
-    /// which keep working, and the usual Logging:LogLevel filters apply to it too.
+    /// Also writes the logs with Serilog (ADR-0012), to <paramref name="seqServer"/> (with Seq:ApiKey
+    /// if the server asks for one) and to rolling files in <paramref name="logDirectory"/>, whichever
+    /// are given. Serilog is added next to the other log outputs (console, OpenTelemetry), which keep
+    /// working, and the usual Logging:LogLevel filters apply to it too.
     /// </summary>
-    private static TBuilder AddSeqLogging<TBuilder>(this TBuilder builder, Uri? seqServer)
+    private static TBuilder AddSerilogLogging<TBuilder>(this TBuilder builder, Uri? seqServer, string? logDirectory)
         where TBuilder : IHostApplicationBuilder
     {
-        if (seqServer is null)
+        if (seqServer is null && logDirectory is null)
         {
             return builder;
         }
 
-        // Without this, a stopped server or a wrong API key would go unnoticed: Serilog reports its own
-        // failures on the error output, which the Aspire dashboard shows.
+        // Without this, a stopped server, a wrong API key or a full disk would go unnoticed: Serilog
+        // reports its own failures on the error output (the Aspire dashboard, or the desktop app's log).
         SelfLog.Enable(Console.Error);
 
         var apiKey = builder.Configuration[SEQ_API_KEY_SETTING];
@@ -84,20 +91,40 @@ public static class ServiceDefaultsExtensions
         // Registered as a plain provider, not with AddSerilog(): that one adds a filter rule of its own
         // which lets every level through, whatever Logging:LogLevel says. Built by the container, which
         // also disposes of it, sending the last logs, when the host stops.
-        builder.Services.AddSingleton<ILoggerProvider>(_ => new SerilogLoggerProvider(
-            new LoggerConfiguration()
-                // Every level reaches Serilog: Microsoft.Extensions.Logging has already filtered them.
+        builder.Services.AddSingleton<ILoggerProvider>(_ =>
+        {
+            // Every level reaches Serilog: Microsoft.Extensions.Logging has already filtered them.
+            var configuration = new LoggerConfiguration()
                 .MinimumLevel.Verbose()
-                .Enrich.WithProperty(APPLICATION_PROPERTY, applicationName)
+                .Enrich.WithProperty(APPLICATION_PROPERTY, applicationName);
+
+            if (seqServer is not null)
+            {
                 // Invariant culture: the same message text whatever the language of the machine.
-                .WriteTo.Seq(
+                configuration.WriteTo.Seq(
                     seqServer.ToString(),
                     apiKey: string.IsNullOrWhiteSpace(apiKey) ? null : apiKey,
                     queueSizeLimit: SEQ_QUEUE_SIZE_LIMIT,
                     messageHandler: new SocketsHttpHandler { ConnectTimeout = _seqConnectTimeout },
-                    formatProvider: CultureInfo.InvariantCulture)
-                .CreateLogger(),
-            dispose: true));
+                    formatProvider: CultureInfo.InvariantCulture);
+            }
+
+            if (logDirectory is not null)
+            {
+                // The file stays on the user's machine but may be attached to a bug report: it never
+                // holds the name of the account (paths in messages and exceptions).
+                configuration.WriteTo.File(
+                    HomeFolderRedactingFormatter.ForCurrentUser(
+                        new MessageTemplateTextFormatter(LOG_LINE_TEMPLATE, CultureInfo.InvariantCulture)),
+                    Path.Combine(logDirectory, $"{applicationName}-.log"),
+                    rollingInterval: RollingInterval.Day,
+                    fileSizeLimitBytes: LOG_FILE_SIZE_LIMIT_BYTES,
+                    rollOnFileSizeLimit: true,
+                    retainedFileCountLimit: LOG_FILES_KEPT);
+            }
+
+            return new SerilogLoggerProvider(configuration.CreateLogger(), dispose: true);
+        });
 
         return builder;
     }
@@ -146,6 +173,30 @@ public static class ServiceDefaultsExtensions
         && Uri.Compare(target, server, UriComponents.SchemeAndServer, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0;
 
     /// <summary>
+    /// The folder for log files named by Voyager:LogDirectory; null when there is none. Set by the
+    /// desktop app for the service it installs, in a folder of the user's own machine.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Voyager:LogDirectory is not an absolute path.</exception>
+    private static string? LogDirectory<TBuilder>(this TBuilder builder)
+        where TBuilder : IHostApplicationBuilder
+    {
+        var directory = builder.Configuration[LOG_DIRECTORY_SETTING];
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return null;
+        }
+
+        // A relative path would land next to whatever folder the service happens to start in; so would
+        // one that only has a drive (C:logs) or only has a root (\logs).
+        if (!Path.IsPathFullyQualified(directory))
+        {
+            throw new InvalidOperationException($"{LOG_DIRECTORY_SETTING} must be an absolute path.");
+        }
+
+        return directory;
+    }
+
+    /// <summary>
     /// The Seq server named by Seq:ServerUrl, in development only; null when there is none.
     /// </summary>
     /// <exception cref="InvalidOperationException">
@@ -185,7 +236,7 @@ public static class ServiceDefaultsExtensions
     #region Public Methods
 
     /// <summary>
-    /// Adds dependency injection validation, telemetry, Seq logs, health checks, service discovery
+    /// Adds dependency injection validation, telemetry, Serilog logs, health checks, service discovery
     /// and resilient HTTP clients to a host.
     /// </summary>
     /// <param name="builder">The host builder.</param>
@@ -202,7 +253,7 @@ public static class ServiceDefaultsExtensions
 
         var seqServer = builder.SeqServerInDevelopment();
         builder.ConfigureOpenTelemetry(seqServer);
-        builder.AddSeqLogging(seqServer);
+        builder.AddSerilogLogging(seqServer, builder.LogDirectory());
         builder.AddDefaultHealthChecks();
 
         builder.Services.AddServiceDiscovery();

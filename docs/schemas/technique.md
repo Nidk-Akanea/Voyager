@@ -168,6 +168,36 @@ puis Electron, à qui il passe leurs adresses et le jeton (`VOYAGER_UI_URL`,
 service. L'application installée ignore ces variables, et ne transmet à son service local que les
 variables système du poste (chemins, dossier temporaire…), en mode Production.
 
+## Le paquet installable et les journaux
+
+Mis en place par `tools/release.ps1` ([ADR-0009](../adr/0009-installation-et-mises-a-jour-velopack.md)).
+
+```mermaid
+flowchart LR
+    G[GitVersion] --> P[dotnet publish<br/>service local, win-x64]
+    G --> B[pnpm build<br/>interface + Electron]
+    P --> A[packageApp<br/>asar + ressources + fuses]
+    B --> A
+    A --> V[vpk pack<br/>Velopack]
+    V --> R[artifacts/release<br/>Setup.exe + paquets]
+```
+
+L'application installée contient, dans son dossier de ressources, le service local publié
+(`resources/local-service`) et l'interface construite (`resources/ui`) ; le code d'Electron est dans
+l'archive `app.asar`, hors les modules natifs (Velopack) qui restent à côté. Les *fuses* d'Electron
+sont posées sur l'exécutable et relues avant d'emballer ; le canal (`stable`, `beta`, `alpha`) vient du
+suffixe de la version.
+
+Au démarrage, l'application installée cherche une version plus récente dans les releases GitHub du
+dépôt et la télécharge ; elle s'installe au lancement suivant. Hors-ligne, ou sans release publiée,
+elle continue sans rien dire à l'utilisateur (une ligne dans le journal). Une application lancée depuis un
+simple dossier (non installée) ne cherche rien.
+
+**Journaux** : un fichier pour l'application (`desktop.log`) et un par jour pour le service local
+(`Voyager.LocalService-AAAAMMJJ.log`), dans `%LOCALAPPDATA%\Voyager\logs`, à côté de la base. Les
+chemins y sont masqués (`~` pour le dossier personnel) et la règle « aucune donnée personnelle »
+s'applique. Rien n'est envoyé hors de la machine.
+
 ## Une saisie hors-ligne, pas à pas
 
 ```mermaid

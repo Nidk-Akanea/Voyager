@@ -439,6 +439,7 @@ private/
 
 # TypeScript workspace build output
 dist/
+dist-tools/
 out/
 *.tsbuildinfo
 **/src/gen/

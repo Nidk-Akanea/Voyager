@@ -47,12 +47,19 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   Prettier, Buf, CI, version GitVersion dans les assemblies
 - [x] Squelette, étape 2 — tranche technique « À propos » de bout en bout (Electron → React →
   gRPC-Web → service local → SQLite), lancée par Aspire avec le serveur du groupe et PostgreSQL
-- [ ] Paquet installable (sorti de l'étape 2 du squelette, décision du 2026-10-25) : service local
-  publié avec l'application, Velopack, script
-  `tools/release.ps1`, version GitVersion dans les `package.json` (ADR-0009) ; journaux en fichiers
-  sur le poste (electron-log, Serilog, ADR-0006) ; *fuses* Electron verrouillés (`RunAsNode`,
-  `EnableNodeOptionsEnvironmentVariable`, `EnableNodeCliInspectArguments` désactivés,
-  `OnlyLoadAppFromAsar` activé)
+- [x] Paquet installable (sorti de l'étape 2 du squelette, décision du 2026-10-25) : service local
+  publié avec l'application, Velopack avec vérification des mises à jour au démarrage, script
+  `tools/release.ps1`, version GitVersion (ADR-0009) ; journaux en fichiers sur le poste
+  (electron-log, Serilog, ADR-0006) ; *fuses* Electron verrouillés
+- [ ] Première release publiée : workflow CI qui lance `tools/release.ps1` à chaque tag, envoi du
+  paquet sur la release GitHub (`vpk upload github`) et de l'image Docker (ADR-0009) ; première
+  vérification de bout en bout de la mise à jour automatique, impossible tant qu'aucune release n'existe ;
+  essai d'installation, de désinstallation et de réinstallation avec `Setup.exe` : la base
+  (`%LOCALAPPDATA%\Voyager\voyager.db`) doit rester intacte ([ADR-0013](adr/0013-assemblage-du-paquet-de-l-application-de-bureau.md))
+- [ ] Prévenir l'utilisateur qu'une mise à jour est téléchargée (bandeau « Redémarrer pour mettre à
+  jour »), au lieu de l'installer silencieusement au prochain lancement
+- [ ] Icône de l'application (installateur, fenêtre, raccourcis) et nom de l'éditeur dans l'installateur
+- [ ] Signature de code du paquet, avant une diffusion hors du groupe (SmartScreen avertit sans elle)
 - [x] Surveillance du service local : relancé (3 fois en 60 s au plus) s'il s'arrête pendant que
   l'application tourne, puis « Réessayer » quand il n'a pas pu démarrer ou redémarrer
 - [ ] Squelette, étape 3 — preuve des plugins, après l'ADR du mécanisme de plugins ; calcul de version
@@ -174,6 +181,7 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 | Q21 | Que réexpose le SDK de `Voyager.Core` aux plugins ? Le SDK peut-il exposer les abstractions `Microsoft.Extensions` (injection, journalisation) ? Le SDK suit-il ses propres tags `sdk/v…` dès l'étape 3 ? | ADR des plugins, tests d'architecture | Ouverte                                                                                                                                                        |
 | Q22 | Quel hébergeur pour le serveur en ligne (VPS en Europe, service de conteneurs managé…) ? Quel coût mensuel accepté ?                                                                                      | Mise en ligne, RGPD, coûts            | Ouverte (quand une version sera ouverte à un groupe)                                                                                                           |
 | Q23 | Quand le service local redémarre, l'interface remplace tous les écrans par un message (et perd une saisie en cours) : faut-il plutôt un bandeau au-dessus de l'écran, en gardant les écrans ouverts ?     | Saisie (E4), service local            | Ouverte (à traiter avec le premier formulaire de saisie)                                                                                                       |
+| Q24 | Un utilisateur de la version bêta reçoit-il la version stable ? Velopack lit un flux par canal : publier aussi les stables sur le canal bêta, ou laisser l'utilisateur changer de canal ?                 | Mises à jour, ADR-0009, ADR-0013      | Ouverte (avant la première release publiée)                                                                                                                    |
 
 ## Idées en vrac
 
