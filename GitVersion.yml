@@ -1,5 +1,6 @@
 # Version calculation for the application (ADR-0007).
-# The SDK and each plugin reuse this file with their own tag prefix and path filter.
+# One number per component: the SDK has its own file (src/dotnet/Voyager.Sdk/GitVersion.yml), and each plugin gets
+# these rules with its own tag prefix and path filter (tools/get-version.ps1). Keep the rules below the same.
 workflow: GitFlow/v1
 next-version: 0.1.0
 tag-prefix: '[vV]?'
@@ -10,3 +11,10 @@ minor-version-bump-message: '^feat(\([\w\s-]*\))?:'
 patch-version-bump-message: '^(fix|perf)(\([\w\s-]*\))?:'
 no-bump-message: '\+semver:\s?(none|skip)'
 commit-message-incrementing: Enabled
+
+# The application does not count what only touches a plugin or the documentation.
+# This block must stay the last one: tools/get-version.ps1 drops it to build the configuration of a plugin.
+ignore:
+  paths:
+    - '^plugins/'
+    - '^docs/'

@@ -1,0 +1,41 @@
+# Version calculation for the plugin SDK (ADR-0007): tags sdk/v<x.y.z>, and only the commits that touch the SDK count.
+# GitVersion finds this file from the folder of the project, so the build of Voyager.Sdk stamps the assembly with it:
+# the host checks the plugins against that number (ADR-0015).
+#
+# It is also the template of the configuration of every plugin (tools/get-version.ps1 replaces tag-prefix and ignore):
+# the rules of a component that is versioned apart from the application. Those of the root GitVersion.yml turn commits
+# into increments and are repeated here (a test checks it); the rest below is what the application does not have.
+workflow: GitFlow/v1
+next-version: 0.1.0
+# The prefix is optional as a whole: GitVersion reads next-version with it, and "0.1.0" has no prefix.
+tag-prefix: '(sdk/v)?'
+
+# Conventional Commits drive the increment.
+major-version-bump-message: '^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([\w\s-]*\))?!:|BREAKING CHANGE'
+minor-version-bump-message: '^feat(\([\w\s-]*\))?:'
+patch-version-bump-message: '^(fix|perf)(\([\w\s-]*\))?:'
+no-bump-message: '\+semver:\s?(none|skip)'
+commit-message-incrementing: Enabled
+
+# The number of a component comes from its own tags and commits, never from the branch. GitFlow would otherwise take
+# the version from the name of a release branch (release/0.3.0 would give the SDK 0.3.0), add a minor version on
+# every develop, and a patch on main as soon as the commit is not the tagged one. Without VersionInBranchName, a
+# branch only gives the pre-release label (alpha, beta).
+strategies:
+  - ConfiguredNextVersion
+  - TaggedCommit
+  - Fallback
+branches:
+  main:
+    increment: None
+  develop:
+    increment: None
+  release:
+    increment: None
+  hotfix:
+    increment: None
+
+# Everything but the two parts of the SDK is ignored. This block ends at the next key: the plugins replace it.
+ignore:
+  paths:
+    - '^(?!src/dotnet/Voyager\.Sdk/|src/ts/plugin-sdk/).*'

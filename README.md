@@ -91,6 +91,9 @@ chargées : pour reconstruire un plugin modifié, arrêtez-le d'abord. Sans Aspi
 pwsh tools/build-plugins.ps1
 ```
 
+Chaque plugin a sa propre version, calculée de son historique : `pwsh tools/get-version.ps1 -All` donne celle
+de l'application, du SDK et de chaque plugin. Pour créer un plugin, demandez `/new-plugin` à Claude.
+
 Les autres commandes (formatage, contrats, version) sont listées dans [CLAUDE.md](CLAUDE.md#commandes).
 
 ## Construire le paquet installable

@@ -1,8 +1,20 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="Version">
 
   <PropertyGroup>
     <!-- Plugin authors read this API: XML documentation is mandatory here. -->
     <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
+    <!-- The host checks the plugins against the file version of this assembly (SdkInfo): GitVersion gives it the one of
+         the SDK (GitVersion.yml next to this file). A build that gives its own version to everything (-p:Version, with
+         GitVersion disabled: the packaging) passes -p:SdkVersion too, which wins here thanks to TreatAsLocalProperty. -->
+    <Version Condition="'$(SdkVersion)' != ''">$(SdkVersion)</Version>
+    <!-- The identity a plugin is compiled against and the host binds to. It never changes: whether a plugin suits this
+         SDK is the rule of the host (SdkCompatibility), and a plugin built when the SDK had another version, or inside
+         a build that gives its own version to every project, must still load. -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <!-- .NET would take the file version from the assembly version. With GitVersion on, it computes the file version
+         itself; with it off (the packaging), the file version is x.y.z of Version, as .NET does without an
+         AssemblyVersion of its own. -->
+    <FileVersion Condition="'$(DisableGitVersionTask)' == 'true'">$([System.Text.RegularExpressions.Regex]::Match('$(Version)', '^\d+\.\d+\.\d+').Value).0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

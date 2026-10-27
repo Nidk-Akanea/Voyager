@@ -270,8 +270,9 @@ flowchart TB
 
 - Au démarrage, `PluginCatalog` lit chaque sous-dossier du dossier des plugins (donné par le processus
   principal, jamais par l'utilisateur) : un manifeste valide, un identifiant unique égal au nom du
-  dossier, une version du SDK acceptée, puis le chargement de la partie .NET dans **son** contexte avec
-  **son** conteneur d'injection. Tout échec écarte ce plugin seul, avec une raison ; le service démarre
+  dossier, une version du SDK acceptée (le champ `sdk` du manifeste comparé à la version de l'assembly
+  `Voyager.Sdk`, qui est celle de l'historique du SDK et non de l'application), puis le chargement de la
+  partie .NET dans **son** contexte avec **son** conteneur d'injection. Tout échec écarte ce plugin seul, avec une raison ; le service démarre
   toujours.
 - Un plugin **enregistre** (`builder.AddDiagnosticFactSource<T>()`), il ne remplace rien ; l'hôte vérifie
   l'inscription contre `provides` et la range dans le registre.
