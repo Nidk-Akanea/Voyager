@@ -1,0 +1,18 @@
+<Project>
+  <!-- Small plugins that exist only to test the plugin host (tests/Voyager.PluginHost.Tests): each one is broken in
+       its own way. They never ship. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
+
+  <PropertyGroup>
+    <!-- Test doubles, not production code: the analyzers that guard the product do not apply. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <AnalysisLevel>none</AnalysisLevel>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- A plugin is built without the assemblies the host shares with it (ADR-0015, decision 2). -->
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\src\dotnet\Voyager.Sdk\Voyager.Sdk.csproj" Private="false" />
+  </ItemGroup>
+</Project>

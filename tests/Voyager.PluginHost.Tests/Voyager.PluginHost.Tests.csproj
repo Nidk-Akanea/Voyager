@@ -1,0 +1,26 @@
+<Project Sdk="MSTest.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\dotnet\Voyager.PluginHost\Voyager.PluginHost.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Built before the tests, which copy their output into a plugin folder: they are plugins, not references. -->
+    <ProjectReference Include="..\plugin-fixtures\BadLabel\BadLabel.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\Good\Good.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\InvalidContainer\InvalidContainer.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\ManyFacts\ManyFacts.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\NoPluginType\NoPluginType.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\Probe\Probe.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\SlowSource\SlowSource.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\ThrowingSource\ThrowingSource.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\ThrowsOnDispose\ThrowsOnDispose.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\ThrowsOnConfigure\ThrowsOnConfigure.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\UndeclaredRegistration\UndeclaredRegistration.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Voyager.PluginFixtures.Probe</AssemblyName>
+    <RootNamespace>Voyager.PluginFixtures.Probe</RootNamespace>
+  </PropertyGroup>
+
+</Project>

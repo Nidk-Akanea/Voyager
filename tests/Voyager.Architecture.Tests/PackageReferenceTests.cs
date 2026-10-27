@@ -15,7 +15,12 @@ public sealed class PackageReferenceTests
     private static readonly Dictionary<string, string[]> _allowedPackages = new()
     {
         ["Voyager.Core"] = ["NodaTime"],
-        ["Voyager.Sdk"] = [],
+        // The only two packages a plugin gets from the SDK (ADR-0015, decision 5).
+        ["Voyager.Sdk"] =
+        [
+            "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "Microsoft.Extensions.Logging.Abstractions",
+        ],
         // Shipped with both hosts: technical packages only, never a development-only Aspire.Hosting one.
         ["Voyager.ServiceDefaults"] =
         [

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Voyager.PluginFixtures.UndeclaredRegistration</AssemblyName>
+    <RootNamespace>Voyager.PluginFixtures.UndeclaredRegistration</RootNamespace>
+  </PropertyGroup>
+
+</Project>

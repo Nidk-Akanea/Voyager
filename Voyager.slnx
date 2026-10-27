@@ -16,5 +16,19 @@
   <Folder Name="/tests/">
     <Project Path="tests/Voyager.Architecture.Tests/Voyager.Architecture.Tests.csproj" />
     <Project Path="tests/Voyager.LocalService.Tests/Voyager.LocalService.Tests.csproj" />
+    <Project Path="tests/Voyager.PluginHost.Tests/Voyager.PluginHost.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/plugin-fixtures/">
+    <Project Path="tests/plugin-fixtures/BadLabel/BadLabel.csproj" />
+    <Project Path="tests/plugin-fixtures/Good/Good.csproj" />
+    <Project Path="tests/plugin-fixtures/InvalidContainer/InvalidContainer.csproj" />
+    <Project Path="tests/plugin-fixtures/ManyFacts/ManyFacts.csproj" />
+    <Project Path="tests/plugin-fixtures/NoPluginType/NoPluginType.csproj" />
+    <Project Path="tests/plugin-fixtures/Probe/Probe.csproj" />
+    <Project Path="tests/plugin-fixtures/SlowSource/SlowSource.csproj" />
+    <Project Path="tests/plugin-fixtures/ThrowingSource/ThrowingSource.csproj" />
+    <Project Path="tests/plugin-fixtures/ThrowsOnDispose/ThrowsOnDispose.csproj" />
+    <Project Path="tests/plugin-fixtures/ThrowsOnConfigure/ThrowsOnConfigure.csproj" />
+    <Project Path="tests/plugin-fixtures/UndeclaredRegistration/UndeclaredRegistration.csproj" />
   </Folder>
 </Solution>

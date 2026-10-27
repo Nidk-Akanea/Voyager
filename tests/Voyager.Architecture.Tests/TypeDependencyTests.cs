@@ -44,12 +44,40 @@ public sealed class TypeDependencyTests
         AssertNoDependency("Voyager.Core", [.. _technicalLibraries, .. _adapters, "Voyager.Sdk"]);
     }
 
-    // Provisional: whether the SDK may expose Microsoft.Extensions abstractions (dependency injection,
-    // logging) to plugins will be decided by the plugin mechanism ADR.
+    // The SDK shows plugins the two Microsoft abstractions of ADR-0015 and nothing else of Microsoft.Extensions.
     [TestMethod]
     public void Dependencies_SdkAssembly_IncludeNoTechnicalLibraryNorAdapter()
     {
-        AssertNoDependency("Voyager.Sdk", [.. _technicalLibraries, .. _adapters]);
+        string[] forbiddenExtensions =
+        [
+            "Microsoft.Extensions.Caching",
+            "Microsoft.Extensions.Configuration",
+            "Microsoft.Extensions.Diagnostics",
+            "Microsoft.Extensions.FileProviders",
+            "Microsoft.Extensions.Hosting",
+            "Microsoft.Extensions.Http",
+            "Microsoft.Extensions.Options",
+        ];
+
+        AssertNoDependency(
+            "Voyager.Sdk",
+            [.. _technicalLibraries.Where(library => library != "Microsoft.Extensions"), .. forbiddenExtensions, .. _adapters]);
+    }
+
+    [TestMethod]
+    public void References_SdkAssembly_TakeOnlyTheTwoAllowedMicrosoftExtensionsAssemblies()
+    {
+        string[] allowed =
+        [
+            "Microsoft.Extensions.DependencyInjection.Abstractions",
+            "Microsoft.Extensions.Logging.Abstractions",
+        ];
+
+        var references = Assembly.Load("Voyager.Sdk").GetReferencedAssemblies()
+            .Select(reference => reference.Name)
+            .Where(name => name is not null && name.StartsWith("Microsoft.Extensions", StringComparison.Ordinal));
+
+        references.Should().BeSubsetOf(allowed, "the SDK only shows plugins dependency injection and logging abstractions (ADR-0015)");
     }
 
     [TestMethod]

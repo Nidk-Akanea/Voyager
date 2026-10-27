@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Voyager.PluginFixtures.Good</AssemblyName>
+    <RootNamespace>Voyager.PluginFixtures.Good</RootNamespace>
+  </PropertyGroup>
+
+</Project>

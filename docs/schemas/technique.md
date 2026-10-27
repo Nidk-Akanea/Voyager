@@ -236,6 +236,49 @@ le journal). Une application lancée depuis un simple dossier (non installée) n
 chemins y sont masqués (`~` pour le dossier personnel) et la règle « aucune donnée personnelle »
 s'applique. Rien n'est envoyé hors de la machine.
 
+## Les plugins dans le service local
+
+Décidés par l'[ADR-0015](../adr/0015-mecanisme-de-plugins.md), éprouvés par la
+[preuve des plugins](../specs/plateforme-preuve-des-plugins.md).
+
+```mermaid
+flowchart TB
+    subgraph Hote["Service local (processus unique)"]
+        Cat["PluginCatalog<br/>lit plugins/&lt;id&gt;/plugin.json"]
+        Reg["ExtensionRegistry"]
+        Col["DiagnosticFactCollector<br/>délai 5 s · 50 faits · try/catch"]
+        Svc["ServiceDiagnosticFactSource<br/>le service lui-même"]
+        Grpc["PluginHostService (gRPC-Web)<br/>ListPlugins · GetDiagnosticFacts"]
+        subgraph P1["Contexte de chargement du plugin A"]
+            C1["Conteneur privé<br/>ILogger + ses services"]
+            S1["Source de faits du plugin A"]
+        end
+        subgraph P2["Contexte de chargement du plugin B (écarté)"]
+            X["Manifeste invalide, SDK incompatible,<br/>conteneur invalide ou exception"]
+        end
+    end
+    Shared["Assemblies partagées : Voyager.Sdk, Voyager.Core, NodaTime,<br/>abstractions d'injection et de journalisation"]
+    Cat -->|"charge, valide contre provides"| P1
+    Cat -.->|"raison journalisée, état affiché"| P2
+    S1 --> Reg
+    Svc --> Reg
+    Reg --> Col
+    Col --> Grpc
+    P1 -. "types partagés" .-> Shared
+    Hote -. "types partagés" .-> Shared
+```
+
+- Au démarrage, `PluginCatalog` lit chaque sous-dossier du dossier des plugins (donné par le processus
+  principal, jamais par l'utilisateur) : un manifeste valide, un identifiant unique égal au nom du
+  dossier, une version du SDK acceptée, puis le chargement de la partie .NET dans **son** contexte avec
+  **son** conteneur d'injection. Tout échec écarte ce plugin seul, avec une raison ; le service démarre
+  toujours.
+- Un plugin **enregistre** (`builder.AddDiagnosticFactSource<T>()`), il ne remplace rien ; l'hôte vérifie
+  l'inscription contre `provides` et la range dans le registre.
+- À la demande de l'interface, le collecteur interroge toutes les sources en parallèle, chacune sous un
+  délai et un `try/catch` : une source qui échoue, tarde ou renvoie des faits refusés est signalée, les
+  autres s'affichent.
+
 ## Une saisie hors-ligne, pas à pas
 
 ```mermaid
@@ -260,6 +303,6 @@ sequenceDiagram
 
 ## Ce qui reste à décider
 
-- Mécanisme de plugins : format du paquet, signature, chargement, rechargement (ADR à venir).
+- Plugins de tiers : isolation, signature, installation par l'utilisateur, rechargement à chaud (ADR à venir, [ADR-0015](../adr/0015-mecanisme-de-plugins.md)).
 - Synchronisation : résolution des conflits, suppressions, historique (ADR à venir).
 - Hébergement du serveur du groupe (Q4), fournisseur de cartes (Q5), format d'échange (Q16).

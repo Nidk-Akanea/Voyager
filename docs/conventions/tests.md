@@ -29,6 +29,9 @@ FluentAssertions 8 n'est gratuite qu'en usage non commercial ([ADR-0006](../adr/
 
 - **Pas d'objectif chiffré de couverture**, mais tout calcul de `Voyager.Core` est testé.
 - **Chaque bug corrigé arrive avec le test** qui l'aurait détecté.
+- **Chargement des plugins** : les cas d'échec (manifeste invalide, SDK incompatible, exception, conteneur
+  invalide, source lente) se testent avec les plugins de `tests/plugin-fixtures/`, jamais avec un vrai
+  plugin cassé ; un test d'architecture lit les assemblies compilées des plugins.
 - **Traductions** : un test vérifie que chaque message Fluent existe en français et en anglais, avec
   les mêmes variables (ADR-0008).
 - Les cas limites du métier sont testés explicitement : arrondis, plusieurs devises, changement de

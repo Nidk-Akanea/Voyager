@@ -1,6 +1,6 @@
 # Spec — Preuve des plugins
 
-- **Statut** : Brouillon
+- **Statut** : Validée
 - **Épic** : E9 — Plateforme modulaire (transverse), étape 3 du squelette (E0)
 - **Date** : 2026-10-26
 
