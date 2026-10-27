@@ -28,7 +28,20 @@ var localToken = builder.AddParameter(
 // service loads them at startup, and the user interface served by Vite reads their modules from the same folder.
 var repositoryRoot = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".."));
 var pluginsFolder = Path.Combine(repositoryRoot, "artifacts", "plugins");
-var plugins = builder.AddExecutable("plugins", "pwsh", repositoryRoot, "-NoProfile", "-File", Path.Combine("tools", "build-plugins.ps1"));
+// A fixed version: development has no use for the one GitVersion computes, and skipping it saves seconds at every start.
+// Debug, so that the code of a plugin can be debugged like the rest. Only the plugins that changed are built again
+// (tools/build-plugins.ps1).
+var plugins = builder.AddExecutable(
+    "plugins",
+    "pwsh",
+    repositoryRoot,
+    "-NoProfile",
+    "-File",
+    Path.Combine("tools", "build-plugins.ps1"),
+    "-Version",
+    "0.0.0-dev",
+    "-Configuration",
+    "Debug");
 
 // The TypeScript packages must be installed beforehand (pnpm install at the repository root).
 var userInterface = builder.AddViteApp("ui", "../../ts/ui")

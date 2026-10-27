@@ -82,7 +82,10 @@ construits dans `artifacts/plugins/` par `tools/build-plugins.ps1` : Aspire le l
 service local, qui les charge, et l'interface servie par Vite lit leurs modules dans le même dossier. Pour les
 voir, ouvrez la page « À propos » : sous le service, la liste des plugins et leurs faits, et le panneau de
 l'horloge avec son bouton « Actualiser ». Un plugin modifié se reconstruit en relançant Aspire (pas de
-rechargement à chaud). Sans Aspire :
+rechargement à chaud) : seuls les plugins dont les sources ont changé sont reconstruits, la version est fixe
+(`0.0.0-dev`) et la construction est en Debug (on peut y poser des points d'arrêt), donc un lancement sans
+changement ne perd qu'une seconde ou deux ; le paquet installable, lui, est construit en Release. Le service local garde les assemblies
+chargées : pour reconstruire un plugin modifié, arrêtez-le d'abord. Sans Aspire :
 
 ```powershell
 pwsh tools/build-plugins.ps1
