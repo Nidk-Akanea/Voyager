@@ -58,6 +58,12 @@ function Get-Versions {
     return @(& (Join-Path $work 'tools/get-version.ps1') -All)
 }
 
+# On the CI, GitVersion takes the branch from the environment (GITHUB_REF, such as refs/pull/18/merge) instead of the
+# repository, and that branch does not exist in the copy: it must find the branch the copy is on.
+foreach ($name in 'GITHUB_ACTIONS', 'GITHUB_REF', 'GITHUB_HEAD_REF', 'GITHUB_BASE_REF', 'GITHUB_REF_NAME') {
+    Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+}
+
 try {
     # The long paths option: some folders of the repository are deep, and Windows refuses them otherwise.
     Invoke-Git -c core.longpaths=true clone -q --no-local $root $work

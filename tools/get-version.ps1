@@ -105,7 +105,9 @@ function Get-ComponentVariable {
         $detail = if ($errors -match 'No commits found') {
             ' It has no commit yet: commit it first (or, for a build, give a version with -Version).'
         } else {
-            " $errors"
+            # GitVersion writes its errors to either stream, depending on the platform: show what it said.
+            $said = "$errors`n$json".Trim()
+            " $($said.Substring([Math]::Max(0, $said.Length - 1500)))"
         }
         throw "GitVersion could not compute the version of '$Name'.$detail"
     }
