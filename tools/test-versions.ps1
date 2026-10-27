@@ -68,6 +68,11 @@ try {
     Invoke-Git config commit.gpgsign false
     # The history of the copy is its own: the real tags (and their numbers) must not leak into the test.
     git tag --list | ForEach-Object { Invoke-Git tag -d $_ | Out-Null }
+    # Nor may its branches: the test makes its own develop, release/* and main (a checkout of the CI has a main), and
+    # GitVersion would see the remote branches of the real repository next to them.
+    Invoke-Git switch -q --detach
+    Invoke-Git remote remove origin
+    git for-each-ref --format='%(refname:short)' refs/heads | ForEach-Object { Invoke-Git branch -q -D $_ }
     Invoke-Git switch -q -c develop
 
     foreach ($file in 'GitVersion.yml', 'tools/get-version.ps1', 'src/dotnet/Voyager.Sdk/GitVersion.yml') {
