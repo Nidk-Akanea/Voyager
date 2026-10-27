@@ -1,0 +1,23 @@
+{
+  "name": "@voyager/plugin-diagnostics-clock",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Interface part of the diagnostics-clock demonstration plugin: a panel that shows the time of the service.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit -p . && vite build",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "@fluent/bundle": "^0.19.1",
+    "@fluent/react": "^0.15.2",
+    "@fluentui/react-components": "^9.74.9",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@voyager/plugin-sdk": "workspace:*",
+    "jsdom": "^27.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

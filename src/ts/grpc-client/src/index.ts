@@ -3,8 +3,10 @@ import { createClient, type Client, type Interceptor } from '@connectrpc/connect
 import { createGrpcWebTransport } from '@connectrpc/connect-web';
 
 import { DiagnosticsService } from './gen/voyager/diagnostics/v1/diagnostics_pb.js';
+import { PluginHostService } from './gen/voyager/pluginhost/v1/pluginhost_pb.js';
 
 export * from './gen/voyager/diagnostics/v1/diagnostics_pb.js';
+export * from './gen/voyager/pluginhost/v1/pluginhost_pb.js';
 
 /**
  * Header carrying the secret shared by the desktop app and its local service. Must match
@@ -41,6 +43,7 @@ export type StartupState =
 /** Clients for every service exposed by the local service. */
 export interface LocalServiceClients {
   readonly diagnostics: Client<typeof DiagnosticsService>;
+  readonly pluginHost: Client<typeof PluginHostService>;
 }
 
 /** Creates the gRPC-Web clients of the local service (ADR-0003). */
@@ -57,5 +60,6 @@ export function createLocalServiceClients(connection: LocalServiceConnection): L
 
   return {
     diagnostics: createClient(DiagnosticsService, transport),
+    pluginHost: createClient(PluginHostService, transport),
   };
 }

@@ -114,8 +114,18 @@ ui/src/
 │  ├─ quotes/     QuoteList.tsx, QuoteCard.tsx, useQuotes.ts…
 │  └─ budget/
 ├─ components/    composants réutilisables sans métier
+├─ plugins/       chargement des plugins : modules, traductions, registre, cartes de la page « À propos »
+├─ sharedModules/ React, Fluent UI et le SDK que la page partage avec les plugins (entrées de la construction)
 └─ i18n/          messages Fluent : fr/*.ftl, en/*.ftl (ADR-0008)
 ```
+
+À la racine de `ui`, `vite.plugins.ts` règle ce que la construction et le serveur de développement font pour
+les plugins : modules partagés, *import map*, fichiers des plugins en développement. Il réutilise la résolution
+sûre de chemins du processus principal d'Electron (`desktop/src/main/pluginFiles.ts`, du Node pur) : c'est la seule
+référence de `ui` vers `desktop`, pour qu'il n'y ait qu'un seul code qui décide quels fichiers d'un plugin sont lisibles.
+
+Pour la preuve des plugins, `@voyager/plugin-sdk` fournit le registre, les types et `formatFactValue` ; les
+services de l'hôte et le client du service local viendront avec les premiers plugins qui en ont besoin.
 
 Dans `desktop`, un dossier par processus d'Electron :
 

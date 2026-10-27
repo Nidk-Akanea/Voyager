@@ -82,7 +82,14 @@ Le nommage est vérifié par la règle ESLint `@typescript-eslint/naming-convent
 
 ## Plugins (côté interface)
 
-- Un plugin importe **uniquement** `@voyager/plugin-sdk` (et React, fourni par l'hôte).
-- Il déclare ce qu'il fournit auprès du registre ; il ne modifie jamais l'interface de l'hôte
-  autrement.
-- Ses textes passent par ses propres messages, préfixés par son identifiant (`lodging-…`).
+- Un plugin importe **uniquement** : `@voyager/plugin-sdk`, `react`, `react/jsx-runtime`, `react-dom`,
+  `react-dom/client`, `@fluentui/react-components` et `@fluent/react` (liste blanche de l'[ADR-0015](../adr/0015-mecanisme-de-plugins.md)).
+  La page les partage avec lui par une *import map* : le plugin les déclare « externes » dans sa
+  construction (voir `plugins/diagnostics-clock/ui/vite.config.ts`) et n'embarque donc aucune copie de React.
+- Son module exporte une fonction `register(registry)`, où il déclare ce qu'il fournit. L'hôte refuse
+  ce que le manifeste n'annonce pas ; le plugin ne modifie jamais l'interface de l'hôte autrement.
+- Ses textes sont dans `i18n/fr/messages.ftl` et `i18n/en/messages.ftl`, à la racine du plugin ; chaque
+  message est préfixé par son identifiant (`lodging-…`), sans quoi il est refusé.
+- Les plugins livrent leurs fichiers de `ui/` en `.js` ou `.mjs` : c'est tout ce que l'application sert.
+- Exception à « composants fonctionnels » : une frontière d'erreur React est une classe, car React n'offre
+  pas d'autre moyen d'attraper une erreur de rendu (`PluginErrorBoundary`).

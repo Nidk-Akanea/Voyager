@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Voyager.Plugins.DiagnosticsClock</AssemblyName>
+    <RootNamespace>Voyager.Plugins.DiagnosticsClock</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- A plugin references the SDK only, and is built without the assemblies the host shares with it (ADR-0015). -->
+    <ProjectReference Include="..\..\..\..\src\dotnet\Voyager.Sdk\Voyager.Sdk.csproj" Private="false" />
+  </ItemGroup>
+
+</Project>

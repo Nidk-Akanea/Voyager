@@ -75,6 +75,22 @@ installé sur votre poste, ou joignable en HTTPS ; sous Docker, publiez son port
 seulement (`-p 127.0.0.1:5341:80`). Seq garde les journaux sur disque. L'application installée n'écrit
 jamais dans Seq.
 
+### Les plugins en développement
+
+Les deux plugins de démonstration (`plugins/diagnostics-runtime` et `plugins/diagnostics-clock`) sont
+construits dans `artifacts/plugins/` par `tools/build-plugins.ps1` : Aspire le lance avant de démarrer le
+service local, qui les charge, et l'interface servie par Vite lit leurs modules dans le même dossier. Pour les
+voir, ouvrez la page « À propos » : sous le service, la liste des plugins et leurs faits, et le panneau de
+l'horloge avec son bouton « Actualiser ». Un plugin modifié se reconstruit en relançant Aspire (pas de
+rechargement à chaud) : seuls les plugins dont les sources ont changé sont reconstruits, la version est fixe
+(`0.0.0-dev`) et la construction est en Debug (on peut y poser des points d'arrêt), donc un lancement sans
+changement ne perd qu'une seconde ou deux ; le paquet installable, lui, est construit en Release. Le service local garde les assemblies
+chargées : pour reconstruire un plugin modifié, arrêtez-le d'abord. Sans Aspire :
+
+```powershell
+pwsh tools/build-plugins.ps1
+```
+
 Les autres commandes (formatage, contrats, version) sont listées dans [CLAUDE.md](CLAUDE.md#commandes).
 
 ## Construire le paquet installable

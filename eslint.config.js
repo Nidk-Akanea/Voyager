@@ -57,6 +57,28 @@ export default tseslint.config(
     },
   },
   {
+    // A plugin's interface imports only what the page shares with it, and its own files (ADR-0015, decision 6): any
+    // other package would be bundled into the plugin as a second copy, and a Node module has no place in a page.
+    files: ['plugins/*/ui/src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              // Everything but the modules the page shares and the plugin's own files.
+              regex:
+                '^(?!(react|react/jsx-runtime|react-dom|react-dom/client|@fluentui/react-components|@fluent/react|@voyager/plugin-sdk|[.]{1,2}(/.*)?)$)',
+              message:
+                'A plugin imports only @voyager/plugin-sdk, react, react/jsx-runtime, react-dom, react-dom/client, @fluentui/react-components and @fluent/react.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.tsx'],
     extends: [reactHooks.configs.flat['recommended-latest']],
   },

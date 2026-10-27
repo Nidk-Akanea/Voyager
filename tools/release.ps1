@@ -5,8 +5,8 @@
 .DESCRIPTION
     1. computes the version with GitVersion (ADR-0007), unless -Version gives one;
     2. publishes the local service, self-contained for win-x64;
-    3. builds the user interface and the desktop app;
-    4. assembles the app folder (asar, local service, user interface, Electron fuses) and packs it with
+    3. builds the plugins (tools/build-plugins.ps1), the user interface and the desktop app;
+    4. assembles the app folder (asar, local service, plugins, user interface, Electron fuses) and packs it with
        Velopack (vpk) into an installer and update packages;
     5. with -Docker, builds the image of the group server.
 
@@ -87,11 +87,14 @@ Invoke-Step 'Publish the local service' {
 Invoke-Step 'Install the TypeScript dependencies' { pnpm install --frozen-lockfile }
 Invoke-Step 'Build the user interface and the desktop app' { pnpm build }
 
+# The plugins ship with the app, at the version of the app (a version for each plugin comes with the per-component versions).
+Invoke-Step 'Build the plugins' { & (Join-Path $PSScriptRoot 'build-plugins.ps1') -Version $Version }
+
 Invoke-Step 'Assemble the app folder' {
     Push-Location -LiteralPath $desktop
     try {
         $packageArguments = @('--version', $Version, '--service', $service,
-            '--ui', (Join-Path $root 'src/ts/ui/dist'), '--out', $artifacts)
+            '--ui', (Join-Path $root 'src/ts/ui/dist'), '--plugins', (Join-Path $artifacts 'plugins'), '--out', $artifacts)
         if ($UpdateSource) {
             $packageArguments += @('--update-source', $UpdateSource)
         }

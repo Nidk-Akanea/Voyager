@@ -92,6 +92,24 @@ public sealed class PluginCatalogTests
     }
 
     [TestMethod]
+    public async Task Load_PluginsThatShip_LoadAndGiveTheirFacts()
+    {
+        using var folder = new PluginFolder();
+        folder.AddShippedPlugin("diagnostics-clock", "Voyager.Plugins.DiagnosticsClock");
+        folder.AddShippedPlugin("diagnostics-runtime", "Voyager.Plugins.DiagnosticsRuntime");
+        // The version of the SDK of the build, not a fixed one: the plugins say which one they were written for.
+        using var catalog = PluginCatalog.Load(folder.Path, Voyager.Sdk.SdkInfo.Version, NullLoggerFactory.Instance);
+
+        catalog.Plugins.Select(plugin => (plugin.Id, plugin.Status)).Should().Equal(
+            ("diagnostics-clock", PluginStatus.Loaded),
+            ("diagnostics-runtime", PluginStatus.Loaded));
+        var collector = new DiagnosticFactCollector(catalog.Registry, PluginHostOptions.Default, NullLogger<DiagnosticFactCollector>.Instance);
+        var results = await collector.CollectAsync(null, CancellationToken.None);
+        results.Should().AllSatisfy(result => result.Outcome.Should().Be(DiagnosticFactOutcome.Succeeded));
+        results.Select(result => result.Facts.Count).Should().Equal(2, 3);
+    }
+
+    [TestMethod]
     public void Load_PluginWithoutManifest_IsRejectedAsInvalidManifest()
     {
         using var folder = new PluginFolder();

@@ -1,4 +1,32 @@
 <Solution>
+  <Folder Name="/plugins/diagnostics-clock/">
+    <File Path="plugins/diagnostics-clock/plugin.json" />
+    <Project Path="plugins/diagnostics-clock/dotnet/Voyager.Plugins.DiagnosticsClock/Voyager.Plugins.DiagnosticsClock.csproj" />
+    <Project Path="plugins/diagnostics-clock/tests/Voyager.Plugins.DiagnosticsClock.Tests/Voyager.Plugins.DiagnosticsClock.Tests.csproj" />
+  </Folder>
+  <Folder Name="/plugins/diagnostics-clock/i18n/">
+    <File Path="plugins/diagnostics-clock/i18n/en/messages.ftl" />
+    <File Path="plugins/diagnostics-clock/i18n/fr/messages.ftl" />
+  </Folder>
+  <Folder Name="/plugins/diagnostics-clock/ui/">
+    <File Path="plugins/diagnostics-clock/ui/package.json" />
+    <File Path="plugins/diagnostics-clock/ui/tsconfig.json" />
+    <File Path="plugins/diagnostics-clock/ui/vite.config.ts" />
+  </Folder>
+  <Folder Name="/plugins/diagnostics-clock/ui/src/">
+    <File Path="plugins/diagnostics-clock/ui/src/ClockPanel.test.tsx" />
+    <File Path="plugins/diagnostics-clock/ui/src/ClockPanel.tsx" />
+    <File Path="plugins/diagnostics-clock/ui/src/index.ts" />
+  </Folder>
+  <Folder Name="/plugins/diagnostics-runtime/">
+    <File Path="plugins/diagnostics-runtime/plugin.json" />
+    <Project Path="plugins/diagnostics-runtime/dotnet/Voyager.Plugins.DiagnosticsRuntime/Voyager.Plugins.DiagnosticsRuntime.csproj" />
+    <Project Path="plugins/diagnostics-runtime/tests/Voyager.Plugins.DiagnosticsRuntime.Tests/Voyager.Plugins.DiagnosticsRuntime.Tests.csproj" />
+  </Folder>
+  <Folder Name="/plugins/diagnostics-runtime/i18n/">
+    <File Path="plugins/diagnostics-runtime/i18n/en/messages.ftl" />
+    <File Path="plugins/diagnostics-runtime/i18n/fr/messages.ftl" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/dotnet/Voyager.AppHost/Voyager.AppHost.csproj" />
     <Project Path="src/dotnet/Voyager.Contracts/Voyager.Contracts.csproj" />
