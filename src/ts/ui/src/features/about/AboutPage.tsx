@@ -2,6 +2,7 @@
 import { Button, makeStyles, MessageBar, MessageBarBody, Spinner, Title2, tokens } from '@fluentui/react-components';
 import { useLocalization } from '@fluent/react';
 
+import { PluginsSection } from '../../plugins/PluginsSection';
 import { ServiceFacts } from './ServiceFacts';
 import { useServiceInfo } from './useServiceInfo';
 
@@ -31,6 +32,7 @@ export function AboutPage() {
         </MessageBar>
       )}
       {serviceInfo.isSuccess && <ServiceFacts info={serviceInfo.data} />}
+      <PluginsSection />
     </main>
   );
 }

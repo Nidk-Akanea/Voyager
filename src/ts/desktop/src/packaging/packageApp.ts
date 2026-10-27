@@ -123,14 +123,21 @@ async function main(): Promise<void> {
       version: { type: 'string' },
       service: { type: 'string' },
       ui: { type: 'string' },
+      plugins: { type: 'string' },
       out: { type: 'string' },
       'update-source': { type: 'string' },
     },
   });
-  const { version, service, ui, out } = values;
-  if (version === undefined || service === undefined || ui === undefined || out === undefined) {
+  const { version, service, ui, plugins, out } = values;
+  if (
+    version === undefined ||
+    service === undefined ||
+    ui === undefined ||
+    plugins === undefined ||
+    out === undefined
+  ) {
     throw new Error(
-      'Usage: packageApp --version <x.y.z> --service <folder> --ui <folder> --out <folder> [--update-source <https address>]',
+      'Usage: packageApp --version <x.y.z> --service <folder> --ui <folder> --plugins <folder> --out <folder> [--update-source <https address>]',
     );
   }
 
@@ -146,10 +153,11 @@ async function main(): Promise<void> {
 
   await stageApp(version, updateSource, packageRoot, stagingFolder);
 
-  // The app finds them in its resources folder: local-service/ and ui/ (src/main/main.ts).
+  // The app finds them in its resources folder: local-service/, ui/ and plugins/ (src/main/main.ts).
   await rm(extraFolder, { recursive: true, force: true });
   await cp(resolve(service), join(extraFolder, 'local-service'), { recursive: true });
   await cp(resolve(ui), join(extraFolder, 'ui'), { recursive: true });
+  await cp(resolve(plugins), join(extraFolder, 'plugins'), { recursive: true });
 
   const [appFolder] = await packager({
     dir: stagingFolder,
@@ -161,7 +169,7 @@ async function main(): Promise<void> {
     appVersion: version,
     electronVersion: await installedElectronVersion(packageRoot),
     asar: { unpack: '*.node' },
-    extraResource: [join(extraFolder, 'local-service'), join(extraFolder, 'ui')],
+    extraResource: [join(extraFolder, 'local-service'), join(extraFolder, 'ui'), join(extraFolder, 'plugins')],
     overwrite: true,
     quiet: true,
   });

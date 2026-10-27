@@ -1,4 +1,12 @@
 <Solution>
+  <Folder Name="/plugins/diagnostics-clock/">
+    <Project Path="plugins/diagnostics-clock/dotnet/Voyager.Plugins.DiagnosticsClock/Voyager.Plugins.DiagnosticsClock.csproj" />
+    <Project Path="plugins/diagnostics-clock/tests/Voyager.Plugins.DiagnosticsClock.Tests/Voyager.Plugins.DiagnosticsClock.Tests.csproj" />
+  </Folder>
+  <Folder Name="/plugins/diagnostics-runtime/">
+    <Project Path="plugins/diagnostics-runtime/dotnet/Voyager.Plugins.DiagnosticsRuntime/Voyager.Plugins.DiagnosticsRuntime.csproj" />
+    <Project Path="plugins/diagnostics-runtime/tests/Voyager.Plugins.DiagnosticsRuntime.Tests/Voyager.Plugins.DiagnosticsRuntime.Tests.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/dotnet/Voyager.AppHost/Voyager.AppHost.csproj" />
     <Project Path="src/dotnet/Voyager.Contracts/Voyager.Contracts.csproj" />

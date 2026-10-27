@@ -1,0 +1,11 @@
+<Project Sdk="MSTest.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\dotnet\Voyager.Plugins.DiagnosticsRuntime\Voyager.Plugins.DiagnosticsRuntime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+  </ItemGroup>
+
+</Project>

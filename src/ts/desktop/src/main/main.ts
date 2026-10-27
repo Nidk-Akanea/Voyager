@@ -17,6 +17,7 @@ import {
   STARTUP_STATE_CHANGED_CHANNEL,
 } from '../shared/ipc';
 import { APP_ENTRY_URL, isAppUrl, registerAppScheme, serveUserInterface } from './appProtocol';
+import { buildContentSecurityPolicy, findImportMapSource } from './contentSecurityPolicy';
 import { describeError } from './describeError';
 import { launchLocalService, attachToRunningLocalService, type LocalService } from './localService';
 import { superviseLocalService, type LocalServiceSupervisor } from './localServiceSupervisor';
@@ -49,22 +50,11 @@ function packagedServiceEnvironment(): Record<string, string> {
     DOTNET_ENVIRONMENT: 'Production',
     ASPNETCORE_ENVIRONMENT: 'Production',
     Voyager__LogDirectory: logDirectory(),
+    // Given by the app and never read from the machine: loading assemblies from a folder the user can
+    // choose is a risk that ADR-0015 declines.
+    Voyager__PluginsDirectory: pluginsDirectory(),
   };
 }
-
-// Only the loopback interface: the page talks to the local service and nothing else.
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  "script-src 'self'",
-  // Fluent UI (Griffel) inserts its styles while the page runs.
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
-  'connect-src http://127.0.0.1:*',
-  "object-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "frame-ancestors 'none'",
-].join('; ');
 
 /**
  * A setting Aspire passes in development. Ignored once packaged, so that nothing in a user's
@@ -90,6 +80,38 @@ function userInterfaceDirectory(): string {
   return app.isPackaged ? join(process.resourcesPath, 'ui') : join(import.meta.dirname, '..', '..', 'ui', 'dist');
 }
 
+/**
+ * The plugins shipped with the app, or built next to this package in the repository (pwsh tools/build-plugins.ps1).
+ * Never read from the machine's environment, whatever the development settings.
+ */
+function pluginsDirectory(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'plugins')
+    : (developmentSetting('VOYAGER_PLUGINS_DIRECTORY') ??
+        join(import.meta.dirname, '..', '..', '..', '..', 'artifacts', 'plugins'));
+}
+
+/** The policy of the user interface: it allows the page's import map, which the plugins' modules rely on, by its hash. */
+function contentSecurityPolicy(): string {
+  // In development Vite serves the page, with no policy of ours: there is no built page to read.
+  if (DEV_USER_INTERFACE_URL !== undefined) {
+    return buildContentSecurityPolicy(undefined);
+  }
+  try {
+    const page = readFileSync(join(userInterfaceDirectory(), 'index.html'), 'utf8');
+    const importMapSource = findImportMapSource(page);
+    if (importMapSource === undefined) {
+      // Not an error of the page itself, but every plugin interface will be blocked: say it, or nobody will know why.
+      desktopLog.warn('The user interface page has no import map: the interface of the plugins cannot load.');
+    }
+    return buildContentSecurityPolicy(importMapSource);
+  } catch (error) {
+    // Without the page there is nothing to show: the window will say so, and no script is allowed beyond the page's own.
+    desktopLog.error('The user interface page could not be read:', describeError(error));
+    return buildContentSecurityPolicy(undefined);
+  }
+}
+
 /** The service Aspire started in development, or else the executable shipped with the app. */
 function startLocalService(): LocalService {
   const url = developmentSetting('VOYAGER_LOCAL_SERVICE_URL');
@@ -103,7 +125,7 @@ function startLocalService(): LocalService {
     onOutput: (line) => {
       desktopLog.warn('[local service]', line);
     },
-    environment: app.isPackaged ? packagedServiceEnvironment() : {},
+    environment: app.isPackaged ? packagedServiceEnvironment() : { Voyager__PluginsDirectory: pluginsDirectory() },
     isolated: app.isPackaged,
   });
 }
@@ -324,7 +346,7 @@ function start(): void {
 
   void app.whenReady().then(async () => {
     denyAllPermissions();
-    serveUserInterface(userInterfaceDirectory(), CONTENT_SECURITY_POLICY);
+    serveUserInterface(userInterfaceDirectory(), pluginsDirectory(), contentSecurityPolicy());
 
     // Opening Voyager again brings back the window already open.
     app.on('second-instance', () => {

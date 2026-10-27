@@ -222,7 +222,7 @@ flowchart LR
 ```
 
 L'application installée contient, dans son dossier de ressources, le service local publié
-(`resources/local-service`) et l'interface construite (`resources/ui`) ; le code d'Electron est dans
+(`resources/local-service`), les plugins (`resources/plugins`) et l'interface construite (`resources/ui`) ; le code d'Electron est dans
 l'archive `app.asar`, hors les modules natifs (Velopack) qui restent à côté. Les *fuses* d'Electron
 sont posées sur l'exécutable et relues avant d'emballer ; le canal (`stable`, `beta`, `alpha`) vient du
 suffixe de la version.
@@ -278,6 +278,31 @@ flowchart TB
 - À la demande de l'interface, le collecteur interroge toutes les sources en parallèle, chacune sous un
   délai et un `try/catch` : une source qui échoue, tarde ou renvoie des faits refusés est signalée, les
   autres s'affichent.
+
+## Les plugins dans l'interface
+
+Côté interface, la page charge ensuite la partie interface de chaque plugin chargé :
+
+```mermaid
+flowchart LR
+    Page["Page de l'interface<br/>voyager://app/index.html<br/>(CSP : script-src 'self' + empreinte de l'import map)"]
+    Map["Import map en ligne<br/>react, react-dom, Fluent UI, @fluent/react,<br/>@voyager/plugin-sdk → shared/*.js"]
+    Shared["shared/*.js<br/>entrées de la même construction que la page :<br/>une seule copie de React"]
+    Module["plugins/&lt;id&gt;/ui/index.js<br/>import() d'un module du plugin"]
+    Texts["plugins/&lt;id&gt;/i18n/&lt;langue&gt;/messages.ftl"]
+    Page --> Map --> Shared
+    Page -->|"import()"| Module
+    Module -->|"imports nus, résolus par la carte"| Shared
+    Page -->|"fetch"| Texts
+```
+
+- Le processus principal sert `plugins/<id>/ui/*.js` et `plugins/<id>/i18n/<langue>/messages.ftl` depuis le
+  dossier des plugins (jamais le manifeste ni les assemblies), et calcule l'empreinte de l'import map de
+  `index.html` pour la CSP. En développement, Vite fait de même.
+- Le module d'un plugin exporte `register(registry)` ; l'interface refuse ce que le manifeste n'annonce pas.
+  Un module qui ne charge pas, ou un panneau qui plante, met ce plugin « en erreur » sans toucher au reste.
+- Les messages d'un plugin commencent par son identifiant ; ils rejoignent ceux de la page sans jamais en
+  remplacer un.
 
 ## Une saisie hors-ligne, pas à pas
 

@@ -43,6 +43,23 @@ internal sealed class PluginFolder : IDisposable
     }
 
     /// <summary>
+    /// Adds a plugin that ships (plugins/&lt;id&gt;/dotnet/...): its build output and a manifest like the one of its package.
+    /// </summary>
+    /// <param name="id">The identifier of the plugin, for example "diagnostics-clock".</param>
+    /// <param name="project">The name of its project, for example "Voyager.Plugins.DiagnosticsClock".</param>
+    public void AddShippedPlugin(string id, string project)
+    {
+        var folder = System.IO.Path.Combine(Path, id);
+        Directory.CreateDirectory(folder);
+        foreach (var file in Directory.EnumerateFiles(OutputOf(System.IO.Path.Combine("plugins", id, "dotnet", project))))
+        {
+            File.Copy(file, System.IO.Path.Combine(folder, System.IO.Path.GetFileName(file)));
+        }
+
+        AddManifest(id, Manifest(id, $"{project}.dll"));
+    }
+
+    /// <summary>
     /// Writes a plugin.json, in the folder of a plugin that may not exist yet.
     /// </summary>
     public void AddManifest(string folderName, string content)
@@ -70,7 +87,9 @@ internal sealed class PluginFolder : IDisposable
     }
 
     // The test plugins are built next to their project, in the configuration the tests run in.
-    private static string FixtureOutput(string fixture)
+    private static string FixtureOutput(string fixture) => OutputOf(System.IO.Path.Combine("tests", "plugin-fixtures", fixture));
+
+    private static string OutputOf(string projectFolder)
     {
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
         var root = new DirectoryInfo(AppContext.BaseDirectory);
@@ -81,9 +100,7 @@ internal sealed class PluginFolder : IDisposable
 
         return System.IO.Path.Combine(
             root?.FullName ?? throw new InvalidOperationException($"No {SOLUTION_FILE} found above {AppContext.BaseDirectory}."),
-            "tests",
-            "plugin-fixtures",
-            fixture,
+            projectFolder,
             "bin",
             configuration,
             "net10.0");

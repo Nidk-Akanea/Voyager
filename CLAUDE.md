@@ -24,8 +24,12 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   **Aucun code métier encore.** Le paquet installable est en place, sans publication automatique
   (`tools/release.ps1`, Velopack, journaux en fichiers, verrous Electron), avec un écran de démarrage et
   une mise à jour automatique au démarrage (ADR-0014, proposée) ; le service local est surveillé. Reste à
-  faire : l'essai d'installation et de mise à jour, la première release publiée, puis l'étape 3, la
-  preuve des plugins (ADR-0015 acceptée ; la spec de la preuve reste à écrire).
+  faire : l'essai d'installation et de mise à jour, la première release publiée.
+- **Étape 3, la preuve des plugins, en cours** (ADR-0015 acceptée, spec validée) : le SDK .NET,
+  `Voyager.PluginHost`, le service gRPC `voyager.pluginhost.v1`, le chargement côté interface et deux plugins
+  de démonstration (`plugins/`) sont en place et visibles dans la page « À propos ». Ils sont aussi dans le
+  paquet (`resources/plugins`) et une règle de lint contrôle les imports d'un plugin. Reste à faire : le calcul
+  de version par composant (`sdk/v*`, `plugins/<id>/v*`) et le skill `/new-plugin`.
 - **Les décisions techniques sont prises** (ADR 0002 à 0013 et 0015) : Electron + React/TypeScript pour
   l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
   plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite
@@ -70,7 +74,8 @@ proto/                    contrats gRPC
 src/dotnet/               projets .NET
 src/ts/                   paquets TypeScript
 tests/                    tests .NET
-tools/                    scripts de développement et de livraison (`release.ps1`)
+plugins/                  plugins livrés avec Voyager (`diagnostics-runtime`, `diagnostics-clock`)
+tools/                    scripts de développement et de livraison (`release.ps1`, `build-plugins.ps1`)
 deploy/                   image Docker du serveur du groupe (ce qu'on livre à l'hébergeur)
 Voyager.slnx              solution .NET ; réglages : global.json, Directory.*.props, nuget.config
 package.json              espace de travail pnpm ; réglages : pnpm-workspace.yaml, eslint, prettier
@@ -146,6 +151,7 @@ ou la branche, pas tes conclusions.
 | Contrats `.proto` (et régénérer le client TypeScript)                                                                                             | `pnpm proto:lint`, `pnpm proto:breaking`, `pnpm proto:generate`                                                                                             |
 | Lancer tout en développement (Aspire : PostgreSQL + PostGIS, serveur du groupe, service local, interface Vite, fenêtre Electron, tableau de bord) | `pnpm install` une fois, puis F5 sur `Voyager.AppHost` ou `dotnet run --project src/dotnet/Voyager.AppHost` ; tableau de bord sur `https://localhost:17180` |
 | Construire l'image du serveur du groupe                                                                                                           | `docker build -f deploy/GroupServer.Dockerfile .`                                                                                                           |
+| Construire les plugins (dans `artifacts/plugins/`, lancé par Aspire avant le service local)                                                       | `pwsh tools/build-plugins.ps1`                                                                                                                              |
 | Construire le paquet installable (Windows : service publié, application, Velopack ; résultat dans `artifacts/`)                                   | `pwsh tools/release.ps1` (`-Docker` ajoute l'image du serveur du groupe)                                                                                    |
 | Vérifier le Markdown                                                                                                                              | `npx markdownlint-cli2`                                                                                                                                     |
 | Calculer la version (PowerShell)                                                                                                                  | `dnx GitVersion.Tool --yes -- /showvariable FullSemVer`                                                                                                     |

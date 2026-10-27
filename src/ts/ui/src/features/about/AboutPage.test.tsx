@@ -23,7 +23,10 @@ const SERVICE_INFO = create(GetServiceInfoResponseSchema, {
 
 function renderAboutPage(getServiceInfo: () => Promise<unknown>, locale: Locale = 'fr') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const clients = { diagnostics: { getServiceInfo: vi.fn(getServiceInfo) } } as unknown as LocalServiceClients;
+  const clients = {
+    diagnostics: { getServiceInfo: vi.fn(getServiceInfo) },
+    pluginHost: { listPlugins: vi.fn(() => Promise.resolve({ plugins: [] })), getDiagnosticFacts: vi.fn() },
+  } as unknown as LocalServiceClients;
   render(
     <ShellProviders locale={locale}>
       <AppProviders locale={locale} clients={clients} queryClient={queryClient}>

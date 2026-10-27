@@ -1,0 +1,6 @@
+{
+  "id": "diagnostics-runtime",
+  "sdk": "0.1",
+  "dotnet": { "assembly": "Voyager.Plugins.DiagnosticsRuntime.dll" },
+  "provides": ["diagnostic-fact-source"]
+}

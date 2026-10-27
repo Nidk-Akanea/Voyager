@@ -24,13 +24,22 @@ var localToken = builder.AddParameter(
     secret: true,
     persist: false);
 
+// The plugins that ship with Voyager, built into artifacts/plugins before anything loads them (ADR-0015): the local
+// service loads them at startup, and the user interface served by Vite reads their modules from the same folder.
+var repositoryRoot = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".."));
+var pluginsFolder = Path.Combine(repositoryRoot, "artifacts", "plugins");
+var plugins = builder.AddExecutable("plugins", "pwsh", repositoryRoot, "-NoProfile", "-File", Path.Combine("tools", "build-plugins.ps1"));
+
 // The TypeScript packages must be installed beforehand (pnpm install at the repository root).
 var userInterface = builder.AddViteApp("ui", "../../ts/ui")
-    .WithPnpm(install: false);
+    .WithPnpm(install: false)
+    .WithEnvironment("VOYAGER_PLUGINS_DIRECTORY", pluginsFolder);
 
 var localService = builder.AddProject<Projects.Voyager_LocalService>("local-service")
     .WithHttpEndpoint()
     .WithEnvironment("Voyager__LocalToken", localToken)
+    .WithEnvironment("Voyager__PluginsDirectory", pluginsFolder)
+    .WaitForCompletion(plugins)
     // The user interface served by Vite calls the local service from its own origin.
     .WithEnvironment("Voyager__AllowedOrigins__0", userInterface.GetEndpoint("http"));
 

@@ -9,6 +9,9 @@
     <ProjectReference Include="..\..\src\dotnet\Voyager.Persistence.PostgreSql\Voyager.Persistence.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\dotnet\Voyager.Sync\Voyager.Sync.csproj" />
     <ProjectReference Include="..\..\src\dotnet\Voyager.PluginHost\Voyager.PluginHost.csproj" />
+    <!-- The plugins that ship: PluginAssemblyTests reads their compiled assemblies. -->
+    <ProjectReference Include="..\..\plugins\diagnostics-clock\dotnet\Voyager.Plugins.DiagnosticsClock\Voyager.Plugins.DiagnosticsClock.csproj" />
+    <ProjectReference Include="..\..\plugins\diagnostics-runtime\dotnet\Voyager.Plugins.DiagnosticsRuntime\Voyager.Plugins.DiagnosticsRuntime.csproj" />
     <!-- A conforming test plugin: its compiled assembly is what PluginAssemblyTests inspects, next to the shipped plugins. -->
     <ProjectReference Include="..\plugin-fixtures\Good\Good.csproj" />
   </ItemGroup>

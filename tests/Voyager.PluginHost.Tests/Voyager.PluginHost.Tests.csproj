@@ -20,6 +20,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The plugins that ship are loaded too, from their build output. -->
+    <ProjectReference Include="..\..\plugins\diagnostics-clock\dotnet\Voyager.Plugins.DiagnosticsClock\Voyager.Plugins.DiagnosticsClock.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\plugins\diagnostics-runtime\dotnet\Voyager.Plugins.DiagnosticsRuntime\Voyager.Plugins.DiagnosticsRuntime.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AwesomeAssertions" />
   </ItemGroup>
 
