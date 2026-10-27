@@ -8,4 +8,4 @@ qu'une spec validée.
 
 | Spec                                                              | Épic                      | Statut    |
 | ----------------------------------------------------------------- | ------------------------- | --------- |
-| [plateforme-preuve-des-plugins](plateforme-preuve-des-plugins.md) | E9 — Plateforme modulaire | Brouillon |
+| [plateforme-preuve-des-plugins](plateforme-preuve-des-plugins.md) | E9 — Plateforme modulaire | Validée   |

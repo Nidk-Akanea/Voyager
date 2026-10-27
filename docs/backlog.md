@@ -71,16 +71,22 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 - [ ] Squelette, étape 3 — preuve des plugins, après l'ADR du mécanisme de plugins ; calcul de version
   par composant (SDK, plugins)
   - [x] Spec de la preuve : [plateforme-preuve-des-plugins](specs/plateforme-preuve-des-plugins.md)
-    (brouillon, à valider)
-  - [ ] `Voyager.Sdk` (`IPlugin`, `IPluginBuilder`, le contrat de la source de faits) et `@voyager/plugin-sdk`
-    (registre d'extensions, services de l'hôte)
-  - [ ] `Voyager.PluginHost` : manifeste, contexte de chargement par plugin, conteneur privé, plugin écarté
-    sans gêner les autres
+    (validée)
+  - [x] `Voyager.Sdk` (`IPlugin`, `IPluginBuilder`, le contrat de la source de faits), côté .NET
+  - [ ] `@voyager/plugin-sdk` (registre d'extensions, services de l'hôte), côté interface
+  - [x] `Voyager.PluginHost` : manifeste, contexte de chargement par plugin, conteneur privé, plugin écarté
+    sans gêner les autres ; service gRPC `voyager.pluginhost.v1` et service local comme source de faits
   - [ ] Chargement côté interface : service qui liste les plugins, protocole `plugins/<id>/ui/`, *import
     map* et empreinte dans la CSP
   - [ ] Deux plugins de démonstration, assemblés dans `artifacts/plugins/` puis dans le paquet
   - [ ] Tests d'architecture (Sdk, assemblies des plugins), règle de lint sur les imports d'un plugin
   - [ ] Calcul de version par composant (`sdk/v*`, `plugins/<id>/v*`)
+  - [ ] Limites connues du chargement des plugins .NET, acceptées pour des plugins de l'équipe (ADR-0015,
+    décision 10) mais à reprendre avant des plugins de tiers : pas de limite de durée pour le constructeur
+    et `Configure` d'un plugin (un plugin qui boucle empêche le service de démarrer) ; pas de dépendances
+    natives ni de `Microsoft.*` propres à un plugin ; DLL d'un plugin verrouillées tant que le service
+    tourne ; deux plugins `a` et `a-b` peuvent entrer en collision de libellés ; erreur `NOT_FOUND` de
+    `voyager.pluginhost.v1` sans `google.rpc.ErrorInfo` (le paquet n'est pas encore dans le dépôt)
 - [x] Hook de formatage du code (`dotnet format`, Prettier), skills `/feature` et `/new-use-case`
 - [ ] Avec la preuve des plugins : skill `/new-plugin`
 

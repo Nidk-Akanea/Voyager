@@ -152,3 +152,8 @@ Un projet de test par projet testé, avec le suffixe `.Tests` :
 `tests/Voyager.Core.Tests`, `tests/Voyager.Persistence.Tests`… plus `tests/Voyager.Architecture.Tests`
 pour les règles de dépendance. Les tests TypeScript sont à côté du code (`QuoteCard.test.tsx`).
 Détails : [tests](tests.md).
+
+`tests/plugin-fixtures/` contient de petits plugins qui n'existent que pour tester l'hôte de plugins
+(`tests/Voyager.PluginHost.Tests`) : un plugin conforme, un par défaut (exception au chargement, source
+lente, conteneur invalide, inscription non déclarée…). Ils ne sont jamais livrés ; chacun s'appelle
+`Voyager.PluginFixtures.<Nom>` et ne référence que `Voyager.Sdk`.

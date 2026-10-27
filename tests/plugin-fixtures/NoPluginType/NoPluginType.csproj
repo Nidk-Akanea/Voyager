@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Voyager.PluginFixtures.NoPluginType</AssemblyName>
+    <RootNamespace>Voyager.PluginFixtures.NoPluginType</RootNamespace>
+  </PropertyGroup>
+
+</Project>

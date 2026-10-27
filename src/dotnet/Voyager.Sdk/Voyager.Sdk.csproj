@@ -9,4 +9,10 @@
     <ProjectReference Include="..\Voyager.Core\Voyager.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The only two packages a plugin gets from the SDK (ADR-0015): dependency injection and logging. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package voyager.pluginhost.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Voyager.Contracts.PluginHost.V1";
+
+// What the plugin host of the local service knows about the plugins, for the "About" screen and for the
+// user interface, which loads the interface part of each plugin (ADR-0015).
+// The package voyager.plugins.<id>.v1 is reserved for the services of the plugins themselves.
+service PluginHostService {
+  // Lists the plugins found at startup: those in use and those that were set aside, with the reason.
+  rpc ListPlugins(ListPluginsRequest) returns (ListPluginsResponse);
+  // Asks the sources of diagnostic facts (the service itself and the plugins) for their facts. A source
+  // that fails or is too slow is reported as such and does not affect the others.
+  rpc GetDiagnosticFacts(GetDiagnosticFactsRequest) returns (GetDiagnosticFactsResponse);
+}
+
+// Request of PluginHostService.ListPlugins. Intentionally empty.
+message ListPluginsRequest {}
+
+// Response of PluginHostService.ListPlugins.
+message ListPluginsResponse {
+  // Every plugin folder found, in alphabetical order of folder names.
+  repeated Plugin plugins = 1;
+}
+
+// A plugin folder found at startup.
+message Plugin {
+  // Name of the folder of the plugin. Unique, even when two plugins claim the same identifier.
+  string folder = 1;
+  // Identifier of the plugin, written in its manifest; the folder name when the manifest is unreadable.
+  string id = 2;
+  // Version of the plugin; empty when the manifest is unreadable.
+  string version = 3;
+  // Whether the plugin is in use.
+  PluginStatus status = 4;
+  // Why the plugin was set aside. Only set when the status is PLUGIN_STATUS_REJECTED.
+  PluginRejectionReason rejection_reason = 5;
+  // Path of the user interface module, relative to the ui folder of the plugin. Empty when a plugin has
+  // no interface part or is not in use.
+  string ui_module = 6;
+  // Extension points the plugin provides (for example "diagnostic-fact-source"). Empty when not in use.
+  repeated string provides = 7;
+}
+
+// Whether a plugin is in use.
+enum PluginStatus {
+  // The status is not known.
+  PLUGIN_STATUS_UNSPECIFIED = 0;
+  // The plugin is loaded and what it provides is available.
+  PLUGIN_STATUS_LOADED = 1;
+  // The plugin was set aside.
+  PLUGIN_STATUS_REJECTED = 2;
+}
+
+// Why a plugin was set aside at startup.
+enum PluginRejectionReason {
+  // No reason: the plugin is in use.
+  PLUGIN_REJECTION_REASON_UNSPECIFIED = 0;
+  // The manifest is missing, unreadable, incomplete, or does not match the folder of the plugin.
+  PLUGIN_REJECTION_REASON_MANIFEST_INVALID = 1;
+  // Another plugin, found first, already has this identifier.
+  PLUGIN_REJECTION_REASON_DUPLICATE_ID = 2;
+  // The plugin was written for a version of the SDK that the application does not accept.
+  PLUGIN_REJECTION_REASON_SDK_INCOMPATIBLE = 3;
+  // The .NET part of the plugin could not be loaded or configured.
+  PLUGIN_REJECTION_REASON_LOAD_FAILED = 4;
+  // The plugin registered an extension point that its manifest does not announce.
+  PLUGIN_REJECTION_REASON_UNDECLARED_REGISTRATION = 5;
+}
+
+// Request of PluginHostService.GetDiagnosticFacts.
+message GetDiagnosticFactsRequest {
+  // The source to ask: "service" or the identifier of a plugin. Empty to ask every source.
+  string source_id = 1;
+}
+
+// Response of PluginHostService.GetDiagnosticFacts.
+message GetDiagnosticFactsResponse {
+  // One entry per source asked, in registration order.
+  repeated SourceFacts sources = 1;
+}
+
+// What one source of diagnostic facts gave.
+message SourceFacts {
+  // "service" for the service itself, or the identifier of the plugin that provides the source.
+  string source_id = 1;
+  // How the source answered.
+  FactsOutcome outcome = 2;
+  // The facts that were kept. Empty unless the outcome is FACTS_OUTCOME_SUCCEEDED.
+  repeated Fact facts = 3;
+  // True when the source gave more facts than the limit and the last ones were left out.
+  bool truncated = 4;
+}
+
+// How a source of diagnostic facts answered.
+enum FactsOutcome {
+  // The outcome is not known.
+  FACTS_OUTCOME_UNSPECIFIED = 0;
+  // The source answered.
+  FACTS_OUTCOME_SUCCEEDED = 1;
+  // The source threw an exception.
+  FACTS_OUTCOME_FAILED = 2;
+  // The source did not answer in time.
+  FACTS_OUTCOME_TIMED_OUT = 3;
+  // The source answered with facts the host refuses.
+  FACTS_OUTCOME_INVALID = 4;
+}
+
+// A piece of information about the service, with a translatable label.
+message Fact {
+  // Identifier of the label's message in the translations of the source, for example
+  // "diagnostics-clock-fact-now". Never a sentence.
+  string label_id = 1;
+  // The value; its kind is the one that is set.
+  oneof value {
+    // A text, shown as is.
+    string text = 2;
+    // A number, to format for the user's language.
+    double number = 3;
+    // An instant, to show in the user's language and time zone.
+    google.protobuf.Timestamp instant = 4;
+  }
+}

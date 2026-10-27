@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Voyager.PluginFixtures.ThrowsOnConfigure</AssemblyName>
+    <RootNamespace>Voyager.PluginFixtures.ThrowsOnConfigure</RootNamespace>
+  </PropertyGroup>
+
+</Project>

@@ -4,4 +4,14 @@
     <ProjectReference Include="..\Voyager.Sdk\Voyager.Sdk.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The implementations behind the abstractions of the SDK: each plugin gets a private container. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Voyager.PluginHost.Tests" />
+  </ItemGroup>
+
 </Project>

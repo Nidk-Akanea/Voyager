@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Voyager.PluginFixtures.ManyFacts</AssemblyName>
+    <RootNamespace>Voyager.PluginFixtures.ManyFacts</RootNamespace>
+  </PropertyGroup>
+
+</Project>

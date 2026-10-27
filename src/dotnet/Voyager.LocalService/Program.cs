@@ -21,6 +21,10 @@ builder.UseDefaultUrlsWhenNotConfigured("http://127.0.0.1:0");
 builder.Services.AddOptions<LocalServiceOptions>()
     .BindConfiguration(LocalServiceOptions.SECTION)
     .ValidateDataAnnotations()
+    // A relative folder would depend on the working directory: the desktop app always gives a full path.
+    .Validate(
+        options => string.IsNullOrEmpty(options.PluginsDirectory) || Path.IsPathFullyQualified(options.PluginsDirectory),
+        "Voyager:PluginsDirectory must be a full path.")
     .ValidateOnStart();
 
 builder.Services.AddSingleton<IClock>(SystemClock.Instance);
@@ -29,6 +33,8 @@ builder.Services.AddSingleton<ServiceInfo>();
 builder.Services.AddSingleton<LocalDatabaseState>();
 builder.Services.AddVoyagerSqlite(provider =>
     provider.GetRequiredService<IOptions<LocalServiceOptions>>().Value.ResolvedDatabasePath);
+
+builder.Services.AddLocalPlugins();
 
 builder.Services.AddGrpc(options => options.Interceptors.Add<LocalTokenInterceptor>());
 
@@ -54,12 +60,14 @@ try
     app.Services.GetRequiredService<ServiceInfo>();
 
     await app.PrepareLocalDatabaseAsync();
+    app.LoadPlugins();
     app.LinkToDesktopApp();
 
     app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
     app.UseCors();
 
     app.MapGrpcService<DiagnosticsGrpcService>();
+    app.MapGrpcService<PluginHostGrpcService>();
     app.MapDefaultEndpoints();
 
     await app.RunAsync();

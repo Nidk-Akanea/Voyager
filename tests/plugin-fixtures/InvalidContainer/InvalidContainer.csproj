@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Voyager.PluginFixtures.InvalidContainer</AssemblyName>
+    <RootNamespace>Voyager.PluginFixtures.InvalidContainer</RootNamespace>
+  </PropertyGroup>
+
+</Project>
