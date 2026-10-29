@@ -1,6 +1,6 @@
 # ADR-0016 — Installation et gestion des plugins
 
-- **Statut** : Proposée
+- **Statut** : Acceptée
 - **Date** : 2026-10-29
 - **Remplace** : — (complète [ADR-0015](0015-mecanisme-de-plugins.md) et en **lève deux limites** : la
   phrase « il n'y a pas de dossier de plugins de l'utilisateur » de la décision 9, et, dans la décision 10,
