@@ -67,11 +67,11 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 - [ ] Signature de code du paquet, avant une diffusion hors du groupe (SmartScreen avertit sans elle)
 - [x] Surveillance du service local : relancé (3 fois en 60 s au plus) s'il s'arrête pendant que
   l'application tourne, puis « Réessayer » quand il n'a pas pu démarrer ou redémarrer
-- [ ] ADR du mécanisme de plugins : [ADR-0015](adr/0015-mecanisme-de-plugins.md) (proposée)
-- [ ] Squelette, étape 3 — preuve des plugins, après l'ADR du mécanisme de plugins ; calcul de version
+- [x] ADR du mécanisme de plugins : [ADR-0015](adr/0015-mecanisme-de-plugins.md) (acceptée)
+- [x] Squelette, étape 3 — preuve des plugins, après l'ADR du mécanisme de plugins ; calcul de version
   par composant (SDK, plugins)
   - [x] Spec de la preuve : [plateforme-preuve-des-plugins](specs/plateforme-preuve-des-plugins.md)
-    (validée)
+    (implémentée)
   - [x] `Voyager.Sdk` (`IPlugin`, `IPluginBuilder`, le contrat de la source de faits), côté .NET
   - [x] `@voyager/plugin-sdk` (registre d'extensions, services de l'hôte), côté interface
   - [x] `Voyager.PluginHost` : manifeste, contexte de chargement par plugin, conteneur privé, plugin écarté
@@ -79,8 +79,9 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   - [x] Chargement côté interface : service qui liste les plugins, protocole `plugins/<id>/ui/`, *import
     map* et empreinte dans la CSP
   - [x] Deux plugins de démonstration, assemblés dans `artifacts/plugins/` (`tools/build-plugins.ps1`)
-  - [x] Plugins dans le paquet (`resources/plugins`, `tools/release.ps1`) ; essai avec `Setup.exe` à faire avec celui
-    de l'installation
+  - [x] Plugins dans le paquet (`resources/plugins`, `tools/release.ps1`) ; essayé avec `Setup.exe` (les deux
+    plugins se chargent depuis l'application installée) ; la mise à jour automatique reste à essayer avec
+    celle de l'installation
   - [x] Tests d'architecture (Sdk, assemblies des plugins), règle de lint sur les imports d'un plugin
   - [x] Calcul de version par composant (`sdk/v*`, `plugins/<id>/v*`) : `tools/get-version.ps1`, une
     configuration GitVersion par composant, version du SDK dans l'assembly (celle que l'hôte compare au
@@ -187,7 +188,10 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 - [ ] Identifier les points d'extension : types de prestation, bases de calcul, règles de répartition,
   connecteurs, vues, exports
 - [ ] Définir un contrat par point d'extension
-- [ ] Mécanisme d'installation et de chargement des plugins (dépend de la stack)
+- [x] Chargement des plugins (étape 3 du squelette : un contexte de chargement par plugin, interface par `import()`)
+- [ ] Installation des plugins par l'utilisateur (dossier de l'utilisateur, vue pour installer, désinstaller,
+  activer et désactiver) et mise en ligne : à trancher par un ADR, avec la question Q11 (tiers, signature,
+  isolation) et Q26 (désactiver un plugin qui plante)
 - [ ] Les fonctionnalités de base sont elles-mêmes livrées comme plugins
 
 ## Questions ouvertes
