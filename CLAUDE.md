@@ -31,8 +31,9 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   paquet (`resources/plugins`) et une règle de lint contrôle les imports d'un plugin. Chaque composant a sa
   version, calculée de son propre historique (`tools/get-version.ps1`), et le skill `/new-plugin` crée un
   plugin à partir des deux modèles. Essayée en développement et avec `Setup.exe`. Les plugins sont livrés
-  avec l'application ; leur installation par l'utilisateur et les plugins de tiers restent à décider (Q11).
-- **Les décisions techniques sont prises** (ADR 0002 à 0013 et 0015) : Electron + React/TypeScript pour
+  avec l'application ; leur installation et leur gestion par l'utilisateur et par le groupe sont décidées
+  (ADR-0016, pas encore construites) ; les plugins de tiers d'un catalogue ouvert restent à décider (Q11).
+- **Les décisions techniques sont prises** (ADR 0002 à 0013, 0015 et 0016) : Electron + React/TypeScript pour
   l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
   plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite
   (local), architecture hexagonale rangée par domaine, Git Flow avec versions calculées par
@@ -40,7 +41,9 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   Velopack, développement orchestré par Aspire (`Voyager.AppHost`, `Voyager.ServiceDefaults`),
   journaux de développement écrits dans Seq par Serilog, paquet assemblé avec `@electron/packager`
   (fuses verrouillées, identifiant de paquet `VoyagerApp`, journaux en fichiers sur le poste),
-  mécanisme de plugins (un contexte de chargement par plugin, interface par `import()`).
+  mécanisme de plugins (un contexte de chargement par plugin, interface par `import()`), installation
+  et gestion des plugins (dossier de données, paquet `.voyagerplugin`, demandes écrites par le processus
+  principal, appliquées au démarrage).
 - Les étapes suivantes du squelette se font **sur demande** de l'utilisateur.
 
 ## Langues
