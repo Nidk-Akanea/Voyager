@@ -24,3 +24,23 @@ jobs:
         run: |
           echo "### Version calculée : ${{ steps.version.outputs.fullSemVer }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Version: ${{ steps.version.outputs.fullSemVer }}"
+      # tools/get-version.ps1 runs GitVersion.Tool with dnx, which needs the .NET SDK of global.json.
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      # The SDK and each plugin have their own number, computed from their own history (ADR-0007).
+      - name: Show the version of each component
+        shell: pwsh
+        run: |
+          $rows = ./tools/get-version.ps1 -All
+          $rows | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+          "### Versions des composants" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "| Composant | Version | Modifié depuis son dernier tag |" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "| --- | --- | --- |" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          foreach ($row in $rows) {
+            "| $($row.Component) | $($row.Version) | $($row.Changed) |" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          }
+      # On a copy of the repository: a component that did not change keeps its number on develop, release/* and main.
+      - name: Check the versions of the components
+        shell: pwsh
+        run: ./tools/test-versions.ps1

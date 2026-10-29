@@ -11,6 +11,8 @@
     4. writes its plugin.json with the version injected: the manifest of the repository has none, a version is
        never written by hand (ADR-0007).
 
+    Each plugin has its own version, computed from its own history (tools/get-version.ps1).
+
     A plugin is only built again when something it is made of changed since the last build: its own files, the SDKs
     it is written against, the shared build settings, or the version. Otherwise it is left as it is, which is also
     what lets this run while the local service has its assemblies loaded. A plugin whose folder was deleted from
@@ -20,9 +22,9 @@
     and `pnpm start` give the local service and the user interface in development.
 
 .PARAMETER Version
-    The version to write in every manifest, such as 0.2.0-beta.3. Defaults to the one GitVersion computes for the
-    current branch. Development gives a fixed one (such as 0.0.0-dev) to skip that calculation. (A version for each
-    plugin, from its own history, comes with the per-component versions.)
+    The version to write in every manifest, such as 0.2.0-beta.3. Defaults to the version of each plugin, which
+    GitVersion computes from the history of that plugin (about 2 seconds each). Development gives a fixed one (such
+    as 0.0.0-dev) to skip that calculation.
 
 .PARAMETER Configuration
     Release (the default, what the package ships) or Debug (what development gives, so that the code of a plugin can
@@ -77,6 +79,14 @@ function Invoke-Step {
     }
 }
 
+# Fails unless the value looks like a version; the owner says where it comes from.
+function Assert-Version {
+    param([string] $Value, [string] $Owner)
+    if ($Value -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+        throw "Not a version: '$Value' ($Owner). Expected x.y.z, optionally followed by a suffix, such as 0.2.0-beta.3."
+    }
+}
+
 # Whether a manifest declares a part of the plugin ("dotnet", "ui"). Under strict mode a missing property is an error.
 function Test-ManifestPart {
     param([object] $Manifest, [string] $Name)
@@ -124,14 +134,8 @@ function Remove-PluginOutput {
 
 Set-Location -LiteralPath $root
 
-if (-not $Version) {
-    Invoke-Step 'Compute the version (GitVersion)' {
-        # The repository is passed explicitly: GitVersion does not find it from this folder otherwise.
-        $script:Version = (dnx GitVersion.Tool --yes -- $root /showvariable SemVer | Select-Object -Last 1).Trim()
-    }
-}
-if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
-    throw "Not a version: '$Version'. Expected x.y.z, optionally followed by a suffix, such as 0.2.0-beta.3."
+if ($Version) {
+    Assert-Version $Version 'the -Version parameter'
 }
 
 New-Item -ItemType Directory -Path $pluginsOutput -Force | Out-Null
@@ -150,18 +154,24 @@ foreach ($manifestPath in $manifests) {
         throw "The folder $(Split-Path -Leaf $source) does not have the identifier of its manifest ($id)."
     }
     $builtIds += $id
+    $pluginVersion = $Version
+    if (-not $pluginVersion) {
+        Write-Host "==> Compute the version of $id (GitVersion)" -ForegroundColor Cyan
+        $pluginVersion = (& (Join-Path $PSScriptRoot 'get-version.ps1') -Component $id | Select-Object -Last 1).Trim()
+        Assert-Version $pluginVersion "GitVersion, plugin $id"
+    }
     $output = Join-Path $pluginsOutput $id
     $stamp = Join-Path $stampsFolder "$id.fingerprint"
 
-    $fingerprint = Get-Fingerprint $source $Version
+    $fingerprint = Get-Fingerprint $source $pluginVersion
     $upToDate = -not $Force -and (Test-Path -LiteralPath (Join-Path $output 'plugin.json')) -and
         (Test-Path -LiteralPath $stamp) -and ((Get-Content -LiteralPath $stamp -Raw).Trim() -eq $fingerprint)
     if ($upToDate) {
-        Write-Host "Plugin $id $Version is up to date" -ForegroundColor DarkGray
+        Write-Host "Plugin $id $pluginVersion is up to date" -ForegroundColor DarkGray
         continue
     }
 
-    Write-Host "Plugin $id $Version" -ForegroundColor Green
+    Write-Host "Plugin $id $pluginVersion" -ForegroundColor Green
     Remove-Item -LiteralPath $stamp -Force -ErrorAction SilentlyContinue
     Remove-PluginOutput $output
 
@@ -172,7 +182,7 @@ foreach ($manifestPath in $manifests) {
             # that the debugger finds the sources.
             $shipped = if ($Configuration -eq 'Release') { 'true' } else { 'false' }
             dotnet publish $project.FullName --configuration $Configuration `
-                -p:DisableGitVersionTask=true "-p:ContinuousIntegrationBuild=$shipped" "-p:Version=$Version" --output $output
+                -p:DisableGitVersionTask=true "-p:ContinuousIntegrationBuild=$shipped" "-p:Version=$pluginVersion" --output $output
         }
         foreach ($shared in $sharedAssemblies) {
             # The assembly with its debug and documentation files.
@@ -197,7 +207,7 @@ foreach ($manifestPath in $manifests) {
 
     New-Item -ItemType Directory -Path $output -Force | Out-Null
     # The manifest of the repository has no version: it is the one of the build that is written, in the same order.
-    $built = [ordered] @{ id = $manifest.id; version = $Version }
+    $built = [ordered] @{ id = $manifest.id; version = $pluginVersion }
     foreach ($property in $manifest.PSObject.Properties) {
         if ($property.Name -notin @('id', 'version')) {
             $built[$property.Name] = $property.Value

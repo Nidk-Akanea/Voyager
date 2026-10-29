@@ -28,8 +28,9 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
 - **Étape 3, la preuve des plugins, en cours** (ADR-0015 acceptée, spec validée) : le SDK .NET,
   `Voyager.PluginHost`, le service gRPC `voyager.pluginhost.v1`, le chargement côté interface et deux plugins
   de démonstration (`plugins/`) sont en place et visibles dans la page « À propos ». Ils sont aussi dans le
-  paquet (`resources/plugins`) et une règle de lint contrôle les imports d'un plugin. Reste à faire : le calcul
-  de version par composant (`sdk/v*`, `plugins/<id>/v*`) et le skill `/new-plugin`.
+  paquet (`resources/plugins`) et une règle de lint contrôle les imports d'un plugin. Chaque composant a sa
+  version, calculée de son propre historique (`tools/get-version.ps1`), et le skill `/new-plugin` crée un
+  plugin à partir des deux modèles. Reste à faire : l'essai d'installation avec `Setup.exe`, plugins compris.
 - **Les décisions techniques sont prises** (ADR 0002 à 0013 et 0015) : Electron + React/TypeScript pour
   l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
   plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite
@@ -66,7 +67,7 @@ docs/
   rules/                  règles chargées selon les fichiers touchés
   agents/                 agents de relecture et d'écriture de tests
   skills/                 procédures du projet (/new-adr, /new-spec, /backlog, /feature,
-                          /new-use-case, /ship, /after-merge, /release, /hotfix,
+                          /new-use-case, /new-plugin, /ship, /after-merge, /release, /hotfix,
                           /update-instructions)
   hooks/                  scripts des hooks (lint Markdown, formatage du code)
 .github/workflows/        CI (build et tests, lint de la doc, calcul de version)
@@ -75,7 +76,8 @@ src/dotnet/               projets .NET
 src/ts/                   paquets TypeScript
 tests/                    tests .NET
 plugins/                  plugins livrés avec Voyager (`diagnostics-runtime`, `diagnostics-clock`)
-tools/                    scripts de développement et de livraison (`release.ps1`, `build-plugins.ps1`)
+tools/                    scripts de développement et de livraison (`release.ps1`, `build-plugins.ps1`,
+                          `get-version.ps1`, `test-versions.ps1`)
 deploy/                   image Docker du serveur du groupe (ce qu'on livre à l'hébergeur)
 Voyager.slnx              solution .NET ; réglages : global.json, Directory.*.props, nuget.config
 package.json              espace de travail pnpm ; réglages : pnpm-workspace.yaml, eslint, prettier
@@ -116,6 +118,7 @@ Détail et règles de rangement : [organisation du code](docs/conventions/organi
 | `/release`, `/hotfix`         | À la demande de l'utilisateur : préparer et publier une version, corriger en urgence une version publiée                                                     |
 | `/feature`                    | Implémenter une spec validée de bout en bout, jusqu'à `/ship`                                                                                                |
 | `/new-use-case`               | Ajouter un cas d'usage dans un domaine du cœur, avec ses tests                                                                                               |
+| `/new-plugin`                 | Créer le squelette d'un plugin (`plugins/<id>/`), avec ou sans écran, et le vérifier                                                                         |
 | `/new-adr`, `/new-spec`       | Rédiger une décision ou une spec                                                                                                                             |
 | `/update-instructions`        | À la demande de l'utilisateur, après une étape importante : relire et mettre à jour ces instructions, créer des `CLAUDE.md` locaux si utile                  |
 
@@ -133,8 +136,9 @@ ou la branche, pas tes conclusions.
 - Fusions : feature → `develop` en **squash** ; release et hotfix → `main` puis `develop` en
   **commit de fusion**.
 - **Versions calculées par GitVersion** (`GitVersion.yml`), pilotées par Conventional Commits ; un
-  numéro pour l'application (`v*`), le SDK (`sdk/v*`) et chaque plugin (`plugins/<id>/v*`). Ne
-  jamais écrire un numéro de version à la main, ni déplacer ou supprimer un tag.
+  numéro pour l'application (`v*`), le SDK (`sdk/v*`) et chaque plugin (`plugins/<id>/v*`), chacun
+  compté sur ses seuls commits (`pwsh tools/get-version.ps1 -All`). Ne jamais écrire un numéro de
+  version à la main, ni déplacer ou supprimer un tag.
 - Ne committe et ne pousse que sur demande ; ne fusionne une PR que si l'utilisateur le demande.
 - Aucun secret dans le repo (`.env` est ignoré).
 
@@ -154,7 +158,9 @@ ou la branche, pas tes conclusions.
 | Construire les plugins modifiés (dans `artifacts/plugins/`, lancé par Aspire avant le service local ; `-Force` pour tout refaire)                 | `pwsh tools/build-plugins.ps1`                                                                                                                              |
 | Construire le paquet installable (Windows : service publié, application, Velopack ; résultat dans `artifacts/`)                                   | `pwsh tools/release.ps1` (`-Docker` ajoute l'image du serveur du groupe)                                                                                    |
 | Vérifier le Markdown                                                                                                                              | `npx markdownlint-cli2`                                                                                                                                     |
-| Calculer la version (PowerShell)                                                                                                                  | `dnx GitVersion.Tool --yes -- /showvariable FullSemVer`                                                                                                     |
+| Calculer la version (PowerShell)                                                                                                                  | `pwsh tools/get-version.ps1 -Variable FullSemVer`                                                                                                           |
+| Calculer la version de chaque composant (application, SDK, plugins), ou d'un seul                                                                 | `pwsh tools/get-version.ps1 -All` (`-Component sdk` ou `-Component <id>`)                                                                                   |
+| Vérifier les versions par composant sur une copie jetable du dépôt (environ une minute, lancé par la CI)                                          | `pwsh tools/test-versions.ps1`                                                                                                                              |
 
 ## Principes d'architecture
 

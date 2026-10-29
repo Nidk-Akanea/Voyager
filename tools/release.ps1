@@ -3,9 +3,10 @@
     Builds the installable Voyager app for Windows (ADR-0009).
 
 .DESCRIPTION
-    1. computes the version with GitVersion (ADR-0007), unless -Version gives one;
-    2. publishes the local service, self-contained for win-x64;
-    3. builds the plugins (tools/build-plugins.ps1), the user interface and the desktop app;
+    1. computes the version of the application with GitVersion (ADR-0007), unless -Version gives one;
+    2. publishes the local service, self-contained for win-x64, with the SDK it carries at its own version;
+    3. builds the plugins (tools/build-plugins.ps1, each at its own version), the user interface and the desktop
+       app;
     4. assembles the app folder (asar, local service, plugins, user interface, Electron fuses) and packs it with
        Velopack (vpk) into an installer and update packages;
     5. with -Docker, builds the image of the group server.
@@ -14,8 +15,8 @@
     to a GitHub release is a separate step, done by hand until the first release.
 
 .PARAMETER Version
-    The version to build, such as 0.2.0-beta.3. Defaults to the one GitVersion computes for the
-    current branch.
+    The version of the application to build, such as 0.2.0-beta.3. Defaults to the one GitVersion computes for the
+    current branch. The SDK and each plugin keep the version of their own history, whatever this is.
 
 .PARAMETER UpdateSource
     The https address (or http://localhost...) of a folder served by a web server, where the app built
@@ -61,8 +62,7 @@ Set-Location -LiteralPath $root
 
 if (-not $Version) {
     Invoke-Step 'Compute the version (GitVersion)' {
-        # The repository is passed explicitly: GitVersion does not find it from this folder otherwise.
-        $script:Version = (dnx GitVersion.Tool --yes -- $root /showvariable SemVer | Select-Object -Last 1).Trim()
+        $script:Version = (& (Join-Path $PSScriptRoot 'get-version.ps1') -Component app | Select-Object -Last 1).Trim()
     }
 }
 if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
@@ -74,6 +74,10 @@ Write-Host "Version $Version, channel $channel"
 Write-Host $(if ($UpdateSource) { "Updates come from $UpdateSource" } else { 'Updates come from the GitHub releases' })
 
 $service = Join-Path $artifacts 'local-service'
+# The SDK inside the service has its own version, not the one of the app: the plugins are checked against it.
+Invoke-Step 'Compute the version of the SDK (GitVersion)' {
+    $script:sdkVersion = (& (Join-Path $PSScriptRoot 'get-version.ps1') -Component sdk | Select-Object -Last 1).Trim()
+}
 Invoke-Step 'Publish the local service' {
     Remove-Item -LiteralPath $service -Recurse -Force -ErrorAction SilentlyContinue
     # ContinuousIntegrationBuild keeps the paths of this machine out of the debug files (.pdb).
@@ -81,14 +85,20 @@ Invoke-Step 'Publish the local service' {
     # gRPC use reflection, and the SQLite native library sits next to the executable.
     dotnet publish (Join-Path $root 'src/dotnet/Voyager.LocalService') `
         --configuration Release --runtime win-x64 --self-contained `
-        -p:DisableGitVersionTask=true -p:ContinuousIntegrationBuild=true "-p:Version=$Version" --output $service
+        -p:DisableGitVersionTask=true -p:ContinuousIntegrationBuild=true "-p:Version=$Version" "-p:SdkVersion=$sdkVersion" --output $service
+}
+# The host compares the plugins with the file version of the SDK in the service: check that it is the SDK's own.
+$sdkInPackage = (Get-Item -LiteralPath (Join-Path $service 'Voyager.Sdk.dll')).VersionInfo.FileVersion
+$sdkExpected = ($sdkVersion -replace '-.*$', '') + '.0'
+if ($sdkInPackage -ne $sdkExpected) {
+    throw "The SDK in the service has version $sdkInPackage, expected ${sdkExpected}: the plugins would be refused at startup."
 }
 
 Invoke-Step 'Install the TypeScript dependencies' { pnpm install --frozen-lockfile }
 Invoke-Step 'Build the user interface and the desktop app' { pnpm build }
 
-# The plugins ship with the app, at the version of the app (a version for each plugin comes with the per-component versions).
-Invoke-Step 'Build the plugins' { & (Join-Path $PSScriptRoot 'build-plugins.ps1') -Version $Version }
+# The plugins ship with the app, each at its own version, computed from its own history (ADR-0007).
+Invoke-Step 'Build the plugins' { & (Join-Path $PSScriptRoot 'build-plugins.ps1') }
 
 Invoke-Step 'Assemble the app folder' {
     Push-Location -LiteralPath $desktop

@@ -10,6 +10,8 @@ COPY global.json nuget.config Directory.Build.props Directory.Packages.props .ed
 # Voyager.Contracts generates its C# code from the .proto contracts at build time.
 COPY proto/ proto/
 COPY src/dotnet/ src/dotnet/
+# The SDK in the image takes the version of the server too: nothing reads it yet (the server does not load plugins).
+# When it does, pass -p:SdkVersion=<version of the SDK> like tools/release.ps1 does for the local service.
 RUN dotnet publish src/dotnet/Voyager.GroupServer/Voyager.GroupServer.csproj \
     --configuration Release \
     --output /app \

@@ -15,7 +15,9 @@ réservé à un bug d'une version **publiée** ; sinon, c'est une `feature/…` 
 
 1. `git status` doit être propre. `git switch main`, `git pull`.
 2. Version : le correctif suivant de la version publiée (`0.2.0` → `0.2.1`) pour le composant
-   concerné (application, SDK ou plugin). Confirme-la avec l'utilisateur.
+   concerné (application, SDK ou plugin). Une fois la branche créée et la correction committée,
+   `pwsh tools/get-version.ps1 -Component app|sdk|<id>` donne la version calculée. Confirme-la avec
+   l'utilisateur.
 3. Crée `hotfix/<x.y.z>` depuis `main`.
 4. Écris d'abord le test qui reproduit le bug (agent `test-writer`), puis la correction, la plus
    petite possible. Commit `fix: …`.
