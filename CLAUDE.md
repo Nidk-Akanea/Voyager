@@ -25,12 +25,13 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   (`tools/release.ps1`, Velopack, journaux en fichiers, verrous Electron), avec un écran de démarrage et
   une mise à jour automatique au démarrage (ADR-0014, proposée) ; le service local est surveillé. Reste à
   faire : l'essai d'installation et de mise à jour, la première release publiée.
-- **Étape 3, la preuve des plugins, en cours** (ADR-0015 acceptée, spec validée) : le SDK .NET,
+- **Étape 3, la preuve des plugins, terminée** (ADR-0015 acceptée, spec implémentée) : le SDK .NET,
   `Voyager.PluginHost`, le service gRPC `voyager.pluginhost.v1`, le chargement côté interface et deux plugins
   de démonstration (`plugins/`) sont en place et visibles dans la page « À propos ». Ils sont aussi dans le
   paquet (`resources/plugins`) et une règle de lint contrôle les imports d'un plugin. Chaque composant a sa
   version, calculée de son propre historique (`tools/get-version.ps1`), et le skill `/new-plugin` crée un
-  plugin à partir des deux modèles. Reste à faire : l'essai d'installation avec `Setup.exe`, plugins compris.
+  plugin à partir des deux modèles. Essayée en développement et avec `Setup.exe`. Les plugins sont livrés
+  avec l'application ; leur installation par l'utilisateur et les plugins de tiers restent à décider (Q11).
 - **Les décisions techniques sont prises** (ADR 0002 à 0013 et 0015) : Electron + React/TypeScript pour
   l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
   plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite
