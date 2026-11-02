@@ -194,10 +194,11 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   [ADR-0016](adr/0016-installation-et-gestion-des-plugins.md) (acceptée) ; puis une spec, avec la vue à
   dessiner avec le design
   - [ ] Spec de la gestion des plugins : [plateforme-gestion-des-plugins](specs/plateforme-gestion-des-plugins.md)
-    (brouillon)
+    (validée)
 - [ ] Contrats versionnés, dépendances entre plugins par contrat et adaptateurs de compatibilité :
   [ADR-0017](adr/0017-contrats-versionnes-et-dependances-entre-plugins.md) (acceptée) ; il remplace la règle
-  « version du SDK » de l'ADR-0015 ; puis la mise à jour de la spec de la gestion des plugins
+  « version du SDK » de l'ADR-0015 ; la spec de la gestion des plugins est ajustée ; reste à construire
+  (au premier plugin qui en requiert un autre, ou à la première évolution réelle d'un contrat)
 - [ ] Plugins du groupe (le propriétaire installe sur le serveur, les applications des membres téléchargent
   la partie locale avec leur accord, le manifeste dit où chaque partie s'exécute) : ADR-0016, décision 8 ;
   après l'authentification des membres et les invitations
