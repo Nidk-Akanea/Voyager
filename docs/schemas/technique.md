@@ -254,7 +254,7 @@ flowchart TB
             S1["Source de faits du plugin A"]
         end
         subgraph P2["Contexte de chargement du plugin B (écarté)"]
-            X["Manifeste invalide, SDK incompatible,<br/>conteneur invalide ou exception"]
+            X["Manifeste invalide, contrat non pris en charge,<br/>conteneur invalide ou exception"]
         end
     end
     Shared["Assemblies partagées : Voyager.Sdk, Voyager.Core, NodaTime,<br/>abstractions d'injection et de journalisation"]
@@ -270,9 +270,9 @@ flowchart TB
 
 - Au démarrage, `PluginCatalog` lit chaque sous-dossier du dossier des plugins (donné par le processus
   principal, jamais par l'utilisateur) : un manifeste valide, un identifiant unique égal au nom du
-  dossier, une version du SDK acceptée (le champ `sdk` du manifeste comparé à la version de l'assembly
-  `Voyager.Sdk`, qui est celle de l'historique du SDK et non de l'application), puis le chargement de la
-  partie .NET dans **son** contexte avec **son** conteneur d'injection. Tout échec écarte ce plugin seul, avec une raison ; le service démarre
+  dossier, des contrats pris en charge (chaque contrat fourni ou requis du manifeste, avec sa version,
+  comparé à `ContractVersions` du SDK, ADR-0017 : une version obsolète ou inconnue écarte le plugin), puis le
+  chargement de la partie .NET dans **son** contexte avec **son** conteneur d'injection. Tout échec écarte ce plugin seul, avec une raison ; le service démarre
   toujours.
 - Un plugin **enregistre** (`builder.AddDiagnosticFactSource<T>()`), il ne remplace rien ; l'hôte vérifie
   l'inscription contre `provides` et la range dans le registre.

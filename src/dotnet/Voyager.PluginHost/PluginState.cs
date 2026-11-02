@@ -12,6 +12,7 @@ namespace Voyager.PluginHost;
 /// <param name="RejectionReason">Why the plugin was set aside; null when it is loaded.</param>
 /// <param name="UiModule">The user interface module of a loaded plugin, relative to its <c>ui</c> folder; null when it has none.</param>
 /// <param name="Provides">The extension points a loaded plugin provides.</param>
+/// <param name="Contracts">The contracts the plugin provides and requires, with their state; empty when the manifest could not be read.</param>
 public sealed record PluginState(
     string Folder,
     string Id,
@@ -19,4 +20,5 @@ public sealed record PluginState(
     PluginStatus Status,
     PluginRejectionReason? RejectionReason,
     string? UiModule,
-    IReadOnlyList<string> Provides);
+    IReadOnlyList<string> Provides,
+    IReadOnlyList<ContractUse> Contracts);

@@ -6,7 +6,14 @@ import { userEvent } from '@testing-library/user-event';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { FactsOutcome, PluginRejectionReason, PluginStatus, type LocalServiceClients } from '@voyager/grpc-client';
+import {
+  ContractRole,
+  ContractUseState,
+  FactsOutcome,
+  PluginRejectionReason,
+  PluginStatus,
+  type LocalServiceClients,
+} from '@voyager/grpc-client';
 import type { DiagnosticFactPanelProps, PluginRegistry } from '@voyager/plugin-sdk';
 
 import { AppProviders } from '../app/AppProviders';
@@ -26,8 +33,19 @@ function plugin(id: string, extra: Record<string, unknown> = {}) {
     rejectionReason: PluginRejectionReason.UNSPECIFIED,
     uiModule: '',
     provides: PROVIDES,
+    contracts: [],
     ...extra,
   };
+}
+
+function contract(name: string, version: number, state: ContractUseState, role = ContractRole.PROVIDED) {
+  return { contract: name, version, role, state };
+}
+
+/** Finds a text that holds variables: Fluent wraps each one in invisible isolation marks. */
+function byTextWithVariables(expected: string) {
+  return (_content: string, element: Element | null) =>
+    element?.tagName === 'SPAN' && element.textContent.replace(/[⁨⁩]/g, '') === expected;
 }
 
 function textFact(labelId: string, text: string) {
@@ -222,7 +240,7 @@ describe('PluginsSection', () => {
       plugins: [
         plugin('broken', {
           status: PluginStatus.REJECTED,
-          rejectionReason: PluginRejectionReason.SDK_INCOMPATIBLE,
+          rejectionReason: PluginRejectionReason.LOAD_FAILED,
           provides: [],
           version: '',
         }),
@@ -230,7 +248,94 @@ describe('PluginsSection', () => {
     });
 
     expect(await screen.findByText('Écarté')).toBeTruthy();
-    expect(screen.getByText('Il est écrit pour une version du SDK que cette application n’accepte pas.')).toBeTruthy();
+    expect(screen.getByText('Sa partie .NET n’a pas pu être chargée.')).toBeTruthy();
+  });
+
+  it('names each contract that the application does not support, and what to do about it', async () => {
+    renderSection({
+      plugins: [
+        plugin('too-new', {
+          status: PluginStatus.REJECTED,
+          rejectionReason: PluginRejectionReason.CONTRACT_NOT_SUPPORTED,
+          provides: [],
+          contracts: [
+            contract('diagnostic-fact-source', 2, ContractUseState.UNKNOWN),
+            contract('plugin', 1, ContractUseState.SUPPORTED, ContractRole.REQUIRED),
+            contract('old-point', 1, ContractUseState.OBSOLETE),
+          ],
+        }),
+      ],
+    });
+
+    expect(await screen.findByText('Écarté')).toBeTruthy();
+    expect(
+      screen.getByText('Il utilise un contrat dans une version que cette application ne prend pas en charge.'),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        byTextWithVariables(
+          'diagnostic-fact-source, version 2 : version inconnue de cette application. Mettez à jour Voyager.',
+        ),
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        byTextWithVariables('old-point, version 1 : version retirée de cette application. Mettez à jour ce plugin.'),
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/plugin, version 1/)).toBeNull();
+  });
+
+  it('gives the general reason alone when no contract is named, or when a state is not known', async () => {
+    renderSection({
+      plugins: [
+        plugin('no-details', {
+          status: PluginStatus.REJECTED,
+          rejectionReason: PluginRejectionReason.CONTRACT_NOT_SUPPORTED,
+          provides: [],
+        }),
+        plugin('newer-service', {
+          status: PluginStatus.REJECTED,
+          rejectionReason: PluginRejectionReason.CONTRACT_NOT_SUPPORTED,
+          provides: [],
+          // A state that a newer service could send and that this page does not know.
+          contracts: [{ contract: 'diagnostic-fact-source', version: 1, role: ContractRole.PROVIDED, state: 99 }],
+        }),
+      ],
+    });
+
+    expect(await screen.findAllByText('Écarté')).toHaveLength(2);
+    expect(
+      screen.getAllByText('Il utilise un contrat dans une version que cette application ne prend pas en charge.'),
+    ).toHaveLength(2);
+    expect(screen.queryByText(/diagnostic-fact-source/)).toBeNull();
+  });
+
+  it('says that a plugin uses a contract that a later version will remove', async () => {
+    renderSection({
+      plugins: [
+        plugin('diagnostics-runtime', {
+          contracts: [contract('diagnostic-fact-source', 1, ContractUseState.DEPRECATED)],
+        }),
+      ],
+      facts: {
+        'diagnostics-runtime': sourceFacts(
+          'diagnostics-runtime',
+          [textFact('diagnostics-runtime-fact-cpu', '8')],
+          FactsOutcome.SUCCEEDED,
+        ),
+      },
+    });
+
+    expect(await screen.findByText('Processeurs')).toBeTruthy();
+    expect(
+      screen.getByText(
+        byTextWithVariables(
+          'Ce plugin utilise diagnostic-fact-source, version 1, qu’une prochaine version de Voyager retirera.',
+        ),
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText('Chargé')).toBeTruthy();
   });
 
   it('notes that facts were left out', async () => {

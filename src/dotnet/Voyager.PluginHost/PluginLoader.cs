@@ -33,7 +33,16 @@ internal sealed class PluginLoader(ILoggerFactory loggerFactory)
 
     // A plugin may only provide what its manifest announces: the manifest is what the host and the user can read.
     private static ExtensionRegistration? FindUndeclaredRegistration(PluginBuilder builder, PluginManifest manifest) =>
-        builder.Registrations.FirstOrDefault(registration => !manifest.Provides.Contains(registration.ExtensionPoint));
+        builder.Registrations.FirstOrDefault(registration => !manifest.ProvidesContract(registration.ExtensionPoint));
+
+    // The sources a plugin registered are created here, so that a constructor that throws rejects the
+    // plugin now instead of failing the first call.
+    private static List<IDiagnosticFactSource> ResolveSources(ServiceProvider provider, PluginBuilder builder) =>
+    [
+        .. builder.Registrations
+            .Where(registration => registration.ExtensionPoint == ExtensionPoints.DIAGNOSTIC_FACT_SOURCE)
+            .Select(registration => (IDiagnosticFactSource)provider.GetRequiredService(registration.ImplementationType)),
+    ];
 
     private ServiceCollection CreatePrivateServices()
     {
@@ -44,15 +53,6 @@ internal sealed class PluginLoader(ILoggerFactory loggerFactory)
         services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
         return services;
     }
-
-    // The sources a plugin registered are created here, so that a constructor that throws rejects the
-    // plugin now instead of failing the first call.
-    private static List<IDiagnosticFactSource> ResolveSources(ServiceProvider provider, PluginBuilder builder) =>
-    [
-        .. builder.Registrations
-            .Where(registration => registration.ExtensionPoint == ExtensionPoints.DIAGNOSTIC_FACT_SOURCE)
-            .Select(registration => (IDiagnosticFactSource)provider.GetRequiredService(registration.ImplementationType)),
-    ];
 
     #endregion Private Methods
 

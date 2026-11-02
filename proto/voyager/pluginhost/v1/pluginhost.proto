@@ -43,6 +43,46 @@ message Plugin {
   string ui_module = 6;
   // Extension points the plugin provides (for example "diagnostic-fact-source"). Empty when not in use.
   repeated string provides = 7;
+  // Contracts the plugin provides and requires, with the version it was written for and whether the application
+  // accepts that version (ADR-0017). Empty when the manifest is unreadable.
+  repeated ContractUse contracts = 8;
+}
+
+// A contract that a plugin provides or requires.
+message ContractUse {
+  // Identifier of the contract, for example "diagnostic-fact-source", or "plugin" for the base contract.
+  string contract = 1;
+  // Version of the contract the plugin was written for: a whole number, 1 for the first one.
+  uint32 version = 2;
+  // Whether the plugin provides or requires the contract.
+  ContractRole role = 3;
+  // Whether the application accepts this version.
+  ContractUseState state = 4;
+}
+
+// What a plugin does with a contract.
+enum ContractRole {
+  // The role is not set. Never sent by the service.
+  CONTRACT_ROLE_UNSPECIFIED = 0;
+  // The plugin provides an implementation of the contract.
+  CONTRACT_ROLE_PROVIDED = 1;
+  // The plugin needs the contract to work, for example the base contract "plugin".
+  CONTRACT_ROLE_REQUIRED = 2;
+}
+
+// Whether the application accepts the version of a contract that a plugin uses.
+enum ContractUseState {
+  // The state is not set. Never sent by the service; distinct from CONTRACT_USE_STATE_UNKNOWN.
+  CONTRACT_USE_STATE_UNSPECIFIED = 0;
+  // The application accepts this version.
+  CONTRACT_USE_STATE_SUPPORTED = 1;
+  // The application accepts this version, and a later release will remove it.
+  CONTRACT_USE_STATE_DEPRECATED = 2;
+  // The application no longer accepts this version: the plugin is too old.
+  CONTRACT_USE_STATE_OBSOLETE = 3;
+  // The application does not know this contract or this version: the plugin is too recent, or requires a
+  // contract that the application does not provide.
+  CONTRACT_USE_STATE_UNKNOWN = 4;
 }
 
 // Whether a plugin is in use.
@@ -63,12 +103,16 @@ enum PluginRejectionReason {
   PLUGIN_REJECTION_REASON_MANIFEST_INVALID = 1;
   // Another plugin, found first, already has this identifier.
   PLUGIN_REJECTION_REASON_DUPLICATE_ID = 2;
-  // The plugin was written for a version of the SDK that the application does not accept.
-  PLUGIN_REJECTION_REASON_SDK_INCOMPATIBLE = 3;
+  // No longer sent: compatibility is judged by contract (PLUGIN_REJECTION_REASON_CONTRACT_NOT_SUPPORTED, ADR-0017).
+  // Kept so that the numbers of the other values never change.
+  PLUGIN_REJECTION_REASON_SDK_INCOMPATIBLE = 3 [deprecated = true];
   // The .NET part of the plugin could not be loaded or configured.
   PLUGIN_REJECTION_REASON_LOAD_FAILED = 4;
   // The plugin registered an extension point that its manifest does not announce.
   PLUGIN_REJECTION_REASON_UNDECLARED_REGISTRATION = 5;
+  // A contract that the plugin provides or requires is in a version that the application does not accept:
+  // obsolete or unknown. The contracts field of the plugin says which ones.
+  PLUGIN_REJECTION_REASON_CONTRACT_NOT_SUPPORTED = 6;
 }
 
 // Request of PluginHostService.GetDiagnosticFacts.

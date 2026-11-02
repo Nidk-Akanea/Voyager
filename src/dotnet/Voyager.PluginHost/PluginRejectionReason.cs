@@ -12,8 +12,11 @@ public enum PluginRejectionReason
     /// <summary>Another plugin, found first, already has this identifier.</summary>
     DuplicateId,
 
-    /// <summary>The plugin was written for a version of the SDK that this application does not accept.</summary>
-    SdkIncompatible,
+    /// <summary>
+    /// A contract that the plugin provides or requires is in a version that this application does not accept:
+    /// obsolete or unknown (<see cref="PluginState.Contracts"/> says which).
+    /// </summary>
+    ContractNotSupported,
 
     /// <summary>The .NET part could not be loaded or configured.</summary>
     LoadFailed,

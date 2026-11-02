@@ -11,24 +11,26 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
 {
     #region Fields
 
+    // What the log says of a folder whose name is not a plugin identifier: it is free text.
+    private const string INVALID_FOLDER_NAME = "(invalid folder name)";
+
+    private const string MANIFEST_FILE_NAME = "plugin.json";
+
+    private const long MAXIMUM_MANIFEST_BYTES = 64 * 1024;
+
+    private readonly List<(string PluginId, ServiceProvider Container)> _containers = [];
+
+    private readonly ILogger _logger;
+
     /// <summary>
     /// The identifier under which the service itself provides extensions. No plugin may use it, so that
     /// a plugin can never pass for the service.
     /// </summary>
     public const string SERVICE_ID = "service";
 
-    private const string MANIFEST_FILE_NAME = "plugin.json";
-    private const long MAXIMUM_MANIFEST_BYTES = 64 * 1024;
-
-    // What the log says of a folder whose name is not a plugin identifier: it is free text.
-    private const string INVALID_FOLDER_NAME = "(invalid folder name)";
-
-    private readonly List<(string PluginId, ServiceProvider Container)> _containers = [];
-    private readonly ILogger _logger;
-
     #endregion Fields
 
-    #region Constructors
+    #region Private Constructors
 
     private PluginCatalog(IReadOnlyList<PluginState> plugins, ExtensionRegistry registry, ILogger logger)
     {
@@ -37,7 +39,7 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
         _logger = logger;
     }
 
-    #endregion Constructors
+    #endregion Private Constructors
 
     #region Properties
 
@@ -51,11 +53,31 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
 
     #region Private Methods
 
-    private static PluginState Rejected(string folder, string id, string version, PluginRejectionReason reason) =>
-        new(folder, id, version, PluginStatus.Rejected, reason, UiModule: null, Provides: []);
+    private static string[] FindPluginDirectories(string pluginsFolder, ILogger logger)
+    {
+        try
+        {
+            return Directory.Exists(pluginsFolder)
+                ? [.. Directory.EnumerateDirectories(pluginsFolder).OrderBy(Path.GetFileName, StringComparer.Ordinal)]
+                : [];
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.PluginFolderUnreadable(logger, exception);
+            return [];
+        }
+    }
 
     private static string LoggableName(string folder) =>
         PluginManifestReader.IsValidIdentifier(folder) ? folder : INVALID_FOLDER_NAME;
+
+    private static PluginState Rejected(
+                string folder,
+        string id,
+        string version,
+        PluginRejectionReason reason,
+        IReadOnlyList<ContractUse>? contracts = null) =>
+        new(folder, id, version, PluginStatus.Rejected, reason, UiModule: null, Provides: [], contracts ?? []);
 
     private static bool TryReadManifest(string manifestPath, out PluginManifest manifest)
     {
@@ -80,7 +102,7 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
     // Everything that decides the fate of one plugin folder. Each step that rejects a plugin says why.
     private PluginState ReadAndLoad(
         string directory,
-        Version sdkVersion,
+        ContractSupport contracts,
         HashSet<string> seenIds,
         PluginLoader loader,
         ExtensionRegistry registry)
@@ -93,6 +115,9 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
             return Rejected(folder, folder, string.Empty, PluginRejectionReason.ManifestInvalid);
         }
 
+        // Known as soon as the manifest is read, so that every rejection from here on shows them.
+        var uses = contracts.Describe(manifest);
+
         // The folder name is what the interface asks for: it must be the identifier, and never the service's.
         // Checked before the identifier is claimed, so that a stray copy of a plugin under another folder
         // name cannot make the real plugin look like the duplicate: a folder under another name is only a
@@ -100,32 +125,43 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
         if (string.Equals(manifest.Id, SERVICE_ID, StringComparison.Ordinal))
         {
             PluginHostLog.PluginIdReserved(_logger, manifest.Id);
-            return Rejected(folder, manifest.Id, manifest.Version, PluginRejectionReason.ManifestInvalid);
+            return Rejected(folder, manifest.Id, manifest.Version, PluginRejectionReason.ManifestInvalid, uses);
         }
 
         var folderIsId = string.Equals(folder, manifest.Id, StringComparison.Ordinal);
         if (!folderIsId && !seenIds.Contains(manifest.Id))
         {
             PluginHostLog.PluginFolderNameMismatch(_logger, manifest.Id);
-            return Rejected(folder, manifest.Id, manifest.Version, PluginRejectionReason.ManifestInvalid);
+            return Rejected(folder, manifest.Id, manifest.Version, PluginRejectionReason.ManifestInvalid, uses);
         }
 
         if (!seenIds.Add(manifest.Id))
         {
             PluginHostLog.PluginRejected(_logger, manifest.Id, PluginRejectionReason.DuplicateId);
-            return Rejected(folder, manifest.Id, manifest.Version, PluginRejectionReason.DuplicateId);
+            return Rejected(folder, manifest.Id, manifest.Version, PluginRejectionReason.DuplicateId, uses);
         }
 
-        if (!SdkCompatibility.IsAccepted(manifest.Sdk, sdkVersion))
+        // Every contract is checked, so that the user sees all of those that block the plugin, not the first one.
+        var unsupported = uses.Where(use => !ContractSupport.IsAccepted(use.State)).ToList();
+        foreach (var use in unsupported)
         {
-            PluginHostLog.SdkIncompatible(_logger, manifest.Id, manifest.Sdk, sdkVersion.ToString(2));
-            return Rejected(folder, manifest.Id, manifest.Version, PluginRejectionReason.SdkIncompatible);
+            PluginHostLog.ContractNotSupported(_logger, manifest.Id, use.Contract, use.Version, use.State);
+        }
+
+        if (unsupported.Count > 0)
+        {
+            return Rejected(folder, manifest.Id, manifest.Version, PluginRejectionReason.ContractNotSupported, uses);
+        }
+
+        foreach (var use in uses.Where(use => use.State == ContractUseState.Deprecated))
+        {
+            PluginHostLog.ContractDeprecated(_logger, manifest.Id, use.Contract, use.Version);
         }
 
         var result = loader.Load(directory, manifest);
         if (result.Rejection is { } reason)
         {
-            return Rejected(folder, manifest.Id, manifest.Version, reason);
+            return Rejected(folder, manifest.Id, manifest.Version, reason, uses);
         }
 
         // Registered only now that nothing can fail any more: a rejected plugin leaves nothing behind.
@@ -147,22 +183,8 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
             PluginStatus.Loaded,
             RejectionReason: null,
             manifest.UiModule,
-            manifest.Provides);
-    }
-
-    private static string[] FindPluginDirectories(string pluginsFolder, ILogger logger)
-    {
-        try
-        {
-            return Directory.Exists(pluginsFolder)
-                ? [.. Directory.EnumerateDirectories(pluginsFolder).OrderBy(Path.GetFileName, StringComparer.Ordinal)]
-                : [];
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            PluginHostLog.PluginFolderUnreadable(logger, exception);
-            return [];
-        }
+            [.. manifest.Provides.Select(reference => reference.Contract)],
+            uses);
     }
 
     #endregion Private Methods
@@ -173,10 +195,10 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
     /// Finds and loads the plugins of a folder.
     /// </summary>
     /// <param name="pluginsFolder">The folder that holds one sub-folder per plugin; null or missing means no plugin.</param>
-    /// <param name="sdkVersion">The version of the SDK that runs, to check each plugin against.</param>
+    /// <param name="contracts">The versions of contracts the application accepts, to check each plugin against.</param>
     /// <param name="loggerFactory">Where the host and the plugins write their logs.</param>
     /// <returns>The catalog; it owns the plugins' containers and must be disposed with the host.</returns>
-    public static PluginCatalog Load(string? pluginsFolder, Version sdkVersion, ILoggerFactory loggerFactory)
+    public static PluginCatalog Load(string? pluginsFolder, ContractSupport contracts, ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger<PluginCatalog>();
         var registry = new ExtensionRegistry();
@@ -197,7 +219,7 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
         {
             try
             {
-                plugins.Add(catalog.ReadAndLoad(directory, sdkVersion, seenIds, loader, registry));
+                plugins.Add(catalog.ReadAndLoad(directory, contracts, seenIds, loader, registry));
             }
             // A plugin folder is a boundary: nothing it holds can keep the others from loading.
             catch (Exception exception) when (exception is not OutOfMemoryException)
