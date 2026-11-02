@@ -1,6 +1,6 @@
 # Spec — Gestion des plugins
 
-- **Statut** : Brouillon
+- **Statut** : Validée
 - **Épic** : E9 — Plateforme modulaire (transverse)
 - **Date** : 2026-10-30
 
