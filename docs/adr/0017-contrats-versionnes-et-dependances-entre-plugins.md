@@ -1,6 +1,6 @@
 # ADR-0017 — Contrats versionnés, dépendances entre plugins et compatibilité
 
-- **Statut** : Proposée
+- **Statut** : Acceptée
 - **Date** : 2026-11-02
 - **Remplace** : — (complète [ADR-0002](0002-architecture-modulaire-par-contrats-et-plugins.md), règle 3, et
   **remplace la règle de compatibilité** de la décision 8 de [ADR-0015](0015-mecanisme-de-plugins.md) : la

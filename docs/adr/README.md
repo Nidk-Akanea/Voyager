@@ -24,4 +24,4 @@ plus modifié ; s'il devient caduc, un nouvel ADR le **remplace**.
 | [0014](0014-ecran-de-demarrage-et-mise-a-jour-au-demarrage.md)   | Écran de démarrage et mise à jour au démarrage          | Proposée | 2026-10-26 |
 | [0015](0015-mecanisme-de-plugins.md)                             | Mécanisme de plugins : découverte, chargement et preuve | Acceptée | 2026-10-26 |
 | [0016](0016-installation-et-gestion-des-plugins.md)              | Installation et gestion des plugins                     | Acceptée | 2026-10-29 |
-| [0017](0017-contrats-versionnes-et-dependances-entre-plugins.md) | Contrats versionnés et dépendances entre plugins        | Proposée | 2026-11-02 |
+| [0017](0017-contrats-versionnes-et-dependances-entre-plugins.md) | Contrats versionnés et dépendances entre plugins        | Acceptée | 2026-11-02 |

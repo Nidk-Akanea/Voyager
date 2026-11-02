@@ -389,7 +389,7 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 ## Hors périmètre
 
 - **Les dépendances entre plugins** : la gestion décrite ici suppose qu'un plugin ne dépend d'aucun autre ;
-  elles sont décidées par contrat (ADR-0017, proposée) et entreront dans cette spec avec elle.
+  elles sont décidées par contrat (ADR-0017, acceptée) et entreront dans cette spec avec elle.
 - **Les plugins d'un groupe** (le propriétaire installe sur le serveur, les applications des membres les
   téléchargent) : décision 8 de l'ADR-0016, après l'authentification et le serveur du groupe (questions Q33
   à Q35).
@@ -410,7 +410,7 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 
 Aucune ne bloque le début de l'implémentation, **sauf peut-être la première**, que l'utilisateur a soulevée.
 
-- **Les dépendances entre plugins et la compatibilité par contrat** (ADR-0017, proposée, et questions Q27,
+- **Les dépendances entre plugins et la compatibilité par contrat** (ADR-0017, acceptée, et questions Q27,
   Q36 et Q37). L'utilisateur a décidé que les dépendances se font **par contrat** et que la compatibilité
   se juge **contrat par contrat**, avec des adaptateurs. Quand l'ADR sera acceptée, cette spec change :
   « version du SDK incompatible » devient « contrat non pris en charge » ; les dépendances ne sont plus hors

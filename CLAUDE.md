@@ -33,7 +33,7 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   plugin à partir des deux modèles. Essayée en développement et avec `Setup.exe`. Les plugins sont livrés
   avec l'application ; leur installation et leur gestion par l'utilisateur et par le groupe sont décidées
   (ADR-0016, pas encore construites) ; les plugins de tiers d'un catalogue ouvert restent à décider (Q11).
-- **Les décisions techniques sont prises** (ADR 0002 à 0013, 0015 et 0016) : Electron + React/TypeScript pour
+- **Les décisions techniques sont prises** (ADR 0002 à 0013 et 0015 à 0017) : Electron + React/TypeScript pour
   l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
   plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite
   (local), architecture hexagonale rangée par domaine, Git Flow avec versions calculées par
@@ -43,7 +43,8 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   (fuses verrouillées, identifiant de paquet `VoyagerApp`, journaux en fichiers sur le poste),
   mécanisme de plugins (un contexte de chargement par plugin, interface par `import()`), installation
   et gestion des plugins (dossier de données, paquet `.voyagerplugin`, demandes écrites par le processus
-  principal, appliquées au démarrage).
+  principal, appliquées au démarrage), contrats versionnés et dépendances entre plugins par contrat (une
+  version par contrat, des adaptateurs pour garder les anciennes versions).
 - Les étapes suivantes du squelette se font **sur demande** de l'utilisateur.
 
 ## Langues
