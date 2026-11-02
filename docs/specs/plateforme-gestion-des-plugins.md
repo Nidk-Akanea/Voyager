@@ -9,11 +9,13 @@
 Aujourd'hui les plugins sont livrés avec l'application et l'utilisateur ne peut rien en faire. Cette
 fonctionnalité lui donne la main : **voir** ses plugins, en **installer** depuis un fichier, les
 **remplacer**, les **désinstaller**, les **activer** et les **désactiver**, et **retrouver** celui qui fait
-planter Voyager sans perdre l'accès à son voyage. Elle applique à l'application de bureau le mécanisme
-décidé par l'[ADR-0016](../adr/0016-installation-et-gestion-des-plugins.md) et **complète** la
-[spec de la preuve des plugins](plateforme-preuve-des-plugins.md), dont la règle « il n'y a pas de dossier
-de plugins de l'utilisateur » n'est plus vraie. Les plugins d'un groupe, le catalogue en ligne et la clé de
-signature de production n'en font pas partie (voir « Hors périmètre »).
+planter Voyager sans perdre l'accès à son voyage. Elle applique à l'application de bureau le mécanisme décidé
+par l'[ADR-0016](../adr/0016-installation-et-gestion-des-plugins.md), avec la compatibilité et les
+dépendances **par contrat** de l'[ADR-0017](../adr/0017-contrats-versionnes-et-dependances-entre-plugins.md).
+Elle **complète** la [spec de la preuve des plugins](plateforme-preuve-des-plugins.md) : la règle « il n'y a
+pas de dossier de plugins de l'utilisateur » n'est plus vraie, et les règles de compatibilité par version du
+SDK sont **remplacées** par la section « Compatibilité » ci-dessous. Les plugins d'un groupe, le catalogue en
+ligne et la clé de signature de production n'en font pas partie (voir « Hors périmètre »).
 
 ## User stories
 
@@ -29,6 +31,10 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
   ni effacer mes voyages, afin de pouvoir examiner un paquet sans crainte.
 - En tant que **membre**, je veux que Voyager démarre malgré un plugin qui le fait planter, et que
   l'application m'aide à trouver lequel, afin de ne pas rester bloqué dehors.
+- *(Étape 2)* En tant que **membre**, je veux savoir quels plugins dépendent d'un plugin avant de le
+  désactiver ou de le désinstaller, afin de ne pas en casser d'autres sans le savoir.
+- *(Étape 2)* En tant que **membre**, je veux être prévenu avant qu'une mise à jour de l'application
+  rende un de mes plugins inutilisable, afin de décider de l'appliquer ou non.
 - En tant qu'**auteur de plugin**, je veux fabriquer un paquet de plugin à partir d'un plugin construit,
   afin de le partager.
 
@@ -55,7 +61,30 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
   remplacement** (il garde son état, la suspension est levée, la même version se réinstalle) ; une
   **signature dont la clé est inconnue** (le paquet reste « Non vérifié ») ; la page « **À propos** »
   inchangée (chargés et écartés seulement) ; le **mode de rétablissement** (les plugins installés passent
-  à « désactivé pour le rétablissement » et se réactivent un à un).
+  à « désactivé pour le rétablissement » et se réactivent un à un, avec leurs prérequis à l'étape 2).
+- **Dépendances et compatibilité par contrat** (ADR-0017, choix de l'utilisateur) : un plugin fournit et
+  requiert des **contrats** versionnés, jamais un plugin précis ; la compatibilité se juge contrat par
+  contrat, avec des **adaptateurs** pour garder les anciennes versions quand c'est possible, et une version
+  qui ne peut pas s'adapter devient **obsolète**, au cas par cas. Plusieurs fournisseurs par défaut,
+  toute exigence obligatoire, un contrat à deux moitiés (le service .NET et l'écran) versionnées
+  ensemble.
+- **Avant d'appliquer une mise à jour** de l'application, on contrôle et on informe ; l'utilisateur accepte,
+  ou refuse et l'application se lance dans la version où elle est.
+
+### Deux étapes de construction
+
+- **Étape 1** : tout ce que décrit cette spec, **sauf** les sections « Dépendances entre plugins » et
+  « Mise à jour de l'application ». Les contrats **requis** d'un plugin sont alors le **contrat de base**
+  (`plugin`, ADR-0017) et ceux que fournit l'application ; aucune exigence n'existe entre plugins. La
+  compatibilité par contrat (section « Compatibilité ») en fait partie : elle remplace la version du SDK. Les
+  critères d'un contrat **déprécié** se testent avec un contrat d'essai déclaré dans les tests, tant qu'aucun
+  vrai contrat n'a évolué.
+- **Étape 2, dépendances** : construites au **premier plugin qui en consomme un autre** (ADR-0017,
+  décision 8).
+- **Étape 2, mise à jour de l'application** : construite à la **première obsolescence réelle d'un contrat** et
+  **après l'amendement de l'ADR-0014** (encore proposée, donc modifiable sans nouvel ADR). L'ADR-0017 la
+  range parmi ce qu'on fait « maintenant » ; la spec la repousse, puisque sans version de contrat retirée
+  aucun plugin n'est jamais touché : **à confirmer** (questions ouvertes).
 
 ## Règles métier
 
@@ -73,8 +102,15 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 4. **État** : chargé ; écarté, avec la raison ; désactivé ; suspendu après un plantage ; en attente de
    redémarrage (une demande est enregistrée et pas encore appliquée) ; **demande en échec**, avec sa raison.
    (« En erreur » garde son sens de la spec de la preuve : un plugin qui échoue pendant un appel.)
-5. Le détail d'un plugin dit aussi **ce qu'il apporte** (une partie d'interface, du code .NET, ou les deux),
-   et, pour un plugin installé, sa **date d'installation** et le **nom et l'empreinte du paquet d'origine**.
+   **Raisons d'écartement** : manifeste invalide ; identifiant en double ; **contrat non pris en charge** (un
+   contrat que le plugin fournit, ou son contrat de base, est dans une version que l'application ne prend pas
+   en charge : retirée, ou inconnue d'elle) ; échec du chargement ; inscription non déclarée ; et, à l'étape 2,
+   **prérequis non fourni**, **dépendance circulaire** et **autre fournisseur actif** (cette dernière est une
+   proposition).
+5. Le détail d'un plugin dit aussi **ce qu'il apporte** (une partie d'interface, du code .NET, ou les deux) et
+   les **contrats** qu'il fournit et ceux qu'il requiert, avec leur version et leur état (voir
+   « Compatibilité »). Pour un plugin installé, il montre sa **date d'installation** et le **nom et
+   l'empreinte du paquet d'origine**.
 6. Les textes sont en **français et en anglais**. Tout texte venu d'un paquet (identifiant, version,
    description, nom de fichier) est **nettoyé** partout où il est montré : longueur limitée, sans retours à
    la ligne ni caractères de contrôle ou d'écriture bidirectionnelle. Aucun chemin du disque, nom de compte
@@ -107,18 +143,20 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 4. Quand l'utilisateur choisit **« Installer »** sur un paquet, Voyager en fait une **copie de
    préparation**, privée, et c'est cette copie qui est **examinée**, puis appliquée : le fichier de la boîte
    peut ensuite changer ou disparaître sans effet. Rien n'est installé à l'examen.
-5. L'examen **refuse** le paquet, avec sa raison, si : l'archive est illisible ; le manifeste est invalide
-   ou ne déclare aucune partie (ni .NET ni interface) ; l'identifiant est mal formé ou réservé (les noms de
-   périphériques de Windows) ; il est écrit pour une version du SDK que l'application n'accepte pas ; il
-   contient un fichier ou un nom de fichier non autorisé ; l'espace disque disponible ne suffit pas à
-   l'extraire ; sa signature ne correspond pas à son contenu pour une clé que l'application connaît. Une signature dont la clé est
-   inconnue ne fait pas refuser le paquet : il reste « Non vérifié ».
+5. L'examen **refuse** le paquet, avec sa raison, si : l'archive est illisible ; le manifeste est invalide ou ne
+   déclare aucune partie (ni .NET ni interface) ; l'identifiant est mal formé ou réservé (les noms de
+   périphériques de Windows) ; un contrat qu'il fournit, ou son contrat de base, est dans une version que
+   l'application ne prend pas en charge ; il contient un fichier ou un nom de fichier non autorisé ;
+   l'espace disque disponible ne suffit pas à l'extraire ; sa signature ne correspond pas à son contenu pour
+   une clé que l'application connaît. Une signature dont la clé est inconnue ne fait pas refuser le paquet :
+   il reste « Non vérifié ». Un contrat **déprécié** ne le fait pas refuser : la boîte le signale (voir
+   « Compatibilité »).
 6. Un paquet accepté est présenté dans une **boîte de dialogue de confirmation**, propre au système et non à
-   la page : le **nom du fichier**, son **empreinte** (SHA-256), l'identifiant, la version, la version du
-   SDK pour laquelle il est écrit, ce qu'il apporte, sa vérification, l'éventuel doublon avec un plugin
+   la page : le **nom du fichier**, son **empreinte** (SHA-256), l'identifiant, la version, les contrats qu'il
+   fournit et ceux qu'il requiert, ce qu'il apporte, sa vérification, l'éventuel doublon avec un plugin
    livré, et, **avant** la case à cocher et à **chaque** installation, l'**avertissement** : *un plugin .NET
-   s'exécute avec vos droits sur cet ordinateur ; un plugin d'interface peut parler au service de Voyager
-   et lire vos voyages ; l'auteur de ce plugin n'est pas vérifié*.
+   s'exécute avec vos droits sur cet ordinateur ; un plugin d'interface peut parler au service de Voyager et
+   lire vos voyages ; l'auteur de ce plugin n'est pas vérifié*.
 7. Le bouton par défaut est **« Annuler »**. Pour installer ou remplacer un plugin « Non vérifié »,
    « Installer » n'est actif qu'une fois la case **« Je comprends »** cochée. Annuler n'enregistre rien et
    **supprime la copie de préparation**.
@@ -136,7 +174,8 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 1. **Désinstaller** ne concerne que les plugins installés ; elle demande une confirmation (même boîte de
    dialogue) et s'applique au redémarrage. Les fichiers du plugin sont supprimés. **Désinstaller ou
    désactiver ne supprime jamais de données de voyage** (question Q34 pour les données propres aux plugins).
-2. **Désactiver** (plugin livré ou installé) n'a pas besoin de confirmation : cela réduit ce qui s'exécute.
+2. **Désactiver** (plugin livré ou installé) n'a pas besoin de confirmation : cela réduit ce qui s'exécute,
+   sauf si d'autres plugins en dépendent (étape 2, « Dépendances entre plugins »).
    Le plugin n'est plus chargé au démarrage suivant ; il reste dans la liste et on le réactive quand on
    veut. Tant qu'on n'a pas redémarré, **rien ne change** : l'interface d'un plugin affichée à cet instant
    le reste jusqu'au redémarrage.
@@ -165,10 +204,95 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 
 ### Compatibilité
 
-1. Un plugin installé pour une version du SDK que l'application ne reconnaît plus (par exemple après une
-   mise à jour de l'application, tant que le SDK est en `0.x`) est **écarté** avec « version du SDK
-   incompatible ». Il **reste installé** : on peut le désinstaller ou le remplacer par une version écrite
-   pour le nouveau SDK. La vue **l'explique**.
+1. Un **contrat** a des **versions** (`1`, `2`…). L'application en prend en charge certaines, directement ou
+   par un **adaptateur**. Une version est **prise en charge**, **dépréciée** (elle fonctionne, et la vue
+   avertit qu'elle sera retirée) ou **obsolète** (retirée). « **Non pris en charge** » désigne une version
+   obsolète ou inconnue de cette application. Le contrat de base d'un plugin (`plugin`, ADR-0017) est un
+   contrat comme les autres. Un contrat est **une seule chose à deux moitiés**, le service .NET et l'écran :
+   elles se versionnent ensemble. L'**état** de chaque version (prise en charge, dépréciée, obsolète) est
+   **déclaré dans le SDK**.
+2. Un plugin installé dont un contrat **qu'il fournit**, ou son contrat de base, n'est pas pris en charge
+   (par exemple après une mise à jour de l'application) est **écarté** avec la raison **« contrat non pris en
+   charge »**, qui nomme tous les contrats concernés et leur version. Un seul suffit : le plugin entier est
+   écarté et **aucun** de ses contrats n'est plus fourni. Il **reste installé** : on peut le désinstaller, ou
+   le remplacer par une version qui utilise un contrat pris en charge. La vue **l'explique**, avec une ligne de
+   détail qui dit **quoi faire** : « version inconnue » (le plugin est trop récent : mettre à jour Voyager) ou
+   « obsolète » (le plugin est trop ancien : le mettre à jour). Il n'y a **qu'une raison**, et non deux comme
+   dans l'ADR-0017 : l'utilisateur a la même information, et la liste des raisons reste courte.
+3. Un plugin qui utilise un contrat **déprécié** fonctionne : la vue montre « ce plugin utilise un contrat
+   qui sera retiré », et la boîte de confirmation d'une installation le signale.
+4. Pour un plugin **livré**, un contrat obsolète est un défaut de l'application, corrigé par le projet :
+   l'avertissement vise les plugins installés.
+5. Un contrat **fourni par l'application** est toujours présent et ne dépend d'aucun plugin : il ne peut être
+   qu'obsolète ou inconnu, jamais « absent ».
+6. Un contrat **requis** est satisfait par un fournisseur dans **la même version**, ou dans une autre version
+   quand l'application sait l'adapter ; sinon il n'est pas fourni (étape 2). « Contrat non pris en charge »
+   vise ce que le plugin **fournit** et son contrat de base ; « prérequis non fourni » vise ce qu'il
+   **requiert**.
+
+### Dépendances entre plugins (étape 2)
+
+Un plugin peut **requérir** un contrat qu'un autre plugin (ou l'application) **fournit**. Aucun plugin livré
+n'en requiert un autre aujourd'hui ; les règles s'appliquent dès le premier.
+
+1. L'écran « Plugins » montre, pour chaque plugin, les contrats qu'il **fournit** et ceux qu'il **requiert**,
+   et, pour un plugin qui en fournit, **les plugins qui en dépendent**.
+2. Un plugin n'est chargé qu'**après** ceux dont il requiert un contrat (l'ordre est celui des dépendances,
+   non « livrés d'abord »). S'il requiert un contrat que **personne ne fournit** (absent, désactivé, écarté
+   lui-même, ou fourni dans une version que l'application ne sait pas adapter), il est **écarté** avec la
+   raison **« prérequis non fourni »**, qui nomme le contrat et sa version ; l'écartement **se propage** à
+   ceux qui en dépendent. Un installé écarté pour « identifiant en double » ne fournit pas ses contrats :
+   ses dépendants sont écartés de même. Deux plugins qui se requièrent l'un l'autre, ou un cycle plus long,
+   sont écartés pour **« dépendance circulaire »** ; un plugin qui dépend d'un cycle sans en faire partie est
+   écarté pour « prérequis non fourni ». Un plugin qui fournit et requiert le même contrat ne se reçoit pas
+   lui-même (ce n'est ni un cycle ni une exigence satisfaite). Un plugin écarté pour un prérequis **revient
+   seul** au redémarrage où le prérequis est de nouveau fourni.
+3. **Désactiver, désinstaller ou remplacer** un plugin dont d'autres dépendent : la boîte de confirmation
+   **liste les plugins qui seraient écartés**, c'est-à-dire ceux qui perdraient **leur seul fournisseur** d'un
+   contrat (directement ou en cascade). Désactiver, qui n'en demande pas d'ordinaire, **demande une
+   confirmation** dans ce cas, avec « Annuler » par défaut (proposition). Remplacer signale aussi une nouvelle
+   version qui fournit un contrat dans une **autre version**, ou qui **ajoute** un prérequis.
+4. **Installer** un plugin dont un prérequis manque n'est pas refusé (proposition) : la boîte prévient qu'il
+   restera **écarté** tant que le contrat n'est pas fourni.
+5. Ces avertissements se calculent sur l'**état projeté après les demandes en attente**, dans les deux sens
+   (installer `B` quand la désinstallation de `A` est en attente ; désinstaller `A` quand l'installation de
+   `B` est en attente). Toutes les demandes s'appliquent avant le chargement : leur ordre est sans effet. C'est
+   le **processus principal**, et non la page, qui calcule les dépendants et ouvre la boîte.
+6. **Plusieurs plugins** peuvent fournir le même contrat ; le consommateur les reçoit tous, et un fournisseur
+   qui échoue est ignoré sans gêner les autres. Un contrat qui n'admet qu'**un seul** fournisseur laisse
+   l'**utilisateur choisir** lequel est actif : c'est une **demande** comme les autres, confirmée par la boîte
+   de dialogue du système et appliquée au redémarrage ; les autres fournisseurs sont écartés
+   (« autre fournisseur actif »). Tant que l'utilisateur n'a **pas choisi**, ou si le fournisseur actif
+   **disparaît** (désinstallé, écarté), **aucun** fournisseur n'est actif et les consommateurs sont écartés
+   (« prérequis non fourni »).
+7. **Rétablissement** : réactiver un plugin impose de réactiver **ceux dont il dépend, directement ou
+   indirectement** (fermeture de dépendances) ; la boîte les liste et ils se réactivent ensemble, avec la
+   confirmation renforcée si l'un d'eux est suspendu. Quand **plusieurs** plugins fournissent un contrat
+   requis, l'utilisateur **choisit dans la boîte** lequel réactiver. Un plugin dont le prérequis est suspendu ou désactivé
+   apparaît **« écarté »**, pas « suspendu », avec la raison « prérequis non fourni » et le prérequis nommé.
+8. Toute exigence est **obligatoire** : il n'y a pas de dépendance facultative.
+9. Un plugin **livré** ne requiert que des contrats **fournis par l'application ou par d'autres plugins
+   livrés**, jamais par un plugin installé : le rétablissement, qui garde les livrés, ne les écarte ainsi
+   jamais. Un plugin installé peut requérir n'importe quel contrat. Un test d'architecture le contrôle.
+
+### Mise à jour de l'application (étape 2)
+
+Cette section **suppose l'amendement de l'ADR-0014** (la mise à jour n'est plus imposée quand des plugins sont
+touchés) ; elle ne s'applique pas tant qu'il n'est pas fait. Le contrôle se construit **quand le premier
+contrat en version 2 est créé** : avant cela, aucun plugin n'est jamais touché par une mise à jour.
+
+1. Quand l'application **trouve une mise à jour**, avant de l'appliquer, elle **contrôle** si des plugins
+   installés seraient écartés parce qu'un contrat qu'ils **fournissent** devient obsolète, ou, en cascade,
+   parce qu'un prérequis cesse d'être fourni. S'il y en a, elle **informe** l'utilisateur : la liste des
+   plugins touchés et la raison de chacun. Hors connexion, il n'y a pas de mise à jour et le contrôle est sans
+   objet.
+2. S'il **accepte**, la mise à jour s'applique ; les plugins touchés sont alors écartés (« contrat non pris en
+   charge », ou « prérequis non fourni » pour leurs dépendants). S'il **refuse**, l'application **se lance dans
+   la version où elle est** et rien ne change. Au démarrage suivant, quand l'application retrouve la même mise
+   à jour, la **question est reposée** ; un refus ne bloque jamais le démarrage.
+3. Quand **aucun** plugin n'est touché, la mise à jour s'applique comme aujourd'hui, sans question.
+4. Le contrôle dit si un plugin **serait accepté** ; il ne prouve pas que son comportement reste correct, et
+   le message le dit.
 
 ### Quand Voyager plante à cause d'un plugin
 
@@ -184,7 +308,7 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
    plugins installés »**. Tous les plugins installés passent alors à l'état « désactivé », avec la mention
    « désactivé pour le rétablissement » ; les plugins livrés restent chargés ; l'écran « Plugins » est
    utilisable, et l'utilisateur **réactive les plugins installés un à un**, en redémarrant à chaque fois,
-   jusqu'à retrouver celui qui fait planter.
+   jusqu'à retrouver celui qui fait planter (à l'étape 2, avec les plugins dont ils dépendent).
 4. **Réactiver un plugin suspendu** demande une **confirmation renforcée** : la boîte rappelle le soupçon,
    la case « Je comprends » est obligatoire et le bouton par défaut est « Annuler ».
 5. La vue dit clairement **ce qui change** quand un plugin est suspendu ou désactivé (ce qu'il apportait
@@ -196,14 +320,16 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 7. Cette aide protège des **accidents**, pas de la malveillance : un plugin installé garde les droits de
    l'utilisateur et peut faire planter Voyager pendant qu'un autre est appelé. La vue ne la présente pas
    comme une sécurité.
+8. Un plantage qui survient chez un fournisseur pendant l'appel d'un consommateur reste attribué au plugin
+   que **l'application** appelait ; la réactivation un à un est le filet (étape 2).
 
 ### Garanties de sécurité
 
 1. **Étendue de la garantie.** Les garanties ci-dessous valent **contre la page et le module d'interface**
    d'un plugin. Elles **ne protègent pas** d'un plugin .NET déjà installé, qui a les droits de
-   l'utilisateur sur son poste. Un module peut encore **demander** l'ouverture d'une confirmation, et
-   désactiver un plugin ou annuler une demande ne passe pas par elle.
-2. **Aucun geste qui ajoute du code ou le rend actif** (installer, remplacer, désinstaller, activer) n'a
+   l'utilisateur sur son poste. Un module peut encore **demander** l'ouverture d'une confirmation ; désactiver un
+   plugin **sans dépendant** ou annuler une demande n'en demande pas.
+2. **Aucun geste qui ajoute du code ou le rend actif** (installer, remplacer, désinstaller, activer, choisir le fournisseur actif) n'a
    d'effet sans la confirmation de la boîte de dialogue du système : le module d'un plugin ne peut ni la
    simuler ni la confirmer à la place de l'utilisateur. Seule une confirmation de l'utilisateur crée une
    demande.
@@ -241,7 +367,7 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
   « Plugins », **alors** je vois `diagnostics-runtime` et `diagnostics-clock`, chacun « Livré avec
   Voyager » et « Garanti par l'application », avec sa version et l'état « chargé », sans action
   « Désinstaller ».
-- **Étant donné** un plugin écarté (par exemple un SDK incompatible), **quand** j'ouvre l'écran, **alors**
+- **Étant donné** un plugin écarté (par exemple un contrat non pris en charge), **quand** j'ouvre l'écran, **alors**
   il apparaît avec sa raison, dans la langue de l'application, la vue explique la raison, et les autres
   plugins sont chargés.
 - **Étant donné** tous les plugins désactivés, **quand** j'ouvre la page « À propos », **alors** elle
@@ -271,7 +397,7 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 
 - **Étant donné** un paquet valide dans la boîte de dépôt, **quand** je choisis de l'installer, **alors**
   la boîte de dialogue montre, dans cet ordre, l'avertissement, puis le nom du fichier, l'empreinte,
-  l'identifiant, la version, le SDK, ce que le plugin apporte et « Non vérifié » ; le bouton par défaut est
+  l'identifiant, la version, les contrats fournis et requis, ce que le plugin apporte et « Non vérifié » ; le bouton par défaut est
   « Annuler » et « Installer » attend la case « Je comprends ». L'avertissement existe en français et en
   anglais.
 - **Étant donné** cette boîte, **quand** je clique « Annuler », **alors** aucune demande n'est enregistrée
@@ -294,8 +420,11 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 - **Étant donné** un fichier de données de tout type dans `data/`, **quand** j'installe le paquet, **alors**
   il est accepté ; **étant donné** un fichier du même type dans `ui/`, hors de la liste, **alors** le paquet
   est refusé.
-- **Étant donné** un paquet écrit pour un SDK non accepté, **quand** je l'examine, **alors** il est refusé
-  avec « version du SDK incompatible ».
+- **Étant donné** un paquet dont un contrat est dans une version que l'application ne prend pas en charge,
+  **quand** je l'examine, **alors** il est refusé avec « contrat non pris en charge » (le contrat et la version
+  sont nommés).
+- **Étant donné** un paquet qui utilise un contrat déprécié, **quand** je l'examine, **alors** il est accepté
+  et la boîte signale que ce contrat sera retiré.
 - **Étant donné** un paquet signé avec une clé que l'application connaît (une clé d'essai, dans les tests),
   dont le contenu a été modifié après la signature, **quand** je l'examine, **alors** il est refusé ;
   **étant donné** un paquet signé avec une clé inconnue, **alors** il est accepté et reste « Non vérifié ».
@@ -327,9 +456,65 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 
 ### Compatibilité
 
-- **Étant donné** un plugin installé écrit pour le SDK `0.1`, **quand** l'application passe à un SDK
-  `0.2`, **alors** il est « écarté : version du SDK incompatible », la vue l'explique, il reste installé, et
-  je peux le désinstaller.
+- **Étant donné** un plugin installé qui fournit le contrat `X` en version `1`, **quand** l'application ne prend
+  plus en charge cette version, **alors** il est « écarté : contrat non pris en charge » (`X`, version `1`), la
+  vue l'explique, il reste installé, et je peux le désinstaller.
+- **Étant donné** un plugin qui fournit deux contrats dont un seul n'est plus pris en charge, **quand** je
+  démarre, **alors** le plugin entier est écarté, la raison nomme le contrat concerné, et aucun de ses
+  contrats n'est plus fourni.
+- **Étant donné** un plugin installé qui utilise un contrat déprécié, **quand** j'ouvre l'écran « Plugins »,
+  **alors** le plugin fonctionne et la vue m'avertit que son contrat sera retiré.
+- **Étant donné** un paquet qui fournit un contrat dans une version inconnue de l'application, **quand** je
+  l'examine, **alors** il est refusé avec « contrat non pris en charge ».
+
+### Dépendances entre plugins (étape 2)
+
+- **Étant donné** un plugin `B` qui requiert un contrat fourni par `A`, **quand** je démarre, **alors** `A`
+  est chargé avant `B`, et l'écran « Plugins » montre `B` parmi les plugins qui dépendent de `A`.
+- **Étant donné** `A` désactivé, **quand** je redémarre, **alors** `B` est « écarté : prérequis non fourni »
+  (le contrat et la version sont nommés), et un plugin `C` qui dépend de `B` l'est aussi ; **quand**
+  j'active `A` et que je redémarre, **alors** `B` et `C` reviennent seuls.
+- **Étant donné** `B` qui requiert un contrat fourni par `A1` et par `A2`, **quand** je désactive `A1`,
+  **alors** `B` reste chargé et la boîte ne le liste pas.
+- **Étant donné** deux plugins qui se requièrent l'un l'autre, ou trois en cycle, **quand** je démarre,
+  **alors** tous sont « écartés : dépendance circulaire », et un plugin qui dépend d'un des trois est
+  « écarté : prérequis non fourni ».
+- **Étant donné** `A` dont `B` dépend, **quand** je le désactive, **alors** une boîte de confirmation liste
+  `B`, « Annuler » est le bouton par défaut, un refus ne change rien, et une confirmation met `A` « en attente
+  de redémarrage » ; **quand** je le désinstalle ou le remplace par une version qui ne fournit plus le
+  contrat, **alors** la boîte liste `B` de même.
+- **Étant donné** l'installation de `B` (qui requiert `A`) en attente, **quand** je demande de désinstaller
+  `A`, **alors** la boîte liste `B` ; et **étant donné** la désinstallation de `A` en attente, **quand** j'installe
+  `B`, **alors** la boîte prévient que `B` restera écarté.
+- **Étant donné** un paquet dont le prérequis n'est fourni par personne, **quand** je l'installe, **alors** la
+  boîte prévient qu'il restera écarté ; il est installé, puis « écarté : prérequis non fourni » après le
+  redémarrage.
+- **Étant donné** deux plugins qui fournissent un contrat qui admet plusieurs fournisseurs, **quand** un
+  consommateur démarre, **alors** il reçoit les deux, et si l'un échoue l'autre fonctionne ; **étant donné** un
+  contrat à fournisseur unique, **alors** l'écran « Plugins » me laisse choisir le fournisseur actif (une
+  demande confirmée par la boîte du système, appliquée au redémarrage) et écarte l'autre.
+- **Étant donné** le rétablissement, `B` qui dépend de `A` et `C` qui dépend de `B`, **quand** je réactive `C`,
+  **alors** la boîte liste `B` et `A` et les trois se réactivent ensemble ; **étant donné** `A` suspendu,
+  **alors** la confirmation est renforcée et `B` apparaît « écarté », pas « suspendu ».
+- **Étant donné** un contrat requis que fournissent deux plugins installés, **quand** je réactive son
+  consommateur pendant le rétablissement, **alors** la boîte me fait **choisir** le fournisseur à réactiver.
+- **Étant donné** un contrat à fournisseur unique dont je n'ai pas choisi le fournisseur, ou dont le fournisseur
+  actif est désinstallé, **quand** je redémarre, **alors** aucun fournisseur n'est actif et ses consommateurs
+  sont « écartés : prérequis non fourni ».
+- **Étant donné** un plugin livré qui requiert un contrat fourni seulement par un plugin installé, **quand**
+  la CI s'exécute, **alors** le test d'architecture échoue.
+
+### Mise à jour de l'application (étape 2)
+
+- **Étant donné** une mise à jour qui rend obsolète un contrat fourni par un plugin installé, **quand**
+  l'application trouve cette mise à jour et avant de l'appliquer, **alors** elle m'informe avec la liste des
+  plugins touchés (dépendants compris) et la raison de chacun ; si j'**accepte**, la mise à jour s'applique ; si
+  je **refuse**, l'application se lance dans la version actuelle et rien n'a changé ; au démarrage suivant, la
+  question est **reposée**.
+- **Étant donné** une mise à jour qui ne touche aucun plugin installé, **quand** l'application la trouve,
+  **alors** elle s'applique sans question.
+- **Étant donné** le message d'information, **quand** je le lis, **alors** il précise que le contrôle ne
+  garantit pas le bon fonctionnement des plugins.
 
 ### Plantages
 
@@ -386,10 +571,22 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 - **Versions** : l'écran montre les versions telles que calculées (chaque plugin a la sienne,
   [ADR-0007](../adr/0007-git-flow-et-versions-gitversion.md)) ; aucune n'est écrite à la main.
 
+- **Plugin qui fournit plusieurs contrats** (étape 2) : les listes de dépendants (désactivation,
+  désinstallation, remplacement) portent sur **chacun** de ses contrats, et ne retiennent que les plugins qui
+  perdraient leur seul fournisseur.
+- **Contrat à fournisseur unique** (étape 2) : s'il n'y en a aucun de choisi, ou si l'actif disparaît, aucun
+  fournisseur n'est actif et les consommateurs sont écartés (« prérequis non fourni ») ; la proposition est
+  à confirmer (questions ouvertes).
+- **Plugin livré qui dépend d'un installé** (étape 2) : à régler (questions ouvertes) ; en attendant, un
+  plugin livré ne requiert que des contrats de l'application ou d'autres livrés.
+
 ## Hors périmètre
 
-- **Les dépendances entre plugins** : la gestion décrite ici suppose qu'un plugin ne dépend d'aucun autre ;
-  elles sont décidées par contrat (ADR-0017, acceptée) et entreront dans cette spec avec elle.
+- **Les adaptateurs de contrat eux-mêmes** et **la forme du manifeste** (comment un plugin déclare ce qu'il
+  fournit et requiert, et comment le champ `sdk` devient le contrat de base) : ils se construisent au premier
+  plugin consommateur d'un autre ou à la première évolution réelle d'un contrat (ADR-0017, décision 8). Les
+  sections de l'étape 2 décrivent ce que l'utilisateur en voit, pas leur construction. Les **dépendances
+  facultatives** n'existent pas.
 - **Les plugins d'un groupe** (le propriétaire installe sur le serveur, les applications des membres les
   téléchargent) : décision 8 de l'ADR-0016, après l'authentification et le serveur du groupe (questions Q33
   à Q35).
@@ -408,17 +605,17 @@ signature de production n'en font pas partie (voir « Hors périmètre »).
 
 ## Questions ouvertes
 
-Aucune ne bloque le début de l'implémentation, **sauf peut-être la première**, que l'utilisateur a soulevée.
+Aucune ne bloque le début de l'implémentation de l'étape 1.
 
-- **Les dépendances entre plugins et la compatibilité par contrat** (ADR-0017, acceptée, et questions Q27,
-  Q36 et Q37). L'utilisateur a décidé que les dépendances se font **par contrat** et que la compatibilité
-  se juge **contrat par contrat**, avec des adaptateurs. Quand l'ADR sera acceptée, cette spec change :
-  « version du SDK incompatible » devient « contrat non pris en charge » ; les dépendances ne sont plus hors
-  périmètre (prévenir en **désactivant** ou **désinstallant** un plugin dont d'autres ont besoin, prévenir à
-  l'**installation** d'un plugin dont le prérequis manque, écarter un plugin dont le prérequis est absent ou
-  désactivé, refuser les cycles, et dire ce que devient la réactivation « un à un » du rétablissement quand
-  réactiver A impose B) ; et l'**avertissement avant une mise à jour** de l'application, pour les plugins
-  dont un contrat serait retiré, devient une règle.
+- **Le contrôle avant une mise à jour** (question Q37) : le principe et le refus sont décidés (si
+  l'utilisateur refuse, pas de mise à jour, et la question revient au démarrage suivant). Reste à fixer, quand
+  le premier contrat en version 2 sera créé : qui compare (le processus principal avec une liste de contrats
+  publiée avec la release, ou la nouvelle version démarrée en mode vérification), avant ou après le
+  téléchargement (le service local n'est pas démarré à ce moment, ADR-0014), et où la nouvelle version publie
+  les contrats qu'elle prend en charge. Cela demande d'**amender l'ADR-0014**, encore proposée donc modifiable
+  sans nouvel ADR.
+- **La forme du manifeste** (`provides` et `requires` versionnés, `sdk` qui devient le contrat de base) et celle
+  des **adaptateurs de la moitié d'interface** : à fixer avec le premier plugin qui en dépend (ADR-0017).
 - **Les formats de données** que les plugins mettront dans `data/` (une base SQLite, des fichiers CSV ou
   JSON…) et leur lien avec les données stockées par le cœur (ADR-0004, question Q34) : hors de cette spec,
   à décider avec le premier plugin de données.
