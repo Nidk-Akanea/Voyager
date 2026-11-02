@@ -53,7 +53,7 @@ données sous des angles différents.
 
 | Acteur | Ce qu'il fait |
 | --- | --- |
-| Membre | Note des envies, crée et compare des devis, vote, retient un devis, enregistre réservations, paiements et dépenses |
+| Membre | Note des envies, crée et compare des devis, vote, retient un devis, enregistre réservations, paiements et dépenses ; gère les plugins de son application (voir, installer depuis un fichier, désinstaller, activer, désactiver) |
 | Voyageur | Part en voyage ; reçoit une part des coûts. N'a pas forcément accès à Voyager (un enfant) |
 | Propriétaire de l'instance | Installe le serveur du groupe, configure les clés d'API payantes, installe les plugins |
 | Plugins | Fournissent types de prestation, bases de calcul, règles de répartition, connecteurs, vues, exports |
