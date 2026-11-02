@@ -23,8 +23,9 @@ où il en est si ce n'est pas clair.
    son dernier tag ; un composant sans tag compte comme modifié). Seuls ceux qui ont changé sont publiés.
    Un seul : `-Component <id>`. Le SDK et les plugins prennent leur numéro de leurs seuls tags et commits,
    jamais du nom de la branche : un composant inchangé garde sa version.
-   Si le SDK change de version mineure (`0.x`) ou majeure, vérifie le champ `sdk` du manifeste de chaque
-   plugin livré : un plugin écrit pour une autre version est refusé au démarrage.
+   Si le SDK déclare une version de contrat obsolète (`ContractVersions`), vérifie les `provides` et
+   `requires` du manifeste de chaque plugin livré : un plugin qui utilise une version obsolète est écarté
+   au démarrage (ADR-0017).
 4. Crée `release/<x.y.z>` depuis `develop` et pousse-la.
 5. Rédige les **notes de version** en français dans `docs/releases/<x.y.z>.md` à partir des commits
    (`git log <dernier-tag>..HEAD --oneline`) : nouveautés (`feat`), corrections (`fix`), ruptures,

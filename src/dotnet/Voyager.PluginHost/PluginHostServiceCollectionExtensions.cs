@@ -1,8 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-using Voyager.Sdk;
-
 namespace Voyager.PluginHost;
 
 /// <summary>
@@ -25,7 +23,7 @@ public static class PluginHostServiceCollectionExtensions
     {
         services.AddSingleton(provider => PluginCatalog.Load(
             pluginsFolder(provider),
-            SdkInfo.Version,
+            ContractSupport.Application,
             provider.GetRequiredService<ILoggerFactory>()));
         services.AddSingleton(provider => provider.GetRequiredService<PluginCatalog>().Registry);
         services.AddSingleton(PluginHostOptions.Default);

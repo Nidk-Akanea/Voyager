@@ -84,8 +84,8 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
     celle de l'installation
   - [x] Tests d'architecture (Sdk, assemblies des plugins), règle de lint sur les imports d'un plugin
   - [x] Calcul de version par composant (`sdk/v*`, `plugins/<id>/v*`) : `tools/get-version.ps1`, une
-    configuration GitVersion par composant, version du SDK dans l'assembly (celle que l'hôte compare au
-    champ `sdk` des plugins), versions affichées par la CI
+    configuration GitVersion par composant, version du SDK dans l'assembly (rapportée par le service ; les
+    plugins sont jugés par contrat depuis l'ADR-0017), versions affichées par la CI
   - [ ] Versions par composant, limites connues : la version du paquet `@voyager/plugin-sdk` reste
     `0.0.0` (le SDK d'interface n'est pas publié ; la version du SDK est celle de la partie .NET) ;
     un étiquetage nu (`1.2.3`, sans préfixe) compterait pour chaque composant, car GitVersion lit

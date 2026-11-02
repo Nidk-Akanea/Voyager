@@ -181,7 +181,8 @@ ou la branche, pas tes conclusions.
 - **Traçabilité** : chaque donnée externe garde sa source et sa date.
 
 Les règles détaillées de chaque langage sont dans `.claude/rules/` (chargées automatiquement) et
-[docs/conventions/](docs/conventions/README.md).
+[docs/conventions/](docs/conventions/README.md). Celles des plugins (manifeste, compatibilité par contrat,
+évolution d'un contrat, tests) sont dans `.claude/rules/plugins.md`.
 
 ## Points d'attention métier
 

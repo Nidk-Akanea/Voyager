@@ -9,7 +9,7 @@
     - a component that did not change keeps its version, on develop, on a release branch and on main;
     - a commit in the core changes the application only; a commit in a plugin changes that plugin only;
     - a release branch gives its number to the application, not to the SDK nor to the plugins (GitFlow would otherwise
-      make the host refuse every plugin, which are written for the version of the SDK).
+      give them the number of the release, which says nothing of what changed in them).
 
     The configurations and the scripts are those of the working tree, so that what is about to be committed is what
     is checked. The repository itself is not touched. It takes a minute or two (GitVersion runs about 30 times).

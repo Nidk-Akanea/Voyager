@@ -13,45 +13,26 @@ namespace Voyager.LocalService.Tests;
 [TestClass]
 public sealed class PluginHostGrpcServiceTests
 {
+    #region Fields
+
     private static readonly Instant _start = Instant.FromUtc(2026, 3, 14, 9, 30);
 
+    #endregion Fields
+
+    #region Properties
+
     private static Metadata AuthorizedHeaders => LocalServiceFactory.TokenHeader(LocalServiceFactory.LOCAL_TOKEN);
+
+    #endregion Properties
+
+    #region Private Methods
 
     private static PluginHostService.PluginHostServiceClient CreateClient(LocalServiceFactory factory) =>
         new(factory.CreateChannel());
 
-    [TestMethod]
-    public async Task ListPlugins_WithoutPluginFolder_ListsNothingAndTheServiceStarts()
-    {
-        using var factory = new LocalServiceFactory();
+    #endregion Private Methods
 
-        var response = await CreateClient(factory).ListPluginsAsync(
-            new ListPluginsRequest(),
-            AuthorizedHeaders);
-
-        response.Plugins.Should().BeEmpty();
-    }
-
-    [TestMethod]
-    public async Task ListPlugins_GoodAndBrokenPlugins_StartsAndTellsWhichOneIsSetAside()
-    {
-        using var plugins = new PluginFolder();
-        plugins.AddPlugin("fixture-good", "Good");
-        plugins.AddPlugin("fixture-throws-on-configure", "ThrowsOnConfigure");
-        plugins.AddManifest("fixture-no-ui", PluginFolder.Manifest("fixture-no-ui", assembly: null, provides: string.Empty, uiPart: ", \"ui\": { \"module\": \"views/index.js\" }"));
-        using var factory = new LocalServiceFactory(pluginsDirectory: plugins.Path);
-
-        var response = await CreateClient(factory).ListPluginsAsync(
-            new ListPluginsRequest(),
-            AuthorizedHeaders);
-
-        response.Plugins.Select(plugin => (plugin.Id, plugin.Status, plugin.RejectionReason, plugin.UiModule)).Should().Equal(
-            ("fixture-good", PluginStatus.Loaded, PluginRejectionReason.Unspecified, string.Empty),
-            ("fixture-no-ui", PluginStatus.Loaded, PluginRejectionReason.Unspecified, "views/index.js"),
-            ("fixture-throws-on-configure", PluginStatus.Rejected, PluginRejectionReason.LoadFailed, string.Empty));
-        response.Plugins[0].Version.Should().Be("1.0.0");
-        response.Plugins[0].Provides.Should().Equal("diagnostic-fact-source");
-    }
+    #region Public Methods
 
     [TestMethod]
     public async Task GetDiagnosticFacts_ServiceAndPlugin_ReturnsTheFactsOfBothSources()
@@ -86,6 +67,18 @@ public sealed class PluginHostGrpcServiceTests
     }
 
     [TestMethod]
+    public async Task GetDiagnosticFacts_UnknownSource_IsNotFound()
+    {
+        using var factory = new LocalServiceFactory();
+
+        var call = async () => await CreateClient(factory).GetDiagnosticFactsAsync(
+            new GetDiagnosticFactsRequest { SourceId = "nobody" },
+            AuthorizedHeaders);
+
+        (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.NotFound);
+    }
+
+    [TestMethod]
     public async Task GetDiagnosticFacts_WithASourceId_ReturnsOnlyThatSource()
     {
         using var plugins = new PluginFolder();
@@ -100,15 +93,62 @@ public sealed class PluginHostGrpcServiceTests
     }
 
     [TestMethod]
-    public async Task GetDiagnosticFacts_UnknownSource_IsNotFound()
+    public async Task ListPlugins_GoodAndBrokenPlugins_StartsAndTellsWhichOneIsSetAside()
     {
-        using var factory = new LocalServiceFactory();
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin("fixture-good", "Good");
+        plugins.AddPlugin("fixture-throws-on-configure", "ThrowsOnConfigure");
+        plugins.AddManifest("fixture-no-ui", PluginFolder.Manifest("fixture-no-ui", assembly: null, provides: string.Empty, uiPart: ", \"ui\": { \"module\": \"views/index.js\" }"));
+        using var factory = new LocalServiceFactory(pluginsDirectory: plugins.Path);
 
-        var call = async () => await CreateClient(factory).GetDiagnosticFactsAsync(
-            new GetDiagnosticFactsRequest { SourceId = "nobody" },
+        var response = await CreateClient(factory).ListPluginsAsync(
+            new ListPluginsRequest(),
             AuthorizedHeaders);
 
-        (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.NotFound);
+        response.Plugins.Select(plugin => (plugin.Id, plugin.Status, plugin.RejectionReason, plugin.UiModule)).Should().Equal(
+            ("fixture-good", PluginStatus.Loaded, PluginRejectionReason.Unspecified, string.Empty),
+            ("fixture-no-ui", PluginStatus.Loaded, PluginRejectionReason.Unspecified, "views/index.js"),
+            ("fixture-throws-on-configure", PluginStatus.Rejected, PluginRejectionReason.LoadFailed, string.Empty));
+        response.Plugins[0].Version.Should().Be("1.0.0");
+        response.Plugins[0].Provides.Should().Equal("diagnostic-fact-source");
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_LoadedPlugin_ReturnsItsContractsWithTheirRoleAndState()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin("fixture-good", "Good");
+        using var factory = new LocalServiceFactory(pluginsDirectory: plugins.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(
+            new ListPluginsRequest(),
+            AuthorizedHeaders);
+
+        response.Plugins.Should().ContainSingle().Which.Contracts.Select(use => (use.Contract, use.Version, use.Role, use.State)).Should().Equal(
+            ("diagnostic-fact-source", 1u, ContractRole.Provided, ContractUseState.Supported),
+            ("plugin", 1u, ContractRole.Required, ContractUseState.Supported));
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_PluginWrittenForAnUnknownContractVersion_IsRejectedAsContractNotSupported()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin(
+            "fixture-good",
+            "Good",
+            PluginFolder.Manifest("fixture-good", "Voyager.PluginFixtures.Good.dll", provides: """{ "contract": "diagnostic-fact-source", "version": 2 }"""));
+        using var factory = new LocalServiceFactory(pluginsDirectory: plugins.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(
+            new ListPluginsRequest(),
+            AuthorizedHeaders);
+
+        var plugin = response.Plugins.Should().ContainSingle().Subject;
+        plugin.Status.Should().Be(PluginStatus.Rejected);
+        plugin.RejectionReason.Should().Be(PluginRejectionReason.ContractNotSupported);
+        plugin.Contracts.Select(use => (use.Contract, use.Version, use.Role, use.State)).Should().Equal(
+            ("diagnostic-fact-source", 2u, ContractRole.Provided, ContractUseState.Unknown),
+            ("plugin", 1u, ContractRole.Required, ContractUseState.Supported));
     }
 
     [TestMethod]
@@ -120,4 +160,18 @@ public sealed class PluginHostGrpcServiceTests
 
         (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
+
+    [TestMethod]
+    public async Task ListPlugins_WithoutPluginFolder_ListsNothingAndTheServiceStarts()
+    {
+        using var factory = new LocalServiceFactory();
+
+        var response = await CreateClient(factory).ListPluginsAsync(
+            new ListPluginsRequest(),
+            AuthorizedHeaders);
+
+        response.Plugins.Should().BeEmpty();
+    }
+
+    #endregion Public Methods
 }

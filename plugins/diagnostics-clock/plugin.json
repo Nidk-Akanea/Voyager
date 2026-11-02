@@ -1,7 +1,7 @@
 {
   "id": "diagnostics-clock",
-  "sdk": "0.1",
   "dotnet": { "assembly": "Voyager.Plugins.DiagnosticsClock.dll" },
   "ui": { "module": "index.js" },
-  "provides": ["diagnostic-fact-source"]
+  "provides": [{ "contract": "diagnostic-fact-source", "version": 1 }],
+  "requires": [{ "contract": "plugin", "version": 1 }]
 }

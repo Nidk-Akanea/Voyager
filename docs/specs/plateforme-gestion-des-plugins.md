@@ -75,8 +75,9 @@ ligne et la clé de signature de production n'en font pas partie (voir « Hors p
 
 - **Étape 1** : tout ce que décrit cette spec, **sauf** les sections « Dépendances entre plugins » et
   « Mise à jour de l'application ». Les contrats **requis** d'un plugin sont alors le **contrat de base**
-  (`plugin`, ADR-0017) et ceux que fournit l'application ; aucune exigence n'existe entre plugins. La
-  compatibilité par contrat (section « Compatibilité ») en fait partie : elle remplace la version du SDK. Les
+  (`plugin`, ADR-0017) et ceux que fournit l'application ; aucune exigence n'existe entre plugins. Un plugin
+  qui requiert un autre contrat est écarté avec « contrat non pris en charge » (version inconnue : il lui faut
+  une version de Voyager qui gère les dépendances), jamais chargé sans son prérequis. La compatibilité par contrat (section « Compatibilité ») en fait partie : elle remplace la version du SDK. Les
   critères d'un contrat **déprécié** se testent avec un contrat d'essai déclaré dans les tests, tant qu'aucun
   vrai contrat n'a évolué.
 - **Étape 2, dépendances** : construites au **premier plugin qui en consomme un autre** (ADR-0017,
@@ -582,11 +583,10 @@ contrat en version 2 est créé** : avant cela, aucun plugin n'est jamais touch�
 
 ## Hors périmètre
 
-- **Les adaptateurs de contrat eux-mêmes** et **la forme du manifeste** (comment un plugin déclare ce qu'il
-  fournit et requiert, et comment le champ `sdk` devient le contrat de base) : ils se construisent au premier
-  plugin consommateur d'un autre ou à la première évolution réelle d'un contrat (ADR-0017, décision 8). Les
-  sections de l'étape 2 décrivent ce que l'utilisateur en voit, pas leur construction. Les **dépendances
-  facultatives** n'existent pas.
+- **Les adaptateurs de contrat eux-mêmes** et ce que le manifeste devra dire de plus pour les **dépendances
+  entre plugins** : ils se construisent au premier plugin consommateur d'un autre ou à la première évolution
+  réelle d'un contrat (ADR-0017, décision 8). Les sections de l'étape 2 décrivent ce que l'utilisateur en voit,
+  pas leur construction. Les **dépendances facultatives** n'existent pas.
 - **Les plugins d'un groupe** (le propriétaire installe sur le serveur, les applications des membres les
   téléchargent) : décision 8 de l'ADR-0016, après l'authentification et le serveur du groupe (questions Q33
   à Q35).
@@ -614,8 +614,10 @@ Aucune ne bloque le début de l'implémentation de l'étape 1.
   téléchargement (le service local n'est pas démarré à ce moment, ADR-0014), et où la nouvelle version publie
   les contrats qu'elle prend en charge. Cela demande d'**amender l'ADR-0014**, encore proposée donc modifiable
   sans nouvel ADR.
-- **La forme du manifeste** (`provides` et `requires` versionnés, `sdk` qui devient le contrat de base) et celle
-  des **adaptateurs de la moitié d'interface** : à fixer avec le premier plugin qui en dépend (ADR-0017).
+- **Les adaptateurs de la moitié d'interface** : à fixer avec le premier plugin qui en dépend (ADR-0017). Pour
+  l'étape 1, la forme du manifeste est fixée : `provides` et `requires` listent des objets
+  `{ "contract": "<identifiant>", "version": <n> }`, et `requires` contient toujours le contrat de base
+  `plugin`, qui remplace l'ancien champ `sdk`.
 - **Les formats de données** que les plugins mettront dans `data/` (une base SQLite, des fichiers CSV ou
   JSON…) et leur lien avec les données stockées par le cœur (ADR-0004, question Q34) : hors de cette spec,
   à décider avec le premier plugin de données.

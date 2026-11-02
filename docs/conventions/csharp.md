@@ -113,6 +113,28 @@ Les noms métier viennent du [glossaire](../glossaire.md) : on écrit `Quote`, p
   Linguini derrière l'abstraction `ILocalizer` des hôtes ; jamais de texte d'interface en dur.
 - Nombres, montants et dates sont formatés selon la langue de l'utilisateur.
 
+## Contrats du SDK
+
+Les types publics de `Voyager.Sdk` forment des **contrats** versionnés
+([ADR-0017](../adr/0017-contrats-versionnes-et-dependances-entre-plugins.md)). Un plugin compilé contre une
+version d'un contrat doit se charger tant que l'application prend cette version en charge. Dans une version,
+on n'ajoute donc que ce qui ne casse pas un plugin déjà compilé :
+
+- un **nouveau type**, ou un nouveau membre **non abstrait** d'une classe ;
+- une **méthode d'interface avec une implémentation par défaut** ;
+- une **valeur facultative** (propriété `init` avec une valeur par défaut), jamais un nouveau paramètre
+  positionnel d'un `record` ;
+- une **valeur d'énumération**, seulement si le code qui la lit traite déjà une valeur inconnue.
+
+Tout le reste (supprimer ou renommer, changer un type ou une signature, rendre obligatoire) crée une **nouvelle
+version** du contrat : elle se déclare dans `ContractVersions`, avec l'état de l'ancienne (prise en charge par
+un adaptateur, dépréciée ou obsolète). Les types d'un contrat vivent dans `Voyager.Sdk` ; seuls ceux du SDK, de
+`Voyager.Core.Shared` et de NodaTime passent d'un contexte de chargement à l'autre.
+
+Le numéro de version du SDK (ADR-0007) suit ces changements : retirer une version de contrat (la déclarer
+obsolète) est une rupture (`feat!:`), ajouter un contrat ou une version est une nouveauté (`feat:`), le reste
+est un correctif. Ce numéro ne décide plus quels plugins sont acceptés.
+
 ## Commentaires et documentation
 
 - En anglais. Un commentaire explique **pourquoi**, pas ce que fait le code.

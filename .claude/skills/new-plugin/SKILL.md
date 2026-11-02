@@ -42,15 +42,15 @@ peuvent pas vieillir comme le ferait un modèle de fichiers. `diagnostics-runtim
 
 Remplace `<id>` par l'identifiant, `<Name>` par la forme PascalCase (`diagnostics-clock` → `DiagnosticsClock`).
 
-| Fichier                                                                    | Contenu                                                                                     | Modèle                                      |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `plugins/<id>/plugin.json`                                                 | `id`, `sdk`, `dotnet.assembly`, `ui.module` (si écran), `provides`. **Jamais de `version`** | `diagnostics-runtime` / `diagnostics-clock` |
-| `plugins/<id>/dotnet/Voyager.Plugins.<Name>/Voyager.Plugins.<Name>.csproj` | `AssemblyName` et `RootNamespace` ; une seule référence : le SDK, avec `Private="false"`    | idem                                        |
-| `plugins/<id>/dotnet/Voyager.Plugins.<Name>/<Name>Plugin.cs`               | `IPlugin` : `Configure` enregistre ses services et ses sources                              | idem                                        |
-| `plugins/<id>/dotnet/Voyager.Plugins.<Name>/<Source>.cs`                   | La source de faits (`IDiagnosticFactSource`), libellés préfixés `<id>-`                     | `RuntimeFactSource`, `ClockFactSource`      |
-| `plugins/<id>/tests/Voyager.Plugins.<Name>.Tests/…Tests.csproj`            | Projet MSTest qui référence la partie .NET                                                  | `diagnostics-clock`                         |
-| `plugins/<id>/tests/Voyager.Plugins.<Name>.Tests/<Source>Tests.cs`         | Au moins un test du comportement, avec `FakeClock` si l'heure compte, données fictives      | `ClockFactSourceTests`                      |
-| `plugins/<id>/i18n/fr/messages.ftl` et `i18n/en/messages.ftl`              | Mêmes identifiants dans les deux langues, **tous préfixés `<id>-`**, aucun terme (`-nom`)   | `diagnostics-clock/i18n`                    |
+| Fichier                                                                    | Contenu                                                                                          | Modèle                                      |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| `plugins/<id>/plugin.json`                                                 | `id`, `dotnet.assembly`, `ui.module` (si écran), `provides`, `requires`. **Jamais de `version`** | `diagnostics-runtime` / `diagnostics-clock` |
+| `plugins/<id>/dotnet/Voyager.Plugins.<Name>/Voyager.Plugins.<Name>.csproj` | `AssemblyName` et `RootNamespace` ; une seule référence : le SDK, avec `Private="false"`         | idem                                        |
+| `plugins/<id>/dotnet/Voyager.Plugins.<Name>/<Name>Plugin.cs`               | `IPlugin` : `Configure` enregistre ses services et ses sources                                   | idem                                        |
+| `plugins/<id>/dotnet/Voyager.Plugins.<Name>/<Source>.cs`                   | La source de faits (`IDiagnosticFactSource`), libellés préfixés `<id>-`                          | `RuntimeFactSource`, `ClockFactSource`      |
+| `plugins/<id>/tests/Voyager.Plugins.<Name>.Tests/…Tests.csproj`            | Projet MSTest qui référence la partie .NET                                                       | `diagnostics-clock`                         |
+| `plugins/<id>/tests/Voyager.Plugins.<Name>.Tests/<Source>Tests.cs`         | Au moins un test du comportement, avec `FakeClock` si l'heure compte, données fictives           | `ClockFactSourceTests`                      |
+| `plugins/<id>/i18n/fr/messages.ftl` et `i18n/en/messages.ftl`              | Mêmes identifiants dans les deux langues, **tous préfixés `<id>-`**, aucun terme (`-nom`)        | `diagnostics-clock/i18n`                    |
 
 Avec écran, ajoute (modèle : `plugins/diagnostics-clock/ui/`) :
 
@@ -74,9 +74,11 @@ Règles que les tests et le lint font respecter (ne les contourne pas) :
 - **Faits** : 50 au plus, fournis en 5 secondes au plus ; une exception ou un dépassement n'écarte que ce plugin.
 - **Version** : jamais écrite à la main. Celle du plugin vient de son propre historique Git
   (`pwsh tools/get-version.ps1 -Component <id>`) et est inscrite dans le manifeste à la construction.
-- **Champ `sdk`** : `major.minor` de la version actuelle du SDK, que donne
-  `pwsh tools/get-version.ps1 -Component sdk -Variable MajorMinorPatch` (`0.1.0` → `"0.1"`). En `0.x`, un
-  plugin écrit pour une autre version mineure est refusé au démarrage.
+- **Contrats** (ADR-0017) : `provides` liste les contrats fournis, `requires` ceux qui sont requis, chacun sous
+  la forme `{ "contract": "<identifiant>", "version": <n> }`. `requires` contient toujours le contrat de base
+  `{ "contract": "plugin", "version": 1 }`. Les versions sont celles que `ContractVersions` déclare dans
+  `src/dotnet/Voyager.Sdk/ContractVersions.cs` comme prises en charge. Une version obsolète ou inconnue fait
+  écarter le plugin au démarrage, avec « contrat non pris en charge ».
 
 ## 4. Brancher
 

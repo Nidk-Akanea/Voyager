@@ -74,7 +74,8 @@ Write-Host "Version $Version, channel $channel"
 Write-Host $(if ($UpdateSource) { "Updates come from $UpdateSource" } else { 'Updates come from the GitHub releases' })
 
 $service = Join-Path $artifacts 'local-service'
-# The SDK inside the service has its own version, not the one of the app: the plugins are checked against it.
+# The SDK inside the service has its own version, not the one of the app (ADR-0007). The plugins are no longer
+# judged by it but contract by contract (ADR-0017); it still tells which SDK an installed application runs.
 Invoke-Step 'Compute the version of the SDK (GitVersion)' {
     $script:sdkVersion = (& (Join-Path $PSScriptRoot 'get-version.ps1') -Component sdk | Select-Object -Last 1).Trim()
 }
@@ -87,11 +88,11 @@ Invoke-Step 'Publish the local service' {
         --configuration Release --runtime win-x64 --self-contained `
         -p:DisableGitVersionTask=true -p:ContinuousIntegrationBuild=true "-p:Version=$Version" "-p:SdkVersion=$sdkVersion" --output $service
 }
-# The host compares the plugins with the file version of the SDK in the service: check that it is the SDK's own.
+# The service reports the file version of its SDK (SdkInfo): check that it is the SDK's own, not the app's.
 $sdkInPackage = (Get-Item -LiteralPath (Join-Path $service 'Voyager.Sdk.dll')).VersionInfo.FileVersion
 $sdkExpected = ($sdkVersion -replace '-.*$', '') + '.0'
 if ($sdkInPackage -ne $sdkExpected) {
-    throw "The SDK in the service has version $sdkInPackage, expected ${sdkExpected}: the plugins would be refused at startup."
+    throw "The SDK in the service has version $sdkInPackage, expected ${sdkExpected}: the version it reports would be wrong."
 }
 
 Invoke-Step 'Install the TypeScript dependencies' { pnpm install --frozen-lockfile }

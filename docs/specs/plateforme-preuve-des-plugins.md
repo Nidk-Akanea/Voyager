@@ -75,7 +75,8 @@ l'[ADR-0015](../adr/0015-mecanisme-de-plugins.md).
  1. Un plugin fournit ses textes en **français et en anglais**. Un texte manquant en anglais retombe
     sur le français ; un test vérifie que les deux langues ont les mêmes identifiants.
  2. Compatibilité : un plugin écrit pour le SDK `0.1` est accepté par un SDK `0.1.x` ; en `0.x`, toute
-    autre version mineure le refuse.
+    autre version mineure le refuse. *Remplacée* par la section « Compatibilité » de la
+    [gestion des plugins](plateforme-gestion-des-plugins.md) : un plugin est jugé contrat par contrat (ADR-0017).
  3. Le **SDK** et **chaque plugin** ont leur numéro de version calculé de leur propre historique, jamais
     écrit à la main (étiquettes `sdk/v…` et `plugins/<id>/v…`). La page « À propos » affiche la version
     de chaque plugin.
@@ -116,7 +117,8 @@ de la section « Quand un plugin est refusé ou plante ».
 - **Étant donné** un plugin dont le manifeste est invalide, **quand** l'application démarre, **alors**
   elle démarre, les autres plugins sont chargés, et ce plugin apparaît « écarté » avec sa raison.
 - **Étant donné** un plugin écrit pour une version du SDK non acceptée, **quand** l'application démarre,
-  **alors** il est écarté avec la raison « version du SDK incompatible ».
+  **alors** il est écarté avec la raison « version du SDK incompatible ». *Remplacé* par « contrat non pris en
+  charge » (voir la spec de la gestion des plugins).
 - **Étant donné** deux plugins qui portent le même identifiant, **quand** l'application démarre, **alors**
   le second est écarté et le premier reste chargé.
 - **Étant donné** un plugin qui lève une exception en fournissant ses faits, **quand** j'ouvre la page,

@@ -172,18 +172,19 @@ seuls commits ([ADR-0007](../adr/0007-git-flow-et-versions-gitversion.md)) et ja
 
 `pwsh tools/get-version.ps1 -All` donne la version de chacun et dit lesquels ont changé depuis leur dernier
 tag. Le fichier du SDK est lu aussi par la construction de `Voyager.Sdk` : l'assembly porte la version du SDK,
-celle que l'hôte compare au champ `sdk` du manifeste d'un plugin. Les règles qui transforment les commits en
+que le service rapporte (`SdkInfo`). Elle dit ce qui a changé dans le SDK, pas quels plugins il accepte : un
+plugin est jugé contrat par contrat (`ContractVersions`, ADR-0017). Les règles qui transforment les commits en
 version sont les mêmes partout (un test d'architecture le vérifie). Le SDK et les plugins ajoutent que leur
 numéro ne vient que de leurs étiquettes et de leurs commits, **jamais de la branche** : sur `develop`, `release/*`
-et `main`, GitFlow leur donnerait sinon le numéro de l'application ou de la release, et l'hôte refuserait
-les plugins (ils sont écrits pour une version du SDK). Un composant inchangé garde donc sa version, et
+et `main`, GitFlow leur donnerait sinon le numéro de l'application ou de la release. Un composant inchangé garde donc sa version, et
 `pwsh tools/test-versions.ps1` (lancé par la CI) le vérifie sur une copie du dépôt. La version d'un plugin est écrite dans son
 `plugin.json` par `tools/build-plugins.ps1`, pas dans le dépôt. L'assembly `Voyager.Sdk` garde une identité
 fixe (`AssemblyVersion` 1.0.0.0) et porte la version du SDK dans sa version de fichier : un plugin construit à
 une autre version du SDK se charge quand même.
 
-Tant que le SDK est en `0.x`, une version mineure de plus (tout `feat:` du SDK) fait refuser les plugins écrits
-pour la précédente : il faut alors mettre à jour le champ `sdk` de leur manifeste.
+Un plugin déclare dans son `plugin.json` les contrats qu'il fournit (`provides`) et ceux qu'il requiert
+(`requires`, dont toujours le contrat de base `plugin`), chacun avec sa version entière. Une nouvelle version
+du SDK ne fait refuser aucun plugin tant qu'aucune version de contrat n'est déclarée obsolète.
 
 ## Les tests (`tests/`)
 
