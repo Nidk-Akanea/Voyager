@@ -14,20 +14,14 @@ import {
 import { LocalizationProvider, useLocalization } from '@fluent/react';
 import { useMemo, useState } from 'react';
 
-import {
-  ContractUseState,
-  FactsOutcome,
-  PluginOrigin,
-  PluginRejectionReason,
-  PluginStatus,
-  type ContractUse,
-  type Plugin,
-} from '@voyager/grpc-client';
+import { ContractUseState, FactsOutcome, PluginOrigin, PluginStatus, type Plugin } from '@voyager/grpc-client';
 
 import { useAppContext } from '../app/appContext';
 import { createLocalization } from '../i18n/localization';
 import { FactList } from './FactList';
 import { PluginErrorBoundary } from './PluginErrorBoundary';
+import { contractArguments, contractKey, contractsIn } from './pluginTexts';
+import { RejectionDetails } from './RejectionDetails';
 import { toDiagnosticFacts, usePluginFacts, usePluginMessages, usePluginUi } from './usePluginHost';
 
 const useStyles = makeStyles({
@@ -54,44 +48,12 @@ const STATE_BADGES: Readonly<Record<PluginState, { readonly color: BadgeProps['c
 const MESSAGE_FACTS_FAILED = 'plugins-error-failed';
 const MESSAGE_INTERFACE_FAILED = 'plugins-error-ui';
 const MESSAGE_PANEL_FAILED = 'plugins-error-panel';
-const MESSAGE_REASON_UNKNOWN = 'plugins-reason-unknown';
-
-const REJECTION_MESSAGES: Readonly<Partial<Record<PluginRejectionReason, string>>> = {
-  [PluginRejectionReason.MANIFEST_INVALID]: 'plugins-reason-manifest-invalid',
-  [PluginRejectionReason.DUPLICATE_ID]: 'plugins-reason-duplicate-id',
-  [PluginRejectionReason.DUPLICATE_OF_SHIPPED]: 'plugins-reason-duplicate-of-shipped',
-  [PluginRejectionReason.CONTRACT_NOT_SUPPORTED]: 'plugins-reason-contract-not-supported',
-  [PluginRejectionReason.LOAD_FAILED]: 'plugins-reason-load-failed',
-  [PluginRejectionReason.UNDECLARED_REGISTRATION]: 'plugins-reason-undeclared-registration',
-};
-
-// What the user can do about a contract the application does not accept: a plugin that is too old, or too recent.
-const UNSUPPORTED_CONTRACT_MESSAGES: Readonly<Partial<Record<ContractUseState, string>>> = {
-  [ContractUseState.OBSOLETE]: 'plugins-contract-obsolete',
-  [ContractUseState.UNKNOWN]: 'plugins-contract-unknown',
-};
 
 const OUTCOME_MESSAGES: Readonly<Partial<Record<FactsOutcome, string>>> = {
   [FactsOutcome.FAILED]: MESSAGE_FACTS_FAILED,
   [FactsOutcome.TIMED_OUT]: 'plugins-error-timed-out',
   [FactsOutcome.INVALID]: 'plugins-error-invalid',
 };
-
-/** The contracts of a plugin that are in one of the given states, in the order the service sent them. */
-function contractsIn(plugin: Plugin, states: readonly ContractUseState[]): readonly ContractUse[] {
-  return plugin.contracts.filter((contract) => states.includes(contract.state));
-}
-
-/** A React key for a contract: a manifest names a contract at most once in each role. */
-function contractKey(contract: ContractUse): string {
-  return `${String(contract.role)}-${contract.contract}`;
-}
-
-/** The arguments of the messages that name a contract. */
-function contractArguments(contract: ContractUse) {
-  // A string, not a number: a version is a name, never formatted with the separators of a language.
-  return { contract: contract.contract, version: String(contract.version) };
-}
 
 function findState(rejected: boolean, isLoading: boolean, problem: string | undefined): PluginState {
   if (rejected) {
@@ -165,22 +127,10 @@ export function PluginCard({ plugin }: { readonly plugin: Plugin }) {
   );
 
   if (rejected) {
-    const unsupported =
-      plugin.rejectionReason === PluginRejectionReason.CONTRACT_NOT_SUPPORTED
-        ? contractsIn(plugin, [ContractUseState.OBSOLETE, ContractUseState.UNKNOWN])
-        : [];
     return (
       <Card>
         {header}
-        <Body1>{l10n.getString(REJECTION_MESSAGES[plugin.rejectionReason] ?? MESSAGE_REASON_UNKNOWN)}</Body1>
-        {unsupported.map((contract) => (
-          <Caption1 key={contractKey(contract)}>
-            {l10n.getString(
-              UNSUPPORTED_CONTRACT_MESSAGES[contract.state] ?? MESSAGE_REASON_UNKNOWN,
-              contractArguments(contract),
-            )}
-          </Caption1>
-        ))}
+        <RejectionDetails plugin={plugin} />
       </Card>
     );
   }

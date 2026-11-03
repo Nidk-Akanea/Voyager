@@ -12,6 +12,7 @@ import type {
   PluginTarget,
 } from '@voyager/grpc-client';
 
+import { cleanDisplayText } from './displayText';
 import { isMissing, renameWithRetries } from './files';
 import { isStagedName } from './staging';
 
@@ -208,7 +209,10 @@ export function pendingRequests(
 
 /** What the page may know of a request: never the name of the prepared copy, nor the fingerprint. */
 export function describeRequest({ action, origin, pluginId, packageName }: PluginRequestEntry): PendingPluginRequest {
-  return packageName === undefined ? { action, origin, pluginId } : { action, origin, pluginId, packageName };
+  // Cleaned when written, and again here: another program may have changed the file since.
+  return packageName === undefined
+    ? { action, origin, pluginId }
+    : { action, origin, pluginId, packageName: cleanDisplayText(packageName) };
 }
 
 /**

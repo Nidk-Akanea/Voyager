@@ -1,7 +1,7 @@
 plugins-title = Plugins
 plugins-loading = Recherche des plugins…
 plugins-error = La liste des plugins n’a pas pu être lue.
-plugins-none = Aucun plugin n’est installé.
+plugins-none = Aucun plugin n’est actif.
 plugins-version = Version { $version }
 plugins-state-loaded = Chargé
 plugins-state-loading = Chargement…

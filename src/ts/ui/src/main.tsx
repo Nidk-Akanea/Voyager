@@ -2,10 +2,10 @@
 import { createRoot } from 'react-dom/client';
 
 import './app/bridge';
+import { AppShell } from './app/AppShell';
 import { LocalServiceGate } from './app/LocalServiceGate';
 import { ShellProviders } from './app/ShellProviders';
 import { StartupScreen } from './app/StartupScreen';
-import { AboutPage } from './features/about/AboutPage';
 import { createLocalization, pickLocale } from './i18n/localization';
 
 const ROOT_ELEMENT_ID = 'root';
@@ -45,7 +45,7 @@ function start(): void {
   root.render(
     <ShellProviders locale={locale} prefersDarkTheme={prefersDarkTheme}>
       <LocalServiceGate bridge={window.voyager} locale={locale}>
-        <AboutPage />
+        <AppShell pluginManagement={window.voyager.plugins} />
       </LocalServiceGate>
     </ShellProviders>,
   );
