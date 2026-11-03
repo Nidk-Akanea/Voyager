@@ -268,12 +268,18 @@ flowchart TB
     Hote -. "types partagés" .-> Shared
 ```
 
-- Au démarrage, `PluginCatalog` lit chaque sous-dossier du dossier des plugins (donné par le processus
-  principal, jamais par l'utilisateur) : un manifeste valide, un identifiant unique égal au nom du
-  dossier, des contrats pris en charge (chaque contrat fourni ou requis du manifeste, avec sa version,
+- Au démarrage, `PluginStore` applique d'abord les **demandes** que le processus principal a écrites
+  (`requests.json` : activer, désactiver, désinstaller) et écrit l'**état** (`state.json`) : le processus
+  principal est le seul à écrire les demandes, le service le seul à écrire l'état (ADR-0016, décision 4).
+- Puis `PluginCatalog` lit les **racines** dans l'ordre, les plugins livrés (dossier de l'application) puis
+  les plugins installés (`plugins/installed/` des données de l'utilisateur), toutes deux données par le
+  processus principal, jamais par l'utilisateur. Pour chaque sous-dossier : un manifeste valide, un
+  identifiant égal au nom du dossier, utilisé une seule fois (un installé qui porte l'identifiant d'un livré
+  est écarté), des contrats pris en charge (chaque contrat fourni ou requis du manifeste, avec sa version,
   comparé à `ContractVersions` du SDK, ADR-0017 : une version obsolète ou inconnue écarte le plugin), puis le
-  chargement de la partie .NET dans **son** contexte avec **son** conteneur d'injection. Tout échec écarte ce plugin seul, avec une raison ; le service démarre
-  toujours.
+  chargement de la partie .NET dans **son** contexte avec **son** conteneur d'injection. Un plugin désactivé
+  est listé sans être chargé et laisse son identifiant libre. Tout échec écarte ce plugin seul, avec une
+  raison ; le service démarre toujours.
 - Un plugin **enregistre** (`builder.AddDiagnosticFactSource<T>()`), il ne remplace rien ; l'hôte vérifie
   l'inscription contre `provides` et la range dans le registre.
 - À la demande de l'interface, le collecteur interroge toutes les sources en parallèle, chacune sous un
@@ -289,17 +295,20 @@ flowchart LR
     Page["Page de l'interface<br/>voyager://app/index.html<br/>(CSP : script-src 'self' + empreinte de l'import map)"]
     Map["Import map en ligne<br/>react, react-dom, Fluent UI, @fluent/react,<br/>@voyager/plugin-sdk → shared/*.js"]
     Shared["shared/*.js<br/>entrées de la même construction que la page :<br/>une seule copie de React"]
-    Module["plugins/&lt;id&gt;/ui/index.js<br/>import() d'un module du plugin"]
-    Texts["plugins/&lt;id&gt;/i18n/&lt;langue&gt;/messages.ftl"]
+    Module["plugins/&lt;origine&gt;/&lt;id&gt;/ui/index.js<br/>import() d'un module du plugin"]
+    Texts["plugins/&lt;origine&gt;/&lt;id&gt;/i18n/&lt;langue&gt;/messages.ftl"]
     Page --> Map --> Shared
     Page -->|"import()"| Module
     Module -->|"imports nus, résolus par la carte"| Shared
     Page -->|"fetch"| Texts
 ```
 
-- Le processus principal sert `plugins/<id>/ui/*.js` et `plugins/<id>/i18n/<langue>/messages.ftl` depuis le
-  dossier des plugins (jamais le manifeste ni les assemblies), et calcule l'empreinte de l'import map de
-  `index.html` pour la CSP. En développement, Vite fait de même.
+- Le processus principal sert `plugins/<origine>/<id>/ui/*.js` et `plugins/<origine>/<id>/i18n/<langue>/messages.ftl`
+  (l'origine est `shipped` ou `installed` ; jamais le manifeste ni les assemblies) depuis le dossier que lui donne
+  la liste des plugins **chargés** du service :
+  un plugin écarté ou désactivé n'est pas servi, et un fichier doit rester dans le dossier de son plugin une
+  fois les liens suivis. Il calcule aussi l'empreinte de l'import map de `index.html` pour la CSP. En
+  développement, Vite sert les plugins construits puis installés sous `artifacts/`.
 - Le module d'un plugin exporte `register(registry)` ; l'interface refuse ce que le manifeste n'annonce pas.
   Un module qui ne charge pas, ou un panneau qui plante, met ce plugin « en erreur » sans toucher au reste.
 - Les messages d'un plugin commencent par son identifiant ; ils rejoignent ceux de la page sans jamais en

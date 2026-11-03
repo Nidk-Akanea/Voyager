@@ -1,4 +1,5 @@
-// The plugins section of the "About" page: which plugins are in use or set aside, and what each one provides.
+// The plugins section of the "About" page: which plugins are in use or set aside, and what each one provides. The
+// plugins the user disabled are not shown here: the "Plugins" screen manages them.
 import {
   Body1,
   Button,
@@ -11,6 +12,8 @@ import {
 } from '@fluentui/react-components';
 import { useLocalization } from '@fluent/react';
 
+import { PluginStatus } from '@voyager/grpc-client';
+
 import { PluginCard } from './PluginCard';
 import { usePluginList } from './usePluginHost';
 
@@ -22,12 +25,12 @@ const useStyles = makeStyles({
   },
 });
 
-/** The plugins found at startup, one card each, with the loading and error states of the list itself. */
+/** The plugins found at startup, except the disabled ones, one card each, with the loading and error states of the list. */
 export function PluginsSection() {
   const styles = useStyles();
   const { l10n } = useLocalization();
   const list = usePluginList();
-  const plugins = list.data?.plugins ?? [];
+  const plugins = (list.data?.plugins ?? []).filter((plugin) => plugin.status !== PluginStatus.DISABLED);
 
   return (
     <section className={styles.section}>
@@ -41,7 +44,8 @@ export function PluginsSection() {
       )}
       {list.isSuccess && plugins.length === 0 && <Body1>{l10n.getString('plugins-none')}</Body1>}
       {plugins.map((plugin) => (
-        <PluginCard key={plugin.folder} plugin={plugin} />
+        // A shipped plugin and an installed one may have folders of the same name.
+        <PluginCard key={`${String(plugin.origin)}-${plugin.folder}`} plugin={plugin} />
       ))}
     </section>
   );

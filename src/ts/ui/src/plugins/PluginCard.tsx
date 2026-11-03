@@ -17,6 +17,7 @@ import { useMemo, useState } from 'react';
 import {
   ContractUseState,
   FactsOutcome,
+  PluginOrigin,
   PluginRejectionReason,
   PluginStatus,
   type ContractUse,
@@ -58,6 +59,7 @@ const MESSAGE_REASON_UNKNOWN = 'plugins-reason-unknown';
 const REJECTION_MESSAGES: Readonly<Partial<Record<PluginRejectionReason, string>>> = {
   [PluginRejectionReason.MANIFEST_INVALID]: 'plugins-reason-manifest-invalid',
   [PluginRejectionReason.DUPLICATE_ID]: 'plugins-reason-duplicate-id',
+  [PluginRejectionReason.DUPLICATE_OF_SHIPPED]: 'plugins-reason-duplicate-of-shipped',
   [PluginRejectionReason.CONTRACT_NOT_SUPPORTED]: 'plugins-reason-contract-not-supported',
   [PluginRejectionReason.LOAD_FAILED]: 'plugins-reason-load-failed',
   [PluginRejectionReason.UNDECLARED_REGISTRATION]: 'plugins-reason-undeclared-registration',
@@ -133,7 +135,7 @@ export function PluginCard({ plugin }: { readonly plugin: Plugin }) {
   const rejected = plugin.status !== PluginStatus.LOADED;
   const facts = usePluginFacts(plugin.id, !rejected);
   const ui = usePluginUi(plugin, !rejected);
-  const messages = usePluginMessages(plugin.id, locale, !rejected);
+  const messages = usePluginMessages(plugin, locale, !rejected);
   // The messages of a plugin are for that plugin alone: no plugin can see, hide or borrow those of another one.
   const localization = useMemo(
     () => createLocalization(locale, messages.data === undefined ? [] : [messages.data]),
@@ -183,8 +185,10 @@ export function PluginCard({ plugin }: { readonly plugin: Plugin }) {
     );
   }
 
-  // A plugin that works today but uses a version of a contract that a later release will remove.
-  const deprecations = contractsIn(plugin, [ContractUseState.DEPRECATED]).map((contract) => (
+  // A plugin that works today but uses a version of a contract that a later release will remove. Only said of an
+  // installed plugin: for a shipped one, it is the application's business to update it.
+  const deprecated = plugin.origin === PluginOrigin.INSTALLED ? contractsIn(plugin, [ContractUseState.DEPRECATED]) : [];
+  const deprecations = deprecated.map((contract) => (
     <Caption1 key={contractKey(contract)}>
       {l10n.getString('plugins-contract-deprecated', contractArguments(contract))}
     </Caption1>

@@ -10,4 +10,7 @@ public enum PluginStatus
 
     /// <summary>The plugin was set aside; <see cref="PluginState.RejectionReason"/> says why.</summary>
     Rejected,
+
+    /// <summary>The user disabled the plugin: it is not loaded, and does not keep its identifier from another one.</summary>
+    Disabled,
 }

@@ -42,6 +42,9 @@ internal static partial class PluginHostLog
     [LoggerMessage(Level = LogLevel.Warning, Message = "The container of plugin {PluginId} did not shut down cleanly")]
     public static partial void PluginContainerDisposeFailed(ILogger logger, string pluginId, Exception exception);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "Plugin {PluginId} ({PluginOrigin}) is disabled: it is not loaded")]
+    public static partial void PluginDisabled(ILogger logger, string pluginId, PluginOrigin pluginOrigin);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Plugin {PluginId} is set aside: its folder name is not its identifier")]
     public static partial void PluginFolderNameMismatch(ILogger logger, string pluginId);
 
@@ -54,8 +57,8 @@ internal static partial class PluginHostLog
     [LoggerMessage(Level = LogLevel.Warning, Message = "Plugin {PluginId} is set aside: this identifier is reserved for the service")]
     public static partial void PluginIdReserved(ILogger logger, string pluginId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Plugin {PluginId} {PluginVersion} is loaded")]
-    public static partial void PluginLoaded(ILogger logger, string pluginId, string pluginVersion);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Plugin {PluginId} {PluginVersion} ({PluginOrigin}) is loaded")]
+    public static partial void PluginLoaded(ILogger logger, string pluginId, string pluginVersion, PluginOrigin pluginOrigin);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Plugin {PluginId} failed to load")]
     public static partial void PluginLoadFailed(ILogger logger, string pluginId, Exception exception);
@@ -63,11 +66,38 @@ internal static partial class PluginHostLog
     [LoggerMessage(Level = LogLevel.Warning, Message = "Plugin {PluginId} is set aside: {Reason}")]
     public static partial void PluginRejected(ILogger logger, string pluginId, PluginRejectionReason reason);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Plugins loaded: {LoadedCount} in use, {RejectedCount} set aside")]
-    public static partial void PluginsLoaded(ILogger logger, int loadedCount, int rejectedCount);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Plugins loaded: {LoadedCount} in use, {RejectedCount} set aside, {DisabledCount} disabled")]
+    public static partial void PluginsLoaded(ILogger logger, int loadedCount, int rejectedCount, int disabledCount);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Plugin {PluginId} is set aside: its assembly must hold exactly one public, non-abstract class that implements IPlugin")]
     public static partial void PluginTypeNotFound(ILogger logger, string pluginId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The files of an uninstalled plugin could not all be deleted: the next start will try again")]
+    public static partial void RemovalNotFinished(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The request to {Action} plugin {PluginId} ({PluginOrigin}) is applied")]
+    public static partial void RequestApplied(ILogger logger, string pluginId, PluginOrigin pluginOrigin, PluginRequestAction action);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The request to {Action} plugin {PluginId} ({PluginOrigin}) failed: {Reason}")]
+    public static partial void RequestFailed(ILogger logger, string pluginId, PluginOrigin pluginOrigin, PluginRequestAction action, PluginRequestFailure reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The request to {Action} plugin {PluginId} could not change its files")]
+    public static partial void RequestFailedOnFiles(ILogger logger, string pluginId, PluginRequestAction action, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "{Count} plugin requests are not valid and are ignored")]
+    public static partial void RequestsIgnored(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The plugin requests could not be read: none is applied")]
+    public static partial void RequestsUnreadable(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The plugin state could not be written: the requests will be applied again at the next start")]
+    public static partial void StateNotWritten(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The plugin state could not be read: every plugin is enabled again")]
+    public static partial void StateUnreadable(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The temporary files of an unfinished write of the plugin state could not all be deleted: the next start will try again")]
+    public static partial void TemporaryStatesNotDeleted(ILogger logger, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Plugin {PluginId} registered {ExtensionPoint}, which its manifest does not announce")]
     public static partial void UndeclaredRegistration(ILogger logger, string pluginId, string extensionPoint);

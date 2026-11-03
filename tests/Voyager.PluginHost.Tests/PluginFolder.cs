@@ -19,10 +19,24 @@ internal sealed class PluginFolder : IDisposable
 
     #endregion Fields
 
+    #region Public Constructors
+
+    /// <summary>A new temporary folder.</summary>
+    public PluginFolder()
+        : this(System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"voyager-plugins-{Guid.NewGuid():N}"))
+    {
+    }
+
+    /// <summary>A plugins folder at a given place, for example the installed plugins of a <see cref="UserPluginFolder"/>.</summary>
+    /// <param name="path">The folder; created with the first plugin added.</param>
+    public PluginFolder(string path) => Path = path;
+
+    #endregion Public Constructors
+
     #region Properties
 
     /// <summary>The folder that holds one sub-folder per plugin.</summary>
-    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"voyager-plugins-{Guid.NewGuid():N}");
+    public string Path { get; }
 
     #endregion Properties
 

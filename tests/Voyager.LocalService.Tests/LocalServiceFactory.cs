@@ -26,7 +26,8 @@ internal sealed class LocalServiceFactory : WebApplicationFactory<Program>
     private readonly string? _seqServerUrl;
     private readonly string? _environment;
     private readonly string? _logDirectory;
-    private readonly string? _pluginsDirectory;
+    private readonly string? _shippedPluginsDirectory;
+    private readonly string? _userPluginsDirectory;
 
     /// <param name="localToken">The token given to the service, or null to start it without one.</param>
     /// <param name="databasePath">The SQLite file, or null for a new temporary file.</param>
@@ -34,7 +35,8 @@ internal sealed class LocalServiceFactory : WebApplicationFactory<Program>
     /// <param name="seqServerUrl">The Seq server to write logs to, or null for none.</param>
     /// <param name="environment">The hosting environment, or null for Development.</param>
     /// <param name="logDirectory">The folder for log files, or null for none.</param>
-    /// <param name="pluginsDirectory">The folder that holds the plugins, or null for none.</param>
+    /// <param name="shippedPluginsDirectory">The folder that holds the shipped plugins, or null for none.</param>
+    /// <param name="userPluginsDirectory">The plugins folder of the user's data (installed plugins, requests, state), or null for none.</param>
     public LocalServiceFactory(
         string? localToken = LOCAL_TOKEN,
         string? databasePath = null,
@@ -42,9 +44,11 @@ internal sealed class LocalServiceFactory : WebApplicationFactory<Program>
         string? seqServerUrl = null,
         string? environment = null,
         string? logDirectory = null,
-        string? pluginsDirectory = null)
+        string? shippedPluginsDirectory = null,
+        string? userPluginsDirectory = null)
     {
-        _pluginsDirectory = pluginsDirectory;
+        _shippedPluginsDirectory = shippedPluginsDirectory;
+        _userPluginsDirectory = userPluginsDirectory;
         _environment = environment;
         _logDirectory = logDirectory;
         _localToken = localToken;
@@ -76,7 +80,8 @@ internal sealed class LocalServiceFactory : WebApplicationFactory<Program>
         // Tests never write log files to the machine's own folder, even one set in its environment.
         builder.UseSetting("Voyager:LogDirectory", _logDirectory ?? string.Empty);
         // Tests never load plugins from the machine's own folder, even one set in its environment.
-        builder.UseSetting("Voyager:PluginsDirectory", _pluginsDirectory ?? string.Empty);
+        builder.UseSetting("Voyager:ShippedPluginsDirectory", _shippedPluginsDirectory ?? string.Empty);
+        builder.UseSetting("Voyager:UserPluginsDirectory", _userPluginsDirectory ?? string.Empty);
         if (_localToken is not null)
         {
             builder.UseSetting("Voyager:LocalToken", _localToken);

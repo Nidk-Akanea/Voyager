@@ -4,11 +4,16 @@ import type { ComponentType } from 'react';
 
 import { EXTENSION_POINTS, type DiagnosticFactPanelProps, type PluginRegistry } from '@voyager/plugin-sdk';
 
-import { PLUGIN_LOAD_TIMEOUT_MS, pluginModulePath, withTimeout, type PluginRuntime } from './pluginRuntime';
+import {
+  PLUGIN_LOAD_TIMEOUT_MS,
+  pluginModulePath,
+  withTimeout,
+  type PluginAddress,
+  type PluginRuntime,
+} from './pluginRuntime';
 
 /** What the interface needs to know of a plugin to load its interface part. */
-export interface PluginToLoad {
-  readonly id: string;
+export interface PluginToLoad extends PluginAddress {
   /** Path of the module under the plugin's `ui` folder; empty when the plugin has no interface part. */
   readonly uiModule: string;
   /** The extension points the plugin's manifest announces. */
@@ -76,7 +81,7 @@ export async function loadPluginUi(
   }
   try {
     const module = await withTimeout(
-      runtime.importModule(runtime.resolve(pluginModulePath(plugin.id, plugin.uiModule))),
+      runtime.importModule(runtime.resolve(pluginModulePath(plugin, plugin.uiModule))),
       timeoutMs,
     );
     const register = readRegister(module);

@@ -29,6 +29,17 @@ public sealed class PluginCatalogTests
     private static PluginCatalog Load(PluginFolder folder, ILoggerFactory? loggerFactory = null) =>
         PluginCatalog.Load(folder.Path, _contracts, loggerFactory ?? NullLoggerFactory.Instance);
 
+    private static PluginCatalog Load(PluginFolder shipped, PluginFolder installed, params PluginKey[] disabled) =>
+        PluginCatalog.Load(
+            [new PluginRoot(shipped.Path, PluginOrigin.Shipped), new PluginRoot(installed.Path, PluginOrigin.Installed)],
+            _contracts,
+            disabled.ToHashSet(),
+            NullLoggerFactory.Instance);
+
+    // A plugin with only an interface part: nothing to load, which keeps the tests of order and roots quick.
+    private static string ViewManifest(string id) =>
+        PluginFolder.Manifest(id, assembly: null, provides: string.Empty, uiPart: ", \"ui\": { \"module\": \"index.js\" }");
+
     #endregion Private Methods
 
     #region Public Methods
@@ -108,6 +119,66 @@ public sealed class PluginCatalogTests
     }
 
     [TestMethod]
+    public void Load_DisabledPlugin_IsListedAsDisabledAndRegistersNothing()
+    {
+        using var shipped = new PluginFolder();
+        shipped.AddPlugin("fixture-good", "Good");
+        using var installed = new PluginFolder();
+
+        using var catalog = Load(shipped, installed, new PluginKey(PluginOrigin.Shipped, "fixture-good"));
+
+        catalog.Plugins.Should().ContainSingle().Which.Should().Match<PluginState>(plugin =>
+            plugin.Id == "fixture-good"
+            && plugin.Origin == PluginOrigin.Shipped
+            && plugin.Status == PluginStatus.Disabled
+            && plugin.RejectionReason == null
+            && plugin.UiModule == null
+            && plugin.Provides.Count == 0);
+        catalog.Registry.DiagnosticFactSources.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public void Load_DisabledPluginOfTheOtherOrigin_DoesNotDisableThisOne()
+    {
+        using var shipped = new PluginFolder();
+        using var installed = new PluginFolder();
+        installed.AddManifest("fixture-view", ViewManifest("fixture-view"));
+
+        using var catalog = Load(shipped, installed, new PluginKey(PluginOrigin.Shipped, "fixture-view"));
+
+        catalog.Plugins.Should().ContainSingle().Which.Status.Should().Be(PluginStatus.Loaded);
+    }
+
+    [TestMethod]
+    public void Load_DisabledShippedPlugin_LetsTheInstalledOneWithTheSameIdLoad()
+    {
+        using var shipped = new PluginFolder();
+        shipped.AddPlugin("fixture-good", "Good");
+        using var installed = new PluginFolder();
+        installed.AddPlugin("fixture-good", "Good");
+
+        using var catalog = Load(shipped, installed, new PluginKey(PluginOrigin.Shipped, "fixture-good"));
+
+        catalog.Plugins.Select(plugin => (plugin.Origin, plugin.Status, plugin.RejectionReason)).Should().Equal(
+            (PluginOrigin.Shipped, PluginStatus.Disabled, (PluginRejectionReason?)null),
+            (PluginOrigin.Installed, PluginStatus.Loaded, null));
+        catalog.Registry.DiagnosticFactSources.Should().ContainSingle().Which.OwnerId.Should().Be("fixture-good");
+    }
+
+    [TestMethod]
+    public void Load_FolderStartingWithADot_IsSkipped()
+    {
+        using var folder = new PluginFolder();
+        folder.AddManifest(".removing-fixture-view-0123456789abcdef", ViewManifest("fixture-view"));
+        folder.AddManifest(".hidden", ViewManifest("fixture-hidden"));
+        folder.AddManifest("fixture-other", ViewManifest("fixture-other"));
+
+        using var catalog = Load(folder);
+
+        catalog.Plugins.Select(plugin => plugin.Folder).Should().Equal("fixture-other");
+    }
+
+    [TestMethod]
     public void Load_FolderThatDoesNotExist_FindsNoPlugin()
     {
         using var catalog = PluginCatalog.Load(
@@ -116,6 +187,52 @@ public sealed class PluginCatalogTests
             NullLoggerFactory.Instance);
 
         catalog.Plugins.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public void Load_InstalledPluginWithTheIdOfAShippedOne_IsRejectedAsDuplicateOfShipped()
+    {
+        using var shipped = new PluginFolder();
+        shipped.AddPlugin("fixture-good", "Good");
+        using var installed = new PluginFolder();
+        installed.AddPlugin("fixture-good", "Good");
+
+        using var catalog = Load(shipped, installed);
+
+        catalog.Plugins.Select(plugin => (plugin.Origin, plugin.Status, plugin.RejectionReason)).Should().Equal(
+            (PluginOrigin.Shipped, PluginStatus.Loaded, (PluginRejectionReason?)null),
+            (PluginOrigin.Installed, PluginStatus.Rejected, PluginRejectionReason.DuplicateOfShipped));
+        catalog.Registry.DiagnosticFactSources.Should().ContainSingle();
+    }
+
+    [TestMethod]
+    public void Load_InstalledCopyUnderAnotherFolderNameWithTheIdOfAShippedOne_IsRejectedAsDuplicateOfShipped()
+    {
+        using var shipped = new PluginFolder();
+        shipped.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        using var installed = new PluginFolder();
+        installed.AddManifest("fixture-view-copy", ViewManifest("fixture-view"));
+
+        using var catalog = Load(shipped, installed);
+
+        catalog.Plugins.Select(plugin => (plugin.Folder, plugin.Origin, plugin.Status, plugin.RejectionReason)).Should().Equal(
+            ("fixture-view", PluginOrigin.Shipped, PluginStatus.Loaded, (PluginRejectionReason?)null),
+            ("fixture-view-copy", PluginOrigin.Installed, PluginStatus.Rejected, PluginRejectionReason.DuplicateOfShipped));
+    }
+
+    [TestMethod]
+    public void Load_TwoInstalledFoldersWithTheSameId_RejectsTheSecondAsDuplicateIdNotDuplicateOfShipped()
+    {
+        using var shipped = new PluginFolder();
+        using var installed = new PluginFolder();
+        installed.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        installed.AddManifest("fixture-view-copy", ViewManifest("fixture-view"));
+
+        using var catalog = Load(shipped, installed);
+
+        catalog.Plugins.Select(plugin => (plugin.Folder, plugin.Origin, plugin.Status, plugin.RejectionReason)).Should().Equal(
+            ("fixture-view", PluginOrigin.Installed, PluginStatus.Loaded, (PluginRejectionReason?)null),
+            ("fixture-view-copy", PluginOrigin.Installed, PluginStatus.Rejected, PluginRejectionReason.DuplicateId));
     }
 
     [TestMethod]
@@ -170,6 +287,58 @@ public sealed class PluginCatalogTests
         // The SDK of the plugin is the host's own copy: otherwise IPlugin would not even be the same type.
         facts.Single(fact => fact.LabelId == "fixture-probe-sdk-context").Value.Text.Should().Be("Default");
         logs.Messages.Should().Contain("The probe plugin was asked for its facts", "plugins log through the host");
+    }
+
+    [TestMethod]
+    [DataRow(true, false, DisplayName = ".NET part only")]
+    [DataRow(false, true, DisplayName = "interface part only")]
+    [DataRow(true, true, DisplayName = "both parts")]
+    public void Load_Plugin_TellsWhichPartsItBrings(bool dotnet, bool ui)
+    {
+        using var folder = new PluginFolder();
+        folder.AddPlugin(
+            "fixture-good",
+            "Good",
+            PluginFolder.Manifest(
+                "fixture-good",
+                dotnet ? "Voyager.PluginFixtures.Good.dll" : null,
+                provides: dotnet ? PluginFolder.PROVIDES_FACT_SOURCE : string.Empty,
+                uiPart: ui ? ", \"ui\": { \"module\": \"index.js\" }" : string.Empty));
+
+        using var catalog = Load(folder);
+
+        catalog.Plugins.Should().ContainSingle().Which.Should().Match<PluginState>(plugin =>
+            plugin.Status == PluginStatus.Loaded && plugin.HasDotnet == dotnet && plugin.HasUi == ui);
+    }
+
+    [TestMethod]
+    public void Load_PluginNotInUse_StillTellsWhichPartsItBrings()
+    {
+        using var folder = new PluginFolder();
+        folder.AddPlugin(
+            "fixture-good",
+            "Good",
+            PluginFolder.Manifest(
+                "fixture-good",
+                "Voyager.PluginFixtures.Good.dll",
+                provides: """{ "contract": "diagnostic-fact-source", "version": 2 }""",
+                uiPart: ", \"ui\": { \"module\": \"index.js\" }"));
+
+        using var catalog = Load(folder);
+
+        catalog.Plugins.Should().ContainSingle().Which.Should().Match<PluginState>(plugin =>
+            plugin.Status == PluginStatus.Rejected && plugin.HasDotnet && plugin.HasUi);
+    }
+
+    [TestMethod]
+    public void Load_PluginWithAnUnreadableManifest_BringsNoKnownPart()
+    {
+        using var folder = new PluginFolder();
+        folder.AddManifest("garbage", "this is not json");
+
+        using var catalog = Load(folder);
+
+        catalog.Plugins.Should().ContainSingle().Which.Should().Match<PluginState>(plugin => !plugin.HasDotnet && !plugin.HasUi);
     }
 
     [TestMethod]
@@ -419,6 +588,23 @@ public sealed class PluginCatalogTests
     }
 
     [TestMethod]
+    public void Load_TwoRoots_ListsTheShippedPluginsBeforeTheInstalledOnes()
+    {
+        using var shipped = new PluginFolder();
+        shipped.AddManifest("fixture-zulu", ViewManifest("fixture-zulu"));
+        using var installed = new PluginFolder();
+        installed.AddManifest("fixture-bravo", ViewManifest("fixture-bravo"));
+        installed.AddManifest("fixture-alpha", ViewManifest("fixture-alpha"));
+
+        using var catalog = Load(shipped, installed);
+
+        catalog.Plugins.Select(plugin => (plugin.Id, plugin.Origin, plugin.Status)).Should().Equal(
+            ("fixture-zulu", PluginOrigin.Shipped, PluginStatus.Loaded),
+            ("fixture-alpha", PluginOrigin.Installed, PluginStatus.Loaded),
+            ("fixture-bravo", PluginOrigin.Installed, PluginStatus.Loaded));
+    }
+
+    [TestMethod]
     public void Load_TwoPluginsWithTheSameId_KeepsTheFirstAndRejectsTheSecond()
     {
         using var folder = new PluginFolder();
@@ -444,6 +630,7 @@ public sealed class PluginCatalogTests
         var plugin = catalog.Plugins.Should().ContainSingle().Subject;
         plugin.Should().BeEquivalentTo(new PluginState(
             "fixture-good",
+            PluginOrigin.Shipped,
             "fixture-good",
             "1.0.0",
             PluginStatus.Loaded,
@@ -454,7 +641,9 @@ public sealed class PluginCatalogTests
             [
                 new ContractUse("diagnostic-fact-source", 1, ContractRole.Provided, ContractUseState.Supported),
                 new ContractUse("plugin", 1, ContractRole.Required, ContractUseState.Supported),
-            ]));
+            ],
+            HasDotnet: true,
+            HasUi: false));
         catalog.Registry.DiagnosticFactSources.Should().ContainSingle().Which.OwnerId.Should().Be("fixture-good");
     }
 
