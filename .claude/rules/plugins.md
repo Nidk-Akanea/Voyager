@@ -94,6 +94,17 @@ SDK » des [conventions C#](../../docs/conventions/csharp.md). L'essentiel :
   confirmée, tout est revérifié, son identifiant doit être celui de la demande, puis il prend la place de
   l'ancien (renommé en `.replacing-…`, remis en place si un démarrage s'arrête au milieu). Un remplacement garde
   l'état activé ou désactivé. La copie n'est supprimée qu'une fois `state.json` écrit.
+- Le **processus principal** (`src/ts/desktop/src/main/plugins/`) : la page ne lui donne qu'un nom de la boîte de
+  dépôt (`isInboxPackageName`) ou une cible `{ origin, pluginId }` (`isPluginTarget`), jamais un chemin. Installer,
+  remplacer, désinstaller et activer passent par une **boîte de dialogue du système** (`askConfirmation`) :
+  « Annuler » par défaut, « Je comprends » pour un plugin non vérifié (la boîte se rouvre avec un rappel, une boîte
+  native ne sait pas griser un bouton). Désactiver et annuler n'en demandent pas. Les textes des boîtes sont des
+  messages Fluent (`src/main/i18n/<langue>/plugins.ftl`), en français et en anglais. « Vérifié » n'est jamais
+  « Garanti par l'application » : seul un paquet vérifié par une clé connue se passe de l'avertissement. Une
+  opération à la fois ; aucune demande ne change tant que le service n'est pas prêt (il peut être en train de les
+  lire) ; une erreur est journalisée par son code (`describeFailure`) et la page ne reçoit qu'une issue
+  (`PluginActionResult`), jamais un message d'erreur. Le format de `requests.json` est fixé par
+  `tests/fixtures/plugin-requests.json`, lu par les tests des deux langages.
 - Le nom du fichier choisi par l'utilisateur est réduit au nom seul, nettoyé (`DisplayText.Clean`) et **jamais
   journalisé**. Une erreur de fichier se journalise par son type et son code (`FileError.Describe`), jamais par
   son message, qui contient des chemins.

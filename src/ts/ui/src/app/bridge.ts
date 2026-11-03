@@ -1,6 +1,6 @@
 // What the desktop app exposes to the user interface through its preload script (contextBridge).
 // The user interface never reaches Node.js or the file system directly (docs/conventions/typescript.md).
-import type { LocalServiceState, StartupState } from '@voyager/grpc-client';
+import type { LocalServiceState, PluginManagementBridge, StartupState } from '@voyager/grpc-client';
 
 export interface VoyagerBridge {
   /** Where the local service stands: starting, ready (with its address and secret), restarting or failed. */
@@ -13,6 +13,8 @@ export interface VoyagerBridge {
   readonly onStartupStateChange: (listener: (state: StartupState) => void) => () => void;
   /** Starts the local service again after it failed. */
   readonly retryLocalService: () => Promise<void>;
+  /** Manages the plugins: the inbox, the requests, and the restart that applies them (ADR-0016). */
+  readonly plugins: PluginManagementBridge;
 }
 
 /** What the main screens need from the desktop app: the state of the local service, and a way to restart it. */

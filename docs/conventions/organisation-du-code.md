@@ -102,7 +102,7 @@ Un besoin qui casserait ce sens se règle par un port, pas par une référence d
 | `desktop`     | Application Electron : processus principal, script `preload`, lancement du service local, gestion des plugins |
 | `ui`          | Interface React : coquille, navigation, écrans des fonctionnalités de base                                    |
 | `plugin-sdk`  | `@voyager/plugin-sdk` : registre des points d'extension d'interface, composants et client fournis aux plugins |
-| `grpc-client` | Client TypeScript généré depuis `proto/`                                                                      |
+| `grpc-client` | Client TypeScript généré depuis `proto/`, et les types du pont entre Electron et l'interface                  |
 
 Dans `ui`, rangement par fonctionnalité, en miroir des domaines :
 
@@ -132,7 +132,10 @@ Dans `desktop`, un dossier par processus d'Electron :
 ```text
 desktop/src/
 ├─ main/          processus principal : fenêtre, protocole voyager://, lancement du service local,
-│                 verrouillage (navigation, permissions)
+│  │              verrouillage (navigation, permissions)
+│  ├─ plugins/    gestion des plugins : boîte de dépôt, copies de préparation, demandes,
+│  │              confirmations natives (ADR-0016)
+│  └─ i18n/       messages Fluent du processus principal (<langue>/<zone>.ftl), comme ceux de ui
 ├─ preload/       script preload : la seule porte entre l'interface et Electron (contextBridge)
 └─ shared/        ce que les deux partagent : noms des canaux IPC
 ```

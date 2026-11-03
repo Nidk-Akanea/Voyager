@@ -7,6 +7,7 @@ import { PluginHostService } from './gen/voyager/pluginhost/v1/pluginhost_pb.js'
 
 export * from './gen/voyager/diagnostics/v1/diagnostics_pb.js';
 export * from './gen/voyager/pluginhost/v1/pluginhost_pb.js';
+export type * from './pluginManagement.js';
 
 /**
  * Header carrying the secret shared by the desktop app and its local service. Must match

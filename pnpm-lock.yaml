@@ -92,6 +92,9 @@ importers:
 
   src/ts/desktop:
     dependencies:
+      '@fluent/bundle':
+        specifier: ^0.19.1
+        version: 0.19.1
       '@voyager/grpc-client':
         specifier: workspace:*
         version: link:../grpc-client

@@ -17,6 +17,7 @@
   },
   "main": "dist/main.js",
   "dependencies": {
+    "@fluent/bundle": "^0.19.1",
     "@voyager/grpc-client": "workspace:*",
     "electron-log": "5.4.4",
     "velopack": "1.2.161"

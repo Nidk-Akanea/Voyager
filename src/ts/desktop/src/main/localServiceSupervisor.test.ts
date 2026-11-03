@@ -278,3 +278,75 @@ describe('superviseLocalService', () => {
     expect(supervisor.state()).toEqual({ status: 'ready', connection });
   });
 });
+
+describe('restart', () => {
+  it('stops the service and starts it again, with a new token, without counting a death', async () => {
+    const { supervisor, launches, reports } = supervise([ANNOUNCES_AND_WAITS]);
+    await waitForStatus(supervisor, 'ready');
+    const seen = states(supervisor);
+
+    expect(await supervisor.restart()).toBe(true);
+    await vi.waitFor(
+      () => {
+        expect(seen.filter((state) => state.status === 'ready')).toHaveLength(2);
+      },
+      { timeout: WAIT_MS },
+    );
+
+    expect(launches()).toBe(2);
+    expect(seen.map((state) => state.status)).toEqual(['ready', 'restarting', 'ready']);
+    const [first, second] = seen.flatMap((state) => (state.status === 'ready' ? [state.connection.token] : []));
+    expect(first).not.toBe(second);
+    expect(reports).toEqual([]);
+  });
+
+  it('restarts a service that failed, as a retry would', async () => {
+    const { supervisor, launches } = supervise([FAILS_AT_STARTUP, ANNOUNCES_AND_WAITS]);
+    await waitForStatus(supervisor, 'failed');
+
+    expect(await supervisor.restart()).toBe(true);
+    await waitForStatus(supervisor, 'ready');
+
+    expect(launches()).toBe(2);
+  });
+
+  it('cannot restart a service someone else runs', async () => {
+    const connection = { url: 'http://127.0.0.1:5000', token: 'token' };
+    const supervisor = superviseLocalService({ launch: () => attachToRunningLocalService(connection) });
+    supervisors.push(supervisor);
+    await waitForStatus(supervisor, 'ready');
+
+    expect(await supervisor.restart()).toBe(false);
+    expect(supervisor.state()).toEqual({ status: 'ready', connection });
+  });
+
+  it('does nothing once stopped', async () => {
+    const { supervisor, launches } = supervise([ANNOUNCES_AND_WAITS]);
+    await waitForStatus(supervisor, 'ready');
+    await supervisor.stop();
+
+    expect(await supervisor.restart()).toBe(false);
+    expect(launches()).toBe(1);
+  });
+
+  it('launches the service once for two restarts asked at the same time', async () => {
+    const { supervisor, launches } = supervise([ANNOUNCES_AND_WAITS]);
+    await waitForStatus(supervisor, 'ready');
+
+    await Promise.all([supervisor.restart(), supervisor.restart()]);
+    await waitForStatus(supervisor, 'ready');
+
+    expect(launches()).toBe(2);
+  });
+
+  it('launches nothing when stopped while it restarts', async () => {
+    const { supervisor, launches } = supervise([ANNOUNCES_AND_WAITS]);
+    await waitForStatus(supervisor, 'ready');
+
+    const restarting = supervisor.restart();
+    await supervisor.stop();
+
+    expect(await restarting).toBe(false);
+    expect(launches()).toBe(1);
+  });
+});
