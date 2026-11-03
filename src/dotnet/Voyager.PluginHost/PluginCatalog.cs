@@ -82,9 +82,10 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
     private static string LoggableName(string folder) =>
         PluginManifestReader.IsValidIdentifier(folder) ? folder : INVALID_FOLDER_NAME;
 
-    // A plugin whose manifest could not be read: only its folder is known.
+    // A plugin whose manifest could not be read: only its folder is known. Its name stands for the identifier, and comes
+    // from the disk, not from a checked manifest: it is cleaned before it is shown.
     private static PluginState Unreadable(string folder, PluginOrigin origin, PluginRejectionReason reason) =>
-        new(folder, origin, folder, string.Empty, PluginStatus.Rejected, reason, UiModule: null, Provides: [], Contracts: [], HasDotnet: false, HasUi: false);
+        new(folder, origin, DisplayText.Clean(folder), string.Empty, PluginStatus.Rejected, reason, UiModule: null, Provides: [], Contracts: [], HasDotnet: false, HasUi: false);
 
     // A plugin whose manifest was read, and that is not in use: what it is and what it would provide is known.
     private static PluginState NotInUse(

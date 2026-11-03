@@ -15,11 +15,14 @@ import type { PluginAddress } from './pluginRuntime';
 // What plugins say does not change while the page is open, and asking a plugin runs its code: nothing here is read
 // again when the window gets the focus back. The refresh button of a panel asks again when the user wants.
 
+/** The key of the list of plugins in the data cache: a change of the plugins reads it again. */
+export const PLUGIN_LIST_KEY = ['plugins', 'list'] as const;
+
 /** The plugins found at startup, in use or set aside. */
 export function usePluginList() {
   const { clients } = useAppContext();
   return useQuery({
-    queryKey: ['plugins', 'list'],
+    queryKey: PLUGIN_LIST_KEY,
     queryFn: ({ signal }) => clients.pluginHost.listPlugins({}, { signal }),
     refetchOnWindowFocus: false,
   });

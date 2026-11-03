@@ -108,14 +108,17 @@ Dans `ui`, rangement par fonctionnalité, en miroir des domaines :
 
 ```text
 ui/src/
-├─ app/           coquille, routes, fournisseurs (thème, données, i18n)
+├─ app/           coquille, routes (pour l'instant des onglets, AppShell), fournisseurs (thème, données, i18n)
 ├─ features/
+│  ├─ about/      page « À propos »
+│  ├─ plugins/    écran « Plugins » : liste, détail, boîte de dépôt, demandes en attente
 │  ├─ trips/
 │  ├─ quotes/     QuoteList.tsx, QuoteCard.tsx, useQuotes.ts…
 │  └─ budget/
 ├─ components/    composants réutilisables sans métier
 ├─ plugins/       chargement des plugins : modules, traductions, registre, cartes de la page « À propos »
 ├─ sharedModules/ React, Fluent UI et le SDK que la page partage avec les plugins (entrées de la construction)
+├─ testing/       aides partagées par les tests (données d'essai, faux pont, rendu avec les fournisseurs)
 └─ i18n/          messages Fluent : fr/*.ftl, en/*.ftl (ADR-0008)
 ```
 

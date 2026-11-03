@@ -296,6 +296,10 @@ sequenceDiagram
     P->>I: rechargement de la page
 ```
 
+- L'écran « Plugins » de l'interface (`ui/src/features/plugins/`) lit la liste du service (`ListPlugins`) et,
+  par le pont du processus principal, la boîte de dépôt et les demandes en attente ; chaque geste passe par le
+  pont, qui demande la confirmation quand il le faut. La page « À propos » ne montre que les plugins chargés ou
+  écartés.
 - Au démarrage, `PluginStore` applique d'abord les **demandes** que le processus principal a écrites
   (`requests.json` : installer, activer, désactiver, désinstaller) et écrit l'**état** (`state.json`) : le
   processus principal est le seul à écrire les demandes, le service le seul à écrire l'état (ADR-0016,

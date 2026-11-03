@@ -115,7 +115,7 @@ describe('PluginsSection', () => {
   it('says so when no plugin is installed', async () => {
     renderSection({ plugins: [] });
 
-    expect(await screen.findByText('Aucun plugin n’est installé.')).toBeTruthy();
+    expect(await screen.findByText('Aucun plugin n’est actif.')).toBeTruthy();
   });
 
   it('shows a plugin without an interface part with the standard list, in the language of the user', async () => {
@@ -386,7 +386,7 @@ describe('PluginsSection', () => {
       plugins: [plugin('diagnostics-clock', { status: PluginStatus.DISABLED, provides: [] })],
     });
 
-    expect(await screen.findByText('Aucun plugin n’est installé.')).toBeTruthy();
+    expect(await screen.findByText('Aucun plugin n’est actif.')).toBeTruthy();
     expect(screen.queryByText('diagnostics-clock')).toBeNull();
     expect(getDiagnosticFacts).not.toHaveBeenCalled();
   });
