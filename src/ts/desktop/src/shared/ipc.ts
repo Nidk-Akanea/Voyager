@@ -15,3 +15,35 @@ export const LOCAL_SERVICE_STATE_CHANGED_CHANNEL = 'voyager:local-service-state-
 
 /** Starts the local service again after it failed. */
 export const RETRY_LOCAL_SERVICE_CHANNEL = 'voyager:retry-local-service';
+
+// Management of plugins (ADR-0016): only the main window may ask, and every change waits for a native confirmation.
+
+/** Returns the packages of the inbox (InboxPackage[]). */
+export const LIST_INBOX_CHANNEL = 'voyager:plugins:list-inbox';
+
+/** Lets the user choose a package file and copies it into the inbox (AddPackageResult). */
+export const ADD_PACKAGE_CHANNEL = 'voyager:plugins:add-package';
+
+/** Opens the inbox in the file explorer. */
+export const OPEN_INBOX_CHANNEL = 'voyager:plugins:open-inbox';
+
+/** Installs a package of the inbox, named by its file name (PluginActionResult). */
+export const INSTALL_PLUGIN_CHANNEL = 'voyager:plugins:install';
+
+/** Uninstalls an installed plugin (PluginTarget → PluginActionResult). */
+export const UNINSTALL_PLUGIN_CHANNEL = 'voyager:plugins:uninstall';
+
+/** Enables a plugin (PluginTarget → PluginActionResult). */
+export const ENABLE_PLUGIN_CHANNEL = 'voyager:plugins:enable';
+
+/** Disables a plugin (PluginTarget → PluginActionResult). */
+export const DISABLE_PLUGIN_CHANNEL = 'voyager:plugins:disable';
+
+/** Cancels the request waiting for a plugin (PluginTarget → PluginActionResult). */
+export const CANCEL_PLUGIN_REQUEST_CHANNEL = 'voyager:plugins:cancel-request';
+
+/** Returns the requests waiting for the next restart (PendingPluginRequest[]). */
+export const LIST_PLUGIN_REQUESTS_CHANNEL = 'voyager:plugins:list-requests';
+
+/** Restarts the local service to apply the requests (RestartResult). */
+export const RESTART_FOR_PLUGINS_CHANNEL = 'voyager:plugins:restart';

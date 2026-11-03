@@ -59,6 +59,8 @@ export interface LocalService {
   readonly exited: Promise<void>;
   /** Asks the service to stop, kills it if it has not stopped in time, and resolves once it is gone. */
   readonly stop: () => Promise<void>;
+  /** Whether the app started the service, and so can start it again; false for a service someone else runs. */
+  readonly ownedByApp: boolean;
 }
 
 export interface LaunchOptions {
@@ -85,6 +87,7 @@ export function attachToRunningLocalService(connection: LocalServiceConnection):
     connection: Promise.resolve(connection),
     exited: new Promise<void>(() => undefined),
     stop: () => Promise.resolve(),
+    ownedByApp: false,
   };
 }
 
@@ -165,5 +168,5 @@ export function launchLocalService({
     return stopping;
   };
 
-  return { connection, exited: gone, stop };
+  return { connection, exited: gone, stop, ownedByApp: true };
 }

@@ -36,6 +36,12 @@ export interface LocalServiceSupervisor {
   readonly whenSettled: () => Promise<void>;
   /** Starts the service again after a failure; does nothing in any other state. */
   readonly retry: () => void;
+  /**
+   * Stops the service and starts it again, so that it applies the requests of the user (ADR-0016).
+   * @returns false, starting nothing, when the service is not the app's own (Aspire runs it in development) or the
+   * supervision is stopped, even while the old service stops.
+   */
+  readonly restart: () => Promise<boolean>;
   /** Stops the service for good: nothing is restarted afterwards. */
   readonly stop: () => Promise<void>;
 }
@@ -54,6 +60,8 @@ export function superviseLocalService({
   let service: LocalService | undefined;
   let restartTimer: NodeJS.Timeout | undefined;
   let stopped = false;
+  // Read through a function after an await: TypeScript would otherwise keep the value it saw before.
+  const isStopped = (): boolean => stopped;
   // Tells the launch whose news still counts: a previous one may answer after being replaced.
   let generation = 0;
   let deaths: number[] = [];
@@ -160,6 +168,28 @@ export function superviseLocalService({
       inform('Starting the local service again after a retry request.');
       deaths = [];
       start('starting');
+    },
+    restart: async () => {
+      if (stopped || service?.ownedByApp !== true) {
+        return false;
+      }
+      inform('Restarting the local service to apply the requests of the user.');
+      // The old service is no longer followed: its exit is not a death to restart from.
+      const id = ++generation;
+      clearTimeout(restartTimer);
+      restartTimer = undefined;
+      deaths = [];
+      update({ status: 'restarting' });
+      await service.stop();
+      // Stopped in the meantime: nothing starts, and nobody may wait for a service that will not come.
+      if (isStopped()) {
+        return false;
+      }
+      // Unless another restart was asked in the meantime: that one starts the service.
+      if (id === generation) {
+        start('restarting');
+      }
+      return true;
     },
     stop: async () => {
       stopped = true;

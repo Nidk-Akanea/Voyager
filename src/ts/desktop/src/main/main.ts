@@ -4,17 +4,42 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  shell,
+  type IpcMainInvokeEvent,
+  type MessageBoxOptions,
+  type OpenDialogOptions,
+} from 'electron';
 import { GithubSource, HttpSource, UpdateManager, VelopackApp } from 'velopack';
 
-import { createLocalServiceClients, type LocalServiceConnection, type StartupState } from '@voyager/grpc-client';
+import {
+  createLocalServiceClients,
+  type LocalServiceConnection,
+  type PluginTarget,
+  type RestartResult,
+  type StartupState,
+} from '@voyager/grpc-client';
 
 import {
+  ADD_PACKAGE_CHANNEL,
+  CANCEL_PLUGIN_REQUEST_CHANNEL,
+  DISABLE_PLUGIN_CHANNEL,
+  ENABLE_PLUGIN_CHANNEL,
   GET_LOCAL_SERVICE_STATE_CHANNEL,
   GET_STARTUP_STATE_CHANNEL,
+  INSTALL_PLUGIN_CHANNEL,
+  LIST_INBOX_CHANNEL,
+  LIST_PLUGIN_REQUESTS_CHANNEL,
   LOCAL_SERVICE_STATE_CHANGED_CHANNEL,
+  OPEN_INBOX_CHANNEL,
+  RESTART_FOR_PLUGINS_CHANNEL,
   RETRY_LOCAL_SERVICE_CHANNEL,
   STARTUP_STATE_CHANGED_CHANNEL,
+  UNINSTALL_PLUGIN_CHANNEL,
 } from '../shared/ipc';
 import { APP_ENTRY_URL, isAppUrl, registerAppScheme, serveUserInterface } from './appProtocol';
 import { buildContentSecurityPolicy, findImportMapSource } from './contentSecurityPolicy';
@@ -22,6 +47,9 @@ import { describeError } from './describeError';
 import { launchLocalService, attachToRunningLocalService, type LocalService } from './localService';
 import { superviseLocalService, type LocalServiceSupervisor } from './localServiceSupervisor';
 import { configureLogging, desktopLog } from './logging';
+import { packageFileDialog, pickDialogLocale, type ConfirmationBox } from './plugins/confirmations';
+import { PACKAGE_EXTENSION } from './plugins/inbox';
+import { createPluginManagement, type PluginManagementFolders } from './plugins/pluginManagement';
 import { denyAllPermissions, lockDownWebContents } from './security';
 import { servedPluginFolders, type ServedPlugins } from './servedPlugins';
 import { runStartup } from './startup';
@@ -116,6 +144,58 @@ function userPluginsDirectory(): string {
 
 // How long the main process waits for the list of plugins: the files of the plugins wait for it.
 const LIST_PLUGINS_TIMEOUT_MS = 10_000;
+// How long the examination of a package may take: no size limit, so a package of data may be large (spec).
+const EXAMINE_PACKAGE_TIMEOUT_MS = 10 * 60_000;
+
+/** The files the main process uses in the plugins folder of the user's data (ADR-0016, decisions 3 and 4). */
+function pluginManagementFolders(): PluginManagementFolders {
+  const folder = userPluginsDirectory();
+  return {
+    inbox: join(folder, 'inbox'),
+    staging: join(folder, 'staging'),
+    requestsFile: join(folder, 'requests.json'),
+    stateFile: join(folder, 'state.json'),
+  };
+}
+
+/** The options of Electron's message box for a confirmation: nothing but what the box says. */
+function messageBoxOptions(box: ConfirmationBox): MessageBoxOptions {
+  return {
+    type: box.type,
+    title: box.title,
+    message: box.message,
+    detail: box.detail,
+    buttons: [...box.buttons],
+    defaultId: box.defaultId,
+    cancelId: box.cancelId,
+    noLink: box.noLink,
+    ...(box.checkboxLabel === undefined ? {} : { checkboxLabel: box.checkboxLabel, checkboxChecked: false }),
+  };
+}
+
+/**
+ * Restarts the local service so that it applies the requests of the user, and resolves once the new service is ready
+ * or has failed: until then it may be reading the requests, and none may change.
+ */
+async function restartToApplyRequests(supervisor: LocalServiceSupervisor): Promise<RestartResult> {
+  let stopListening = (): void => undefined;
+  const settled = new Promise<void>((resolve) => {
+    stopListening = supervisor.onChange((state) => {
+      if (state.status === 'ready' || state.status === 'failed') {
+        resolve();
+      }
+    });
+  });
+  try {
+    if (!(await supervisor.restart())) {
+      return { outcome: 'restart-elsewhere' };
+    }
+    await settled;
+    return { outcome: 'restarting' };
+  } finally {
+    stopListening();
+  }
+}
 
 /** The folder of each plugin the local service loaded; undefined when it cannot tell, and nothing is served then. */
 async function listServedPlugins(connection: LocalServiceConnection): Promise<ServedPlugins | undefined> {
@@ -411,6 +491,81 @@ function start(): void {
     checkCaller(event, true);
     localService?.retry();
   });
+
+  // The dialogs belong to the main window, so that the page waits for the answer.
+  const parentWindow = (): BrowserWindow | undefined =>
+    mainWindow !== undefined && !mainWindow.isDestroyed() ? mainWindow : undefined;
+  const dialogLocale = () => pickDialogLocale(app.getPreferredSystemLanguages());
+  const pluginHost = () => {
+    if (serviceConnection === undefined) {
+      throw new Error('The local service is not ready.');
+    }
+    return createLocalServiceClients(serviceConnection).pluginHost;
+  };
+  const plugins = createPluginManagement({
+    folders: pluginManagementFolders(),
+    listPlugins: async () => (await pluginHost().listPlugins({}, { timeoutMs: LIST_PLUGINS_TIMEOUT_MS })).plugins,
+    examinePackage: (stagedName) =>
+      pluginHost().examinePackage({ stagedName }, { timeoutMs: EXAMINE_PACKAGE_TIMEOUT_MS }),
+    showDialog: async (box) => {
+      const parent = parentWindow();
+      const options = messageBoxOptions(box);
+      const answer =
+        parent === undefined ? await dialog.showMessageBox(options) : await dialog.showMessageBox(parent, options);
+      return { response: answer.response, checkboxChecked: answer.checkboxChecked };
+    },
+    chooseFile: async () => {
+      const { title, filterName } = packageFileDialog(dialogLocale());
+      const options: OpenDialogOptions = {
+        title,
+        properties: ['openFile'],
+        filters: [{ name: filterName, extensions: [PACKAGE_EXTENSION.slice(1)] }],
+      };
+      const parent = parentWindow();
+      const result =
+        parent === undefined ? await dialog.showOpenDialog(options) : await dialog.showOpenDialog(parent, options);
+      return result.canceled ? undefined : result.filePaths[0];
+    },
+    openFolder: async (folder) => {
+      // An empty text when the folder opened, else what went wrong, which names the folder.
+      if ((await shell.openPath(folder)) !== '') {
+        throw new Error('The file explorer could not open the folder.');
+      }
+    },
+    restartService: () =>
+      localService === undefined ? Promise.resolve({ outcome: 'failed' }) : restartToApplyRequests(localService),
+    isServiceReady: () => localService?.state().status === 'ready',
+    locale: dialogLocale,
+    log: {
+      info: (message) => {
+        desktopLog.info(message);
+      },
+      warn: (message) => {
+        desktopLog.warn(message);
+      },
+      error: (message) => {
+        desktopLog.error(message);
+      },
+    },
+  });
+  // Only the main window manages plugins; what the page sends is checked by the plugin management itself.
+  const handlePlugins = (channel: string, handler: (argument: unknown) => Promise<unknown>): void => {
+    ipcMain.handle(channel, (event, argument: unknown) => {
+      checkCaller(event, true);
+      return handler(argument);
+    });
+  };
+  handlePlugins(LIST_INBOX_CHANNEL, () => plugins.listInbox());
+  handlePlugins(ADD_PACKAGE_CHANNEL, () => plugins.addPackage());
+  handlePlugins(OPEN_INBOX_CHANNEL, () => plugins.openInbox());
+  // The casts only name what the page should send: each value is checked before use.
+  handlePlugins(INSTALL_PLUGIN_CHANNEL, (name) => plugins.install(name as string));
+  handlePlugins(UNINSTALL_PLUGIN_CHANNEL, (target) => plugins.uninstall(target as PluginTarget));
+  handlePlugins(ENABLE_PLUGIN_CHANNEL, (target) => plugins.enable(target as PluginTarget));
+  handlePlugins(DISABLE_PLUGIN_CHANNEL, (target) => plugins.disable(target as PluginTarget));
+  handlePlugins(CANCEL_PLUGIN_REQUEST_CHANNEL, (target) => plugins.cancelRequest(target as PluginTarget));
+  handlePlugins(LIST_PLUGIN_REQUESTS_CHANNEL, () => plugins.listRequests());
+  handlePlugins(RESTART_FOR_PLUGINS_CHANNEL, () => plugins.restart());
 
   lockDownWebContents(isUserInterface);
   app.on('window-all-closed', () => {

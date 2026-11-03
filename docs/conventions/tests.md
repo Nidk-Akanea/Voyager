@@ -32,6 +32,9 @@ FluentAssertions 8 n'est gratuite qu'en usage non commercial ([ADR-0006](../adr/
 - **Chargement des plugins** : les cas d'échec (manifeste invalide, contrat non pris en charge, exception, conteneur
   invalide, source lente) se testent avec les plugins de `tests/plugin-fixtures/`, jamais avec un vrai
   plugin cassé ; un test d'architecture lit les assemblies compilées des plugins.
+- **Fichiers échangés entre TypeScript et .NET** : un exemple commun dans `tests/fixtures/` (par exemple
+  `plugin-requests.json`) est écrit à l'identique par le test TypeScript et relu par le test .NET : un format
+  qui change d'un côté fait échouer l'autre.
 - **Traductions** : un test vérifie que chaque message Fluent existe en français et en anglais, avec
   les mêmes variables (ADR-0008).
 - Les cas limites du métier sont testés explicitement : arrondis, plusieurs devises, changement de

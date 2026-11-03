@@ -165,8 +165,10 @@ l'application installée, une Content Security Policy ne laisse en plus la page 
 généré et une base à part (`%LOCALAPPDATA%\Voyager\development\voyager.db`), l'interface avec Vite,
 puis Electron, à qui il passe leurs adresses et le jeton (`VOYAGER_UI_URL`,
 `VOYAGER_LOCAL_SERVICE_URL`, `VOYAGER_LOCAL_TOKEN`) : Electron ne lance alors pas son propre
-service. L'application installée ignore ces variables, et ne transmet à son service local que les
-variables système du poste (chemins, dossier temporaire…), en mode Production.
+service, et ne peut pas non plus le redémarrer : « Redémarrer pour appliquer » se fait alors depuis le
+tableau de bord d'Aspire (redémarrer `local-service`, puis recharger la fenêtre). L'application installée
+ignore ces variables, et ne transmet à son service local que les variables système du poste (chemins,
+dossier temporaire…), en mode Production.
 
 ## Le démarrage de l'application installée
 
@@ -268,9 +270,37 @@ flowchart TB
     Hote -. "types partagés" .-> Shared
 ```
 
+- Le processus principal gère les plugins pour la page (`desktop/src/main/plugins/`) : la page ne nomme qu'un
+  paquet de la **boîte de dépôt** (`plugins/inbox/`) ou un plugin (origine et identifiant), jamais un chemin.
+  Pour installer, il copie le paquet sous un nom aléatoire dans `plugins/staging/`, en calcule l'empreinte,
+  demande l'examen au service (`ExaminePackage`), puis montre la **confirmation** dans une boîte de dialogue du
+  système (« Annuler » par défaut, « Je comprends » pour un plugin non vérifié), dont les textes sont des messages
+  Fluent du processus principal (`desktop/src/main/i18n/`). Seule une confirmation écrit une demande ; désactiver
+  n'en demande pas. « Redémarrer pour appliquer » relance le service s'il y a des demandes en attente, puis la page
+  se recharge ; tant que le service redémarre, aucune demande ne change.
+
+```mermaid
+sequenceDiagram
+    participant I as Interface
+    participant P as Processus principal Electron
+    participant S as Service local
+    I->>P: install(nom dans la boîte de dépôt)
+    P->>P: copie de préparation + SHA-256
+    P->>S: ExaminePackage(copie)
+    S-->>P: plugin, contrats, refus éventuel
+    P->>P: boîte de dialogue du système
+    P->>P: requests.json (si confirmé)
+    I->>P: restart()
+    P->>S: arrêt puis démarrage
+    S->>S: applique les demandes, puis charge les plugins
+    P->>I: rechargement de la page
+```
+
 - Au démarrage, `PluginStore` applique d'abord les **demandes** que le processus principal a écrites
-  (`requests.json` : activer, désactiver, désinstaller) et écrit l'**état** (`state.json`) : le processus
-  principal est le seul à écrire les demandes, le service le seul à écrire l'état (ADR-0016, décision 4).
+  (`requests.json` : installer, activer, désactiver, désinstaller) et écrit l'**état** (`state.json`) : le
+  processus principal est le seul à écrire les demandes, le service le seul à écrire l'état (ADR-0016,
+  décision 4). Par plugin, la dernière demande remplace la précédente, et le processus principal retire du
+  fichier celles que l'état dit appliquées.
 - Une demande d'**installation** nomme une copie de préparation (`plugins/staging/`) et l'empreinte que
   l'utilisateur a confirmée : le service la revérifie, extrait le paquet dans un dossier temporaire, le revérifie
   en entier (noms, contenu autorisé, manifeste, assemblies .NET, contrats), puis le pose à la place de l'ancien.

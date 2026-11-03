@@ -51,7 +51,8 @@ internal sealed class PluginFolder : IDisposable
         return System.IO.Path.Combine(RepositoryRoot(), projectFolder, "bin", configuration, "net10.0");
     }
 
-    private static string RepositoryRoot()
+    /// <summary>The root of the repository, where the solution file is.</summary>
+    internal static string RepositoryRoot()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(System.IO.Path.Combine(root.FullName, SOLUTION_FILE)))
