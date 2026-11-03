@@ -6,4 +6,5 @@ namespace Voyager.PluginHost;
 /// <param name="Id">The identifier of the request, unique among the pending ones.</param>
 /// <param name="Action">What the request asks.</param>
 /// <param name="Plugin">The plugin it concerns.</param>
-public sealed record PluginRequest(string Id, PluginRequestAction Action, PluginKey Plugin);
+/// <param name="Package">The package to install; null for any other request.</param>
+public sealed record PluginRequest(string Id, PluginRequestAction Action, PluginKey Plugin, PluginPackageReference? Package = null);

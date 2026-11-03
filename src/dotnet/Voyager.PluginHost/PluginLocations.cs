@@ -13,6 +13,7 @@ public sealed record PluginLocations(string? ShippedDirectory, string? UserDirec
     #region Fields
 
     private const string INSTALLED_FOLDER = "installed";
+    private const string STAGING_FOLDER = "staging";
     private const string REQUESTS_FILE = "requests.json";
     private const string STATE_FILE = "state.json";
 
@@ -22,6 +23,12 @@ public sealed record PluginLocations(string? ShippedDirectory, string? UserDirec
 
     /// <summary>The folder of the installed plugins, one sub-folder each; null when plugins cannot be managed.</summary>
     public string? InstalledDirectory => UserDirectory is null ? null : Path.Combine(UserDirectory, INSTALLED_FOLDER);
+
+    /// <summary>
+    /// The private copies of the packages the user chose to install, made by the desktop app (ADR-0016, decision 3);
+    /// null when plugins cannot be managed.
+    /// </summary>
+    public string? StagingDirectory => UserDirectory is null ? null : Path.Combine(UserDirectory, STAGING_FOLDER);
 
     /// <summary>The requests written by the desktop app; null when plugins cannot be managed.</summary>
     public string? RequestsFile => UserDirectory is null ? null : Path.Combine(UserDirectory, REQUESTS_FILE);

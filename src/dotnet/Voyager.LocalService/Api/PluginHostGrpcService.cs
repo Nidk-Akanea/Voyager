@@ -1,15 +1,15 @@
 using Google.Protobuf.WellKnownTypes;
-
 using Grpc.Core;
-
 using Voyager.Contracts.PluginHost.V1;
 using Voyager.PluginHost;
+using Voyager.PluginHost.Packages;
 using Voyager.Sdk.Diagnostics;
-
 using HostContractRole = Voyager.PluginHost.ContractRole;
 using HostContractUse = Voyager.PluginHost.ContractUse;
 using HostContractUseState = Voyager.PluginHost.ContractUseState;
+using HostInstallKind = Voyager.PluginHost.Packages.PackageInstallKind;
 using HostOrigin = Voyager.PluginHost.PluginOrigin;
+using HostPackageRefusal = Voyager.PluginHost.Packages.PackageRefusal;
 using HostRejectionReason = Voyager.PluginHost.PluginRejectionReason;
 using HostRequestAction = Voyager.PluginHost.PluginRequestAction;
 using HostRequestFailure = Voyager.PluginHost.PluginRequestFailure;
@@ -18,7 +18,9 @@ using HostVerification = Voyager.PluginHost.PluginVerification;
 using WireContractRole = Voyager.Contracts.PluginHost.V1.ContractRole;
 using WireContractUse = Voyager.Contracts.PluginHost.V1.ContractUse;
 using WireContractUseState = Voyager.Contracts.PluginHost.V1.ContractUseState;
+using WireInstallKind = Voyager.Contracts.PluginHost.V1.PackageInstallKind;
 using WireOrigin = Voyager.Contracts.PluginHost.V1.PluginOrigin;
+using WirePackageRefusal = Voyager.Contracts.PluginHost.V1.PackageRefusal;
 using WireRejectionReason = Voyager.Contracts.PluginHost.V1.PluginRejectionReason;
 using WireRequestAction = Voyager.Contracts.PluginHost.V1.PluginRequestAction;
 using WireRequestFailure = Voyager.Contracts.PluginHost.V1.PluginRequestFailure;
@@ -34,8 +36,15 @@ namespace Voyager.LocalService.Api;
 /// </summary>
 /// <param name="catalog">The plugins found at startup.</param>
 /// <param name="store">What the service remembers of the plugins, and the requests waiting for the next start.</param>
+/// <param name="packages">Examines the packages the desktop app prepared.</param>
 /// <param name="collector">Asks the sources of diagnostic facts, with a time limit for each.</param>
-public sealed class PluginHostGrpcService(PluginCatalog catalog, PluginStore store, DiagnosticFactCollector collector)
+/// <param name="logger">Where the service writes the outcome of an examination: fingerprints and identifiers, never a path.</param>
+public sealed class PluginHostGrpcService(
+    PluginCatalog catalog,
+    PluginStore store,
+    PluginPackages packages,
+    DiagnosticFactCollector collector,
+    ILogger<PluginHostGrpcService> logger)
     : PluginHostService.PluginHostServiceBase
 {
     #region Private Methods
@@ -82,6 +91,46 @@ public sealed class PluginHostGrpcService(PluginCatalog catalog, PluginStore sto
         _ => throw new ArgumentOutOfRangeException(nameof(verification), verification, "A plugin verification has no counterpart in the gRPC message."),
     };
 
+    private static WirePackageRefusal ToMessage(HostPackageRefusal refusal) => refusal switch
+    {
+        HostPackageRefusal.Unreadable => WirePackageRefusal.Unreadable,
+        HostPackageRefusal.ManifestInvalid => WirePackageRefusal.ManifestInvalid,
+        HostPackageRefusal.DeclaredFileMissing => WirePackageRefusal.DeclaredFileMissing,
+        HostPackageRefusal.ContractNotSupported => WirePackageRefusal.ContractNotSupported,
+        HostPackageRefusal.ForbiddenEntry => WirePackageRefusal.ForbiddenEntry,
+        HostPackageRefusal.NotEnoughSpace => WirePackageRefusal.NotEnoughSpace,
+        _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, "A package refusal has no counterpart in the gRPC message."),
+    };
+
+    private static WireInstallKind ToMessage(HostInstallKind kind) => kind switch
+    {
+        HostInstallKind.New => WireInstallKind.New,
+        HostInstallKind.Upgrade => WireInstallKind.Upgrade,
+        HostInstallKind.Downgrade => WireInstallKind.Downgrade,
+        HostInstallKind.Reinstall => WireInstallKind.Reinstall,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "A kind of installation has no counterpart in the gRPC message."),
+    };
+
+    private static ExaminePackageResponse ToMessage(PackageExamination examination)
+    {
+        var message = new ExaminePackageResponse
+        {
+            Sha256 = examination.Sha256,
+            Size = (ulong)examination.Size,
+            Refusal = examination.Refusal is { } refusal ? ToMessage(refusal) : WirePackageRefusal.Unspecified,
+            Id = examination.Manifest?.Id ?? string.Empty,
+            Version = examination.Manifest?.Version ?? string.Empty,
+            HasDotnet = examination.Manifest?.DotnetAssembly is not null,
+            HasUi = examination.Manifest?.UiModule is not null,
+            Verification = ToMessage(PackageExamination.Verification),
+            DuplicateOfShipped = examination.DuplicateOfShipped,
+            InstalledVersion = examination.InstalledVersion ?? string.Empty,
+            InstallKind = examination.Manifest is null ? WireInstallKind.Unspecified : ToMessage(examination.Kind),
+        };
+        message.Contracts.AddRange(examination.Contracts.Select(ToMessage));
+        return message;
+    }
+
     private static WireOrigin ToMessage(HostOrigin origin) => origin switch
     {
         HostOrigin.Shipped => WireOrigin.Shipped,
@@ -104,6 +153,10 @@ public sealed class PluginHostGrpcService(PluginCatalog catalog, PluginStore sto
         HostRequestFailure.NotAllowed => WireRequestFailure.NotAllowed,
         HostRequestFailure.FileSystemError => WireRequestFailure.FileSystemError,
         HostRequestFailure.NotSupported => WireRequestFailure.NotSupported,
+        HostRequestFailure.PackageMissing => WireRequestFailure.PackageMissing,
+        HostRequestFailure.PackageChanged => WireRequestFailure.PackageChanged,
+        HostRequestFailure.PackageRefused => WireRequestFailure.PackageRefused,
+        HostRequestFailure.NotEnoughSpace => WireRequestFailure.NotEnoughSpace,
         _ => throw new ArgumentOutOfRangeException(nameof(failure), failure, "A request failure has no counterpart in the gRPC message."),
     };
 
@@ -190,6 +243,50 @@ public sealed class PluginHostGrpcService(PluginCatalog catalog, PluginStore sto
     #endregion Private Methods
 
     #region Public Methods
+
+    /// <inheritdoc />
+    public override async Task<ExaminePackageResponse> ExaminePackage(ExaminePackageRequest request, ServerCallContext context)
+    {
+        if (store.Locations.StagingDirectory is null)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "Plugins cannot be managed: there is no staging folder."));
+        }
+
+        if (!PluginPackages.IsValidStagedName(request.StagedName))
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "This is not the name of a prepared package."));
+        }
+
+        PackageExamination examination;
+        try
+        {
+            examination = await packages.ExamineAsync(request.StagedName, context.CancellationToken);
+        }
+        catch (FileNotFoundException)
+        {
+            // The name is random and checked above: it says nothing of the user.
+            throw new RpcException(new Status(StatusCode.NotFound, $"There is no prepared package {request.StagedName}."));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Its kind and its code only: the message of the exception holds paths.
+            LocalServiceLog.PackageExaminationFailed(logger, $"{exception.GetType().Name} (0x{exception.HResult:X8})");
+            throw new RpcException(new Status(StatusCode.Unavailable, "The package could not be examined."));
+        }
+
+        // Identifiers and versions only: the manifest reader checked them, and nothing else of the package is written.
+        switch (examination)
+        {
+            case { Refusal: { } refusal }:
+                LocalServiceLog.PackageExaminedRefused(logger, examination.Sha256, refusal);
+                break;
+            case { Manifest: { } manifest }:
+                LocalServiceLog.PackageExaminedAccepted(logger, examination.Sha256, manifest.Id, manifest.Version);
+                break;
+        }
+
+        return ToMessage(examination);
+    }
 
     /// <inheritdoc />
     public override async Task<GetDiagnosticFactsResponse> GetDiagnosticFacts(

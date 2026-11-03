@@ -125,7 +125,7 @@ public static partial class PluginManifestReader
         return value is not null && pattern.IsMatch(value);
     }
 
-    [GeneratedRegex(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?\z")]
+    [GeneratedRegex(@"^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?\z")]
     private static partial Regex VersionPattern();
 
     #endregion Private Methods

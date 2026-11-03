@@ -142,6 +142,10 @@ public sealed class PluginManifestReaderTests
     [DataRow("""{ "id": "Upper-Case", "version": "1.0.0", "dotnet": { "assembly": "A.dll" }, "requires": [{ "contract": "plugin", "version": 1 }] }""")]
     [DataRow("""{ "id": "two--hyphens", "version": "1.0.0", "dotnet": { "assembly": "A.dll" }, "requires": [{ "contract": "plugin", "version": 1 }] }""")]
     [DataRow("""{ "id": "a", "version": "one", "dotnet": { "assembly": "A.dll" }, "requires": [{ "contract": "plugin", "version": 1 }] }""")]
+    // Digits of other scripts are digits for some patterns, never for a version.
+    [DataRow("""{ "id": "a", "version": "１.０.０", "dotnet": { "assembly": "A.dll" }, "requires": [{ "contract": "plugin", "version": 1 }] }""")]
+    [DataRow("""{ "id": "a", "version": "1.0.٣", "dotnet": { "assembly": "A.dll" }, "requires": [{ "contract": "plugin", "version": 1 }] }""")]
+    [DataRow("""{ "id": "a", "version": "1.0.0-rc.１", "dotnet": { "assembly": "A.dll" }, "requires": [{ "contract": "plugin", "version": 1 }] }""")]
     [DataRow("""{ "id": "a", "version": "1.0.0", "requires": [{ "contract": "plugin", "version": 1 }] }""")]
     [DataRow("""{ "id": "a", "version": "1.0.0", "dotnet": {}, "requires": [{ "contract": "plugin", "version": 1 }] }""")]
     [DataRow("""{ "id": "a", "version": "1.0.0", "dotnet": { "assembly": "sub/A.dll" }, "requires": [{ "contract": "plugin", "version": 1 }] }""")]

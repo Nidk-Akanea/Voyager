@@ -16,6 +16,80 @@ service PluginHostService {
   // Asks the sources of diagnostic facts (the service itself and the plugins) for their facts. A source
   // that fails or is too slow is reported as such and does not affect the others.
   rpc GetDiagnosticFacts(GetDiagnosticFactsRequest) returns (GetDiagnosticFactsResponse);
+  // Examines a package the desktop app prepared in the staging folder, before the user confirms its installation:
+  // what it holds, whether it is refused and why, and what installing it would do. Nothing is installed, and nothing
+  // of the package runs. INVALID_ARGUMENT when the name is not that of a prepared package, NOT_FOUND when there is no
+  // such package, FAILED_PRECONDITION when plugins cannot be managed, UNAVAILABLE when the disk refused to read or write.
+  rpc ExaminePackage(ExaminePackageRequest) returns (ExaminePackageResponse);
+}
+
+// Request of PluginHostService.ExaminePackage.
+message ExaminePackageRequest {
+  // Name of the prepared copy in the staging folder: 32 lower-case hexadecimal characters the desktop app chose at
+  // random, and ".voyagerplugin". Never a path, never the name of the file the user chose.
+  string staged_name = 1;
+}
+
+// Response of PluginHostService.ExaminePackage. The texts that come from the package are identifiers and versions
+// that the service checked.
+message ExaminePackageResponse {
+  // SHA-256 fingerprint of the package, in lower-case hexadecimal.
+  string sha256 = 1;
+  // Size of the package, in bytes.
+  uint64 size = 2;
+  // Why the package is refused. PACKAGE_REFUSAL_UNSPECIFIED when it can be installed.
+  PackageRefusal refusal = 3;
+  // Identifier of the plugin. Empty when the manifest could not be read.
+  string id = 4;
+  // Version of the plugin. Empty when the manifest could not be read.
+  string version = 5;
+  // Contracts the plugin provides and requires, with their state. Empty when the manifest could not be read.
+  repeated ContractUse contracts = 6;
+  // Whether the plugin brings .NET code.
+  bool has_dotnet = 7;
+  // Whether the plugin brings an interface part.
+  bool has_ui = 8;
+  // Who vouches for the plugin.
+  PluginVerification verification = 9;
+  // Whether a plugin shipped with Voyager already has this identifier: the installed one would be set aside until the
+  // user disables the shipped one.
+  bool duplicate_of_shipped = 10;
+  // Version of the plugin already installed under this identifier. Empty when there is none.
+  string installed_version = 11;
+  // What installing the package would do. PACKAGE_INSTALL_KIND_UNSPECIFIED when the manifest could not be read.
+  PackageInstallKind install_kind = 12;
+}
+
+// Why a package is refused at its examination.
+enum PackageRefusal {
+  // No refusal: the package can be installed.
+  PACKAGE_REFUSAL_UNSPECIFIED = 0;
+  // The file is not a readable archive.
+  PACKAGE_REFUSAL_UNREADABLE = 1;
+  // The manifest is missing, invalid, declares no part, or names a reserved identifier.
+  PACKAGE_REFUSAL_MANIFEST_INVALID = 2;
+  // A file the manifest declares (the assembly, the interface module) is not in the package.
+  PACKAGE_REFUSAL_DECLARED_FILE_MISSING = 3;
+  // A contract the plugin provides or requires is in a version the application does not support.
+  PACKAGE_REFUSAL_CONTRACT_NOT_SUPPORTED = 4;
+  // The package holds a file or a name that is not allowed: outside the plugin, a link, a native library...
+  PACKAGE_REFUSAL_FORBIDDEN_ENTRY = 5;
+  // The disk does not have the space to extract the package.
+  PACKAGE_REFUSAL_NOT_ENOUGH_SPACE = 6;
+}
+
+// What installing a package would do, compared with the plugin already installed under the same identifier.
+enum PackageInstallKind {
+  // Not known: the manifest could not be read.
+  PACKAGE_INSTALL_KIND_UNSPECIFIED = 0;
+  // No plugin of this identifier is installed.
+  PACKAGE_INSTALL_KIND_NEW = 1;
+  // It replaces an older version.
+  PACKAGE_INSTALL_KIND_UPGRADE = 2;
+  // It replaces a newer version: the confirmation warns of it.
+  PACKAGE_INSTALL_KIND_DOWNGRADE = 3;
+  // It installs the same version again.
+  PACKAGE_INSTALL_KIND_REINSTALL = 4;
 }
 
 // Request of PluginHostService.ListPlugins. Intentionally empty.
@@ -116,10 +190,18 @@ enum PluginRequestFailure {
   PLUGIN_REQUEST_FAILURE_NOT_FOUND = 1;
   // The request does not apply to this plugin, for example uninstalling a shipped plugin.
   PLUGIN_REQUEST_FAILURE_NOT_ALLOWED = 2;
-  // A folder or a file could not be changed: rights, a full disk, or a file locked by another program.
+  // A folder or a file could not be changed: rights, or a file locked by another program.
   PLUGIN_REQUEST_FAILURE_FILE_SYSTEM_ERROR = 3;
   // This version of the application does not apply such a request yet.
   PLUGIN_REQUEST_FAILURE_NOT_SUPPORTED = 4;
+  // The prepared copy of the package is no longer there.
+  PLUGIN_REQUEST_FAILURE_PACKAGE_MISSING = 5;
+  // The prepared copy changed since the user confirmed it: its fingerprint is not the one they saw.
+  PLUGIN_REQUEST_FAILURE_PACKAGE_CHANGED = 6;
+  // The package was refused at its examination, or holds another plugin than the request names.
+  PLUGIN_REQUEST_FAILURE_PACKAGE_REFUSED = 7;
+  // The disk does not have the space to install the plugin.
+  PLUGIN_REQUEST_FAILURE_NOT_ENOUGH_SPACE = 8;
 }
 
 // A contract that a plugin provides or requires.
