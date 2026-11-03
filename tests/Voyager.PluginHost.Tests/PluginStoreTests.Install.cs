@@ -530,6 +530,8 @@ public sealed partial class PluginStoreTests
     }
 
     [TestMethod]
+    // Linux keeps no creation time that a test can set: the copy would look as old as the file it was copied from.
+    [OSCondition(OperatingSystems.Windows)]
     public void ApplyRequests_OrphanCopyOfAnOldFileCopiedRecently_IsKept()
     {
         using var shipped = new PluginFolder();

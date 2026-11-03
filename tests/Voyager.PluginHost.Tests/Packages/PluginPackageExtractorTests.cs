@@ -306,6 +306,7 @@ public sealed class PluginPackageExtractorTests
     }
 
     [TestMethod]
+    [OSCondition(OperatingSystems.Windows)]
     public void Extract_NativeLibraryOfTheSystem_IsRefusedAsForbiddenEntry()
     {
         var native = Path.Combine(Environment.SystemDirectory, "version.dll");
