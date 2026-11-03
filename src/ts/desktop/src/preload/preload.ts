@@ -10,6 +10,7 @@ import type {
   PluginActionResult,
   PluginManagementBridge,
   PluginTarget,
+  RecoveryResult,
   RestartResult,
   StartupState,
 } from '@voyager/grpc-client';
@@ -28,6 +29,7 @@ import {
   OPEN_INBOX_CHANNEL,
   RESTART_FOR_PLUGINS_CHANNEL,
   RETRY_LOCAL_SERVICE_CHANNEL,
+  START_WITHOUT_INSTALLED_PLUGINS_CHANNEL,
   STARTUP_STATE_CHANGED_CHANNEL,
   UNINSTALL_PLUGIN_CHANNEL,
 } from '../shared/ipc';
@@ -73,5 +75,7 @@ contextBridge.exposeInMainWorld('voyager', {
     };
   },
   retryLocalService: () => ipcRenderer.invoke(RETRY_LOCAL_SERVICE_CHANNEL) as Promise<void>,
+  startWithoutInstalledPlugins: () =>
+    ipcRenderer.invoke(START_WITHOUT_INSTALLED_PLUGINS_CHANNEL) as Promise<RecoveryResult>,
   plugins,
 });

@@ -16,8 +16,9 @@ public static class PluginHostServiceCollectionExtensions
 
     /// <summary>
     /// Registers the store of the plugins, their catalog, the registry of extensions and the collector of diagnostic
-    /// facts. The plugins are loaded when the catalog is first requested, which the host does at startup: the
-    /// requests of the user are applied first, before any plugin loads (ADR-0016, decision 4).
+    /// facts. The plugins are loaded when the catalog is first requested, which the host does at startup: the plugin a
+    /// crash of the previous run designates is suspended, and the requests of the user are applied, before any plugin
+    /// loads (ADR-0016, decisions 4 and 6). The host stops the <see cref="PluginActivity"/> when it stops normally.
     /// </summary>
     /// <param name="services">The container of the host.</param>
     /// <param name="locations">Finds where the plugins and the files that manage them are.</param>
@@ -32,15 +33,24 @@ public static class PluginHostServiceCollectionExtensions
             provider.GetRequiredService<IClock>(),
             provider.GetRequiredService<ILogger<PluginStore>>()));
         services.AddSingleton(provider => new PluginPackages(provider.GetRequiredService<PluginStore>().Locations, ContractSupport.Application));
+        services.AddSingleton(provider => new PluginActivity(
+            provider.GetRequiredService<PluginStore>().Locations.ActivityFile,
+            provider.GetRequiredService<ILogger<PluginActivity>>()));
         services.AddSingleton(provider =>
         {
             var store = provider.GetRequiredService<PluginStore>();
-            store.ApplyRequests();
+            var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+
+            // The trace the previous run left designates the plugin it crashed with, if any (ADR-0016, decision 6).
+            var suspect = PluginActivity.FindSuspect(store.Locations.ActivityFile, loggerFactory.CreateLogger<PluginActivity>());
+            store.ApplyRequests(suspect);
             return PluginCatalog.Load(
                 store.Locations.Roots,
                 ContractSupport.Application,
                 store.DisabledPlugins,
-                provider.GetRequiredService<ILoggerFactory>());
+                loggerFactory,
+                store.SuspendedPlugins,
+                provider.GetRequiredService<PluginActivity>());
         });
         services.AddSingleton(provider => provider.GetRequiredService<PluginCatalog>().Registry);
         services.AddSingleton(PluginHostOptions.Default);

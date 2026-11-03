@@ -1,9 +1,12 @@
 using Google.Protobuf.WellKnownTypes;
+
 using Grpc.Core;
+
 using Voyager.Contracts.PluginHost.V1;
 using Voyager.PluginHost;
 using Voyager.PluginHost.Packages;
 using Voyager.Sdk.Diagnostics;
+
 using HostContractRole = Voyager.PluginHost.ContractRole;
 using HostContractUse = Voyager.PluginHost.ContractUse;
 using HostContractUseState = Voyager.PluginHost.ContractUseState;
@@ -69,6 +72,7 @@ public sealed class PluginHostGrpcService(
             PendingRequest = pending is null ? WireRequestAction.Unspecified : ToMessage(pending.Action),
             FailedRequest = record?.LastError is { } failed ? ToMessage(failed.Action) : WireRequestAction.Unspecified,
             FailedRequestReason = record?.LastError is { } error ? ToMessage(error.Reason) : WireRequestFailure.Unspecified,
+            DisabledForRecovery = state.Status == HostStatus.Disabled && record?.DisabledForRecovery == true,
         };
 
         message.Provides.AddRange(state.Provides);
@@ -81,6 +85,7 @@ public sealed class PluginHostGrpcService(
         HostStatus.Loaded => WireStatus.Loaded,
         HostStatus.Rejected => WireStatus.Rejected,
         HostStatus.Disabled => WireStatus.Disabled,
+        HostStatus.Suspended => WireStatus.Suspended,
         _ => throw new ArgumentOutOfRangeException(nameof(status), status, "A plugin status has no counterpart in the gRPC message."),
     };
 
@@ -280,6 +285,7 @@ public sealed class PluginHostGrpcService(
             case { Refusal: { } refusal }:
                 LocalServiceLog.PackageExaminedRefused(logger, examination.Sha256, refusal);
                 break;
+
             case { Manifest: { } manifest }:
                 LocalServiceLog.PackageExaminedAccepted(logger, examination.Sha256, manifest.Id, manifest.Version);
                 break;

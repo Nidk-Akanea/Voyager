@@ -395,6 +395,35 @@ describe('PluginsPage', () => {
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Ajouter un paquet…' }).disabled).toBe(true);
   });
 
+  it('says a suspended plugin is suspected of a crash, and offers to enable it again or disable it for good', async () => {
+    const { bridge } = renderPage({ plugins: [installed('tool', { status: PluginStatus.SUSPENDED })] });
+    const card = within(await cardOf('tool'));
+
+    expect(card.getByText('Suspendu')).toBeTruthy();
+    expect(card.getByText(/Ce plugin est soupçonné d’avoir fait planter Voyager/)).toBeTruthy();
+    await userEvent.click(card.getByRole('button', { name: 'Réactiver' }));
+    expect(bridge.enable).toHaveBeenCalledWith({ origin: 'installed', pluginId: 'tool' });
+
+    await userEvent.click(card.getByRole('button', { name: 'Désactiver pour de bon' }));
+    expect(bridge.disable).toHaveBeenCalledWith({ origin: 'installed', pluginId: 'tool' });
+  });
+
+  it('says what a disabled plugin no longer brings, and that it was disabled for recovery', async () => {
+    renderPage({
+      plugins: [
+        plugin('diagnostics-clock', { status: PluginStatus.DISABLED }),
+        installed('tool', { status: PluginStatus.DISABLED, disabledForRecovery: true }),
+      ],
+    });
+
+    expect(
+      within(await cardOf('diagnostics-clock')).getByText(
+        'Il n’est pas chargé : ce qu’il apporte n’est plus disponible.',
+      ),
+    ).toBeTruthy();
+    expect(within(await cardOf('tool')).getByText(/Désactivé pour le rétablissement/)).toBeTruthy();
+  });
+
   it('is in English too', async () => {
     renderPage({ plugins: [installed('tool')], locale: 'en' });
 

@@ -30,7 +30,10 @@ export function PluginsSection() {
   const styles = useStyles();
   const { l10n } = useLocalization();
   const list = usePluginList();
-  const plugins = (list.data?.plugins ?? []).filter((plugin) => plugin.status !== PluginStatus.DISABLED);
+  // Only the plugins loaded or set aside: the disabled and the suspended ones are on the "Plugins" screen.
+  const plugins = (list.data?.plugins ?? []).filter(
+    (plugin) => plugin.status === PluginStatus.LOADED || plugin.status === PluginStatus.REJECTED,
+  );
 
   return (
     <section className={styles.section}>

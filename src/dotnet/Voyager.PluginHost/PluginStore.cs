@@ -35,17 +35,20 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
     // Pauses before a new attempt to move a folder that another program (an antivirus scanning new files) still holds.
     private static readonly TimeSpan[] _retryDelays = [TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(250), TimeSpan.FromMilliseconds(500)];
 
-    private Dictionary<PluginKey, PluginRecord> _records = [];
-
-    private HashSet<string> _appliedRequests = new(StringComparer.Ordinal);
-
     // The prepared copies of the installations applied at this start: deleted once the state says so, never before, so
     // that a start stopped in between installs them again instead of failing for a missing copy.
     private readonly List<string> _consumedCopies = [];
 
+    private HashSet<string> _appliedRequests = new(StringComparer.Ordinal);
+    private Dictionary<PluginKey, PluginRecord> _records = [];
+
     #endregion Fields
 
     #region Properties
+
+    /// <summary>The plugins the user disabled, once the requests are applied.</summary>
+    public IReadOnlySet<PluginKey> DisabledPlugins =>
+        _records.Values.Where(record => !record.Enabled).Select(record => record.Plugin).ToHashSet();
 
     /// <summary>Where the plugins and the files that manage them are.</summary>
     public PluginLocations Locations { get; } = locations;
@@ -53,9 +56,9 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
     /// <summary>What the service remembers of each plugin, once the requests are applied.</summary>
     public IReadOnlyCollection<PluginRecord> Records => _records.Values;
 
-    /// <summary>The plugins the user disabled, once the requests are applied.</summary>
-    public IReadOnlySet<PluginKey> DisabledPlugins =>
-        _records.Values.Where(record => !record.Enabled).Select(record => record.Plugin).ToHashSet();
+    /// <summary>The enabled plugins suspected of a crash, once the requests are applied: they are not loaded either.</summary>
+    public IReadOnlySet<PluginKey> SuspendedPlugins =>
+        _records.Values.Where(record => record.Enabled && record.Suspended).Select(record => record.Plugin).ToHashSet();
 
     #endregion Properties
 
@@ -64,73 +67,34 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
     private static PluginRecord DefaultRecord(PluginKey plugin) =>
         new(plugin, Enabled: true, InstalledAt: null, PackageName: null, PackageSha256: null, LastError: null);
 
-    // Null when the file exists but cannot be read now: nothing is known of the requests then, which is not the same
-    // as having none (an absent file).
-    private IReadOnlyList<PluginRequest>? ReadRequests()
+    // Deletes a folder and what it holds. A link or a junction inside is removed as a link, never followed: what it
+    // points to is not the plugin's. A file marked read-only, which Windows refuses to delete as is, is deleted too.
+    private static void DeleteTree(string folder)
     {
-        if (Locations.RequestsFile is not { } path)
+        var directory = new DirectoryInfo(folder);
+        if (directory.Attributes.HasFlag(FileAttributes.ReparsePoint))
         {
-            return [];
-        }
-
-        try
-        {
-            var requests = PluginStoreFiles.ReadRequests(path, out var ignored);
-            if (ignored > 0)
-            {
-                PluginHostLog.RequestsIgnored(logger, ignored);
-            }
-
-            return requests;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
-        {
-            // Requests that cannot be read change nothing: the service starts with the plugins as they were.
-            PluginHostLog.RequestsUnreadable(logger, FileError.Describe(exception));
-            return null;
-        }
-    }
-
-    private void ReadState()
-    {
-        if (Locations.StateFile is not { } path)
-        {
+            directory.Delete();
             return;
         }
 
-        try
+        foreach (var file in directory.EnumerateFiles())
         {
-            var (records, appliedRequests) = PluginStoreFiles.ReadState(path);
-            _records = records.GroupBy(record => record.Plugin).ToDictionary(group => group.Key, group => group.Last());
-            _appliedRequests = new HashSet<string>(appliedRequests, StringComparer.Ordinal);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
-        {
-            // A lost state enables every plugin again: the user may disable them again, nothing else is lost.
-            PluginHostLog.StateUnreadable(logger, FileError.Describe(exception));
-        }
-    }
-
-    private bool WriteState()
-    {
-        if (Locations.StateFile is not { } path)
-        {
-            return false;
+            file.Attributes = FileAttributes.Normal;
+            file.Delete();
         }
 
-        try
+        foreach (var subfolder in directory.EnumerateDirectories())
         {
-            PluginStoreFiles.WriteState(path, _records.Values, _appliedRequests);
-            return true;
+            DeleteTree(subfolder.FullName);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            // Requests not marked as applied are applied again at the next start: enabling, disabling and
-            // uninstalling twice give the same result, and an installation finds its copy again.
-            PluginHostLog.StateNotWritten(logger, FileError.Describe(exception));
-            return false;
-        }
+
+        directory.Attributes = FileAttributes.Directory;
+        directory.Delete();
     }
+
+    // The name of a file without any folder, whatever the desktop app gave: a path would show the account of the user.
+    private static string FileNameOf(string name) => name[(name.LastIndexOfAny(['\\', '/', ':']) + 1)..];
 
     // Moves a folder, again a few times when another program holds one of its files for a moment.
     private static void MoveFolder(string source, string destination)
@@ -146,6 +110,99 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
             {
                 Thread.Sleep(_retryDelays[attempt]);
             }
+        }
+    }
+
+    private PluginRequestFailure? Apply(PluginRequest request)
+    {
+        switch (request.Action)
+        {
+            case PluginRequestAction.Enable:
+            case PluginRequestAction.Disable:
+                if (FolderOf(request.Plugin) is null)
+                {
+                    return PluginRequestFailure.NotFound;
+                }
+
+                // The user decided: a suspicion and a start without the installed plugins end here, either way.
+                var record = _records.GetValueOrDefault(request.Plugin) ?? DefaultRecord(request.Plugin);
+                _records[request.Plugin] = record with
+                {
+                    Enabled = request.Action == PluginRequestAction.Enable,
+                    Suspended = false,
+                    DisabledForRecovery = false,
+                };
+                return null;
+
+            case PluginRequestAction.Uninstall:
+                return Uninstall(request.Plugin);
+
+            case PluginRequestAction.Install when request.Package is { } package:
+                return Install(request.Plugin, package);
+
+            default:
+                return PluginRequestFailure.NotSupported;
+        }
+    }
+
+    // What an installation or an examination left in the staging folder: extraction folders, and prepared copies that
+    // no request names any more (a cancelled confirmation, a request replaced by another one).
+    private void CleanStaging(IReadOnlyList<PluginRequest> requests)
+    {
+        if (Locations.StagingDirectory is not { } staging || !Directory.Exists(staging))
+        {
+            return;
+        }
+
+        var named = requests.Select(request => request.Package?.StagedName).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var old = clock.GetCurrentInstant().ToDateTimeUtc() - _orphanCopyAge;
+        try
+        {
+            foreach (var folder in Directory.EnumerateDirectories(staging).Where(folder => Path.GetFileName(folder).StartsWith('.')).ToList())
+            {
+                DeleteFolderQuietly(folder);
+            }
+
+            foreach (var copy in new DirectoryInfo(staging).EnumerateFiles("*" + PluginPackages.EXTENSION).ToList())
+            {
+                // A copy keeps the modification date of the file it was copied from: its creation tells when it was made.
+                var made = copy.CreationTimeUtc > copy.LastWriteTimeUtc ? copy.CreationTimeUtc : copy.LastWriteTimeUtc;
+                if (!named.Contains(copy.Name) && made < old)
+                {
+                    DeleteFileQuietly(copy.FullName);
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
+        }
+    }
+
+    private void DeleteFileQuietly(string file)
+    {
+        try
+        {
+            File.Delete(file);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
+        }
+    }
+
+    private void DeleteFolderQuietly(string folder)
+    {
+        try
+        {
+            if (Directory.Exists(folder))
+            {
+                DeleteTree(folder);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
         }
     }
 
@@ -200,62 +257,93 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
         }
     }
 
-    // Deletes a folder and what it holds. A link or a junction inside is removed as a link, never followed: what it
-    // points to is not the plugin's. A file marked read-only, which Windows refuses to delete as is, is deleted too.
-    private static void DeleteTree(string folder)
+    // A start without the installed plugins: each one is disabled, and the user enables them again one by one. The
+    // shipped plugins stay as they are.
+    private void DisableInstalledForRecovery()
     {
-        var directory = new DirectoryInfo(folder);
-        if (directory.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        if (Locations.InstalledDirectory is not { } installed || !Directory.Exists(installed))
         {
-            directory.Delete();
+            PluginHostLog.RecoveryApplied(logger, 0);
             return;
         }
 
-        foreach (var file in directory.EnumerateFiles())
+        var count = 0;
+        try
         {
-            file.Attributes = FileAttributes.Normal;
-            file.Delete();
+            foreach (var folder in Directory.EnumerateDirectories(installed).Select(Path.GetFileName).OfType<string>())
+            {
+                if (folder.StartsWith('.') || !PluginManifestReader.IsValidIdentifier(folder))
+                {
+                    continue;
+                }
+
+                var plugin = new PluginKey(PluginOrigin.Installed, folder);
+                var record = _records.GetValueOrDefault(plugin) ?? DefaultRecord(plugin);
+
+                // A suspended plugin is not loaded either, and stays suspended: enabling it again recalls the suspicion.
+                if (record.Enabled && !record.Suspended)
+                {
+                    _records[plugin] = record with { Enabled = false, DisabledForRecovery = true };
+                    count++;
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // The plugins read so far are disabled; the others load as before, and the user can ask again.
+            PluginHostLog.RecoveryNotFinished(logger, FileError.Describe(exception));
         }
 
-        foreach (var subfolder in directory.EnumerateDirectories())
+        PluginHostLog.RecoveryApplied(logger, count);
+    }
+
+    // Replacements that stopped half way, at the previous start: the old version is put back when the new one is not
+    // there, and deleted when it is.
+    private void FinishUnfinishedReplacements()
+    {
+        if (Locations.InstalledDirectory is not { } installed || !Directory.Exists(installed))
         {
-            DeleteTree(subfolder.FullName);
+            return;
         }
 
-        directory.Attributes = FileAttributes.Directory;
-        directory.Delete();
+        string[] leftovers;
+        try
+        {
+            leftovers = [.. Directory.EnumerateDirectories(installed, REPLACEMENT_PREFIX + "*")];
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
+            return;
+        }
+
+        foreach (var leftover in leftovers)
+        {
+            var name = Path.GetFileName(leftover)[REPLACEMENT_PREFIX.Length..];
+            var dash = name.LastIndexOf('-');
+            var target = Path.Combine(installed, dash > 0 ? name[..dash] : name);
+            try
+            {
+                if (Directory.Exists(target))
+                {
+                    DeleteTree(leftover);
+                }
+                else
+                {
+                    MoveFolder(leftover, target);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
+            }
+        }
     }
 
     private string? FolderOf(PluginKey plugin) =>
-        Locations.RootOf(plugin.Origin) is { } root && Directory.Exists(Path.Combine(root, plugin.Id))
-            ? Path.Combine(root, plugin.Id)
-            : null;
-
-    private PluginRequestFailure? Apply(PluginRequest request)
-    {
-        switch (request.Action)
-        {
-            case PluginRequestAction.Enable:
-            case PluginRequestAction.Disable:
-                if (FolderOf(request.Plugin) is null)
-                {
-                    return PluginRequestFailure.NotFound;
-                }
-
-                var record = _records.GetValueOrDefault(request.Plugin) ?? DefaultRecord(request.Plugin);
-                _records[request.Plugin] = record with { Enabled = request.Action == PluginRequestAction.Enable };
-                return null;
-
-            case PluginRequestAction.Uninstall:
-                return Uninstall(request.Plugin);
-
-            case PluginRequestAction.Install when request.Package is { } package:
-                return Install(request.Plugin, package);
-
-            default:
-                return PluginRequestFailure.NotSupported;
-        }
-    }
+            Locations.RootOf(plugin.Origin) is { } root && Directory.Exists(Path.Combine(root, plugin.Id))
+                ? Path.Combine(root, plugin.Id)
+                : null;
 
     // Installs or replaces a plugin from its prepared copy, checked again from scratch: the fingerprint the user
     // confirmed, then the whole examination. The new version is complete before it takes the place of the old one.
@@ -319,19 +407,18 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
 
         PluginHostLog.PluginInstalled(logger, plugin.Id, version, package.Sha256);
 
-        // A replacement keeps the choice of the user: an enabled plugin stays enabled, a disabled one disabled.
+        // A replacement keeps the choice of the user: an enabled plugin stays enabled, a disabled one disabled. Its code
+        // changed: a suspicion of the old one is lifted.
         var record = _records.GetValueOrDefault(plugin) ?? DefaultRecord(plugin);
         _records[plugin] = record with
         {
             InstalledAt = clock.GetCurrentInstant(),
             PackageName = DisplayText.Clean(FileNameOf(package.Name)),
             PackageSha256 = package.Sha256,
+            Suspended = false,
         };
         return null;
     }
-
-    // The name of a file without any folder, whatever the desktop app gave: a path would show the account of the user.
-    private static string FileNameOf(string name) => name[(name.LastIndexOfAny(['\\', '/', ':']) + 1)..];
 
     // Puts a complete plugin in its place. The previous version is renamed first and put back if the move fails.
     private void Place(string extraction, string target)
@@ -364,108 +451,73 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
         }
     }
 
-    // Replacements that stopped half way, at the previous start: the old version is put back when the new one is not
-    // there, and deleted when it is.
-    private void FinishUnfinishedReplacements()
+    // Null when the file exists but cannot be read now: nothing is known of the requests then, which is not the same
+    // as having none (an absent file).
+    private IReadOnlyList<PluginRequest>? ReadRequests() => ReadRequests(out _);
+
+    private IReadOnlyList<PluginRequest>? ReadRequests(out string? recovery)
     {
-        if (Locations.InstalledDirectory is not { } installed || !Directory.Exists(installed))
+        recovery = null;
+        if (Locations.RequestsFile is not { } path)
+        {
+            return [];
+        }
+
+        try
+        {
+            var requests = PluginStoreFiles.ReadRequests(path, out var ignored, out recovery);
+            if (ignored > 0)
+            {
+                PluginHostLog.RequestsIgnored(logger, ignored);
+            }
+
+            return requests;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+        {
+            // Requests that cannot be read change nothing: the service starts with the plugins as they were.
+            PluginHostLog.RequestsUnreadable(logger, FileError.Describe(exception));
+            return null;
+        }
+    }
+
+    private void ReadState()
+    {
+        if (Locations.StateFile is not { } path)
         {
             return;
         }
 
-        string[] leftovers;
         try
         {
-            leftovers = [.. Directory.EnumerateDirectories(installed, REPLACEMENT_PREFIX + "*")];
+            var (records, appliedRequests) = PluginStoreFiles.ReadState(path);
+            _records = records.GroupBy(record => record.Plugin).ToDictionary(group => group.Key, group => group.Last());
+            _appliedRequests = new HashSet<string>(appliedRequests, StringComparer.Ordinal);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
         {
-            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
-            return;
-        }
-
-        foreach (var leftover in leftovers)
-        {
-            var name = Path.GetFileName(leftover)[REPLACEMENT_PREFIX.Length..];
-            var dash = name.LastIndexOf('-');
-            var target = Path.Combine(installed, dash > 0 ? name[..dash] : name);
-            try
-            {
-                if (Directory.Exists(target))
-                {
-                    DeleteTree(leftover);
-                }
-                else
-                {
-                    MoveFolder(leftover, target);
-                }
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
-            }
+            // A lost state enables every plugin again: the user may disable them again, nothing else is lost.
+            PluginHostLog.StateUnreadable(logger, FileError.Describe(exception));
         }
     }
 
-    // What an installation or an examination left in the staging folder: extraction folders, and prepared copies that
-    // no request names any more (a cancelled confirmation, a request replaced by another one).
-    private void CleanStaging(IReadOnlyList<PluginRequest> requests)
+    // The plugin a crash designates is not loaded again until the user decides (spec, "Quand Voyager plante à cause d'un
+    // plugin"). A plugin no longer there, or already disabled, has nothing to suspend.
+    private void Suspend(PluginKey plugin)
     {
-        if (Locations.StagingDirectory is not { } staging || !Directory.Exists(staging))
+        if (FolderOf(plugin) is null)
         {
             return;
         }
 
-        var named = requests.Select(request => request.Package?.StagedName).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var old = clock.GetCurrentInstant().ToDateTimeUtc() - _orphanCopyAge;
-        try
+        var record = _records.GetValueOrDefault(plugin) ?? DefaultRecord(plugin);
+        if (!record.Enabled)
         {
-            foreach (var folder in Directory.EnumerateDirectories(staging).Where(folder => Path.GetFileName(folder).StartsWith('.')).ToList())
-            {
-                DeleteFolderQuietly(folder);
-            }
+            return;
+        }
 
-            foreach (var copy in new DirectoryInfo(staging).EnumerateFiles("*" + PluginPackages.EXTENSION).ToList())
-            {
-                // A copy keeps the modification date of the file it was copied from: its creation tells when it was made.
-                var made = copy.CreationTimeUtc > copy.LastWriteTimeUtc ? copy.CreationTimeUtc : copy.LastWriteTimeUtc;
-                if (!named.Contains(copy.Name) && made < old)
-                {
-                    DeleteFileQuietly(copy.FullName);
-                }
-            }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
-        }
-    }
-
-    private void DeleteFolderQuietly(string folder)
-    {
-        try
-        {
-            if (Directory.Exists(folder))
-            {
-                DeleteTree(folder);
-            }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
-        }
-    }
-
-    private void DeleteFileQuietly(string file)
-    {
-        try
-        {
-            File.Delete(file);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
-        }
+        // The trace said why when it was read; the catalog says it again at each start until the user decides.
+        _records[plugin] = record with { Suspended = true };
     }
 
     private PluginRequestFailure? Uninstall(PluginKey plugin)
@@ -506,16 +558,42 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
         return null;
     }
 
+    private bool WriteState()
+    {
+        if (Locations.StateFile is not { } path)
+        {
+            return false;
+        }
+
+        try
+        {
+            PluginStoreFiles.WriteState(path, _records.Values, _appliedRequests);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Requests not marked as applied are applied again at the next start: enabling, disabling and
+            // uninstalling twice give the same result, and an installation finds its copy again.
+            PluginHostLog.StateNotWritten(logger, FileError.Describe(exception));
+            return false;
+        }
+    }
+
     #endregion Private Methods
 
     #region Public Methods
 
     /// <summary>
-    /// Applies the requests that were not applied yet, in the order the desktop app wrote them, then writes the
-    /// state. Called once, at startup, before any plugin loads: nothing is locked by a running plugin then. Never
-    /// throws because of the files: a request that cannot be applied is kept on the plugin as its last error.
+    /// Suspends the plugin a crash designates, applies the requests that were not applied yet, in the order the
+    /// desktop app wrote them, then writes the state. Called once, at startup, before any plugin loads: nothing is
+    /// locked by a running plugin then. Never throws because of the files: a request that cannot be applied is kept
+    /// on the plugin as its last error.
     /// </summary>
-    public void ApplyRequests()
+    /// <param name="suspect">
+    /// The plugin the previous run crashed with (<see cref="PluginActivity.FindSuspect"/>); null for none. Suspended
+    /// before the requests apply: a request the user wrote since then decides over it.
+    /// </param>
+    public void ApplyRequests(PluginKey? suspect = null)
     {
         if (Locations.UserDirectory is null)
         {
@@ -526,7 +604,12 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
         FinishUnfinishedReplacements();
         DeleteStaleTemporaryStates();
         ReadState();
-        if (ReadRequests() is not { } requests)
+        if (suspect is not null)
+        {
+            Suspend(suspect);
+        }
+
+        if (ReadRequests(out var recovery) is not { } requests)
         {
             // Nothing is known of the requests: none is applied, and those already applied stay remembered.
             WriteState();
@@ -535,7 +618,19 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
 
         // Only the requests still in the file are remembered: the desktop app removes those that were applied.
         var stillPending = requests.Select(request => request.Id).ToHashSet(StringComparer.Ordinal);
+        if (recovery is not null)
+        {
+            stillPending.Add(recovery);
+        }
+
         _appliedRequests.IntersectWith(stillPending);
+
+        // Before any request in the same file: the desktop app writes it alone, dropping those that waited, so that what
+        // follows it can only enable plugins again one by one.
+        if (recovery is not null && _appliedRequests.Add(recovery))
+        {
+            DisableInstalledForRecovery();
+        }
 
         foreach (var request in requests.Where(request => !_appliedRequests.Contains(request.Id)))
         {
@@ -581,14 +676,6 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
     public PluginRecord? Find(PluginKey plugin) => _records.GetValueOrDefault(plugin);
 
     /// <summary>
-    /// The requests written since the service started, which the next start will apply. Read from the file at
-    /// each call: the desktop app writes it while the service runs.
-    /// </summary>
-    /// <returns>The pending requests, in the order of the file.</returns>
-    public IReadOnlyList<PluginRequest> ReadPendingRequests() =>
-        [.. (ReadRequests() ?? []).Where(request => !_appliedRequests.Contains(request.Id))];
-
-    /// <summary>
     /// The request each plugin will end with at the next start: the last one written for it, since the requests are
     /// applied in order. The desktop app writes only one per plugin, the last replacing the previous one.
     /// </summary>
@@ -597,6 +684,14 @@ public sealed class PluginStore(PluginLocations locations, ContractSupport contr
         ReadPendingRequests()
             .GroupBy(request => request.Plugin)
             .ToDictionary(group => group.Key, group => group.Last());
+
+    /// <summary>
+    /// The requests written since the service started, which the next start will apply. Read from the file at
+    /// each call: the desktop app writes it while the service runs.
+    /// </summary>
+    /// <returns>The pending requests, in the order of the file.</returns>
+    public IReadOnlyList<PluginRequest> ReadPendingRequests() =>
+        [.. (ReadRequests() ?? []).Where(request => !_appliedRequests.Contains(request.Id))];
 
     #endregion Public Methods
 }

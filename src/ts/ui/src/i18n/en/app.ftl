@@ -6,3 +6,7 @@ app-retry = Try again
 app-starting = Starting Voyager…
 app-nav-about = About
 app-nav-plugins = Plugins
+app-start-without-plugins = Start without the installed plugins
+app-start-without-plugins-help = If an installed plugin keeps Voyager from starting, start without them: you will enable them again one by one from the “Plugins” screen.
+app-start-without-plugins-failed = Voyager could not prepare the start without the installed plugins. The details are in the Voyager log.
+app-start-without-plugins-not-failed = The Voyager service has not stopped: nothing was changed.

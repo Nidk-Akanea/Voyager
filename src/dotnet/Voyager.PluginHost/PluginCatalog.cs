@@ -11,16 +11,15 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
 {
     #region Fields
 
+    // Folders the host itself creates next to the plugins (a plugin being removed): never a plugin.
+    private const char INTERNAL_FOLDER_PREFIX = '.';
+
     // What the log says of a folder whose name is not a plugin identifier: it is free text.
     private const string INVALID_FOLDER_NAME = "(invalid folder name)";
 
     private const string MANIFEST_FILE_NAME = "plugin.json";
 
     private const long MAXIMUM_MANIFEST_BYTES = 64 * 1024;
-
-    // Folders the host itself creates next to the plugins (a plugin being removed): never a plugin.
-    private const char INTERNAL_FOLDER_PREFIX = '.';
-
     private readonly List<(string PluginId, ServiceProvider Container)> _containers = [];
 
     private readonly ILogger _logger;
@@ -82,11 +81,6 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
     private static string LoggableName(string folder) =>
         PluginManifestReader.IsValidIdentifier(folder) ? folder : INVALID_FOLDER_NAME;
 
-    // A plugin whose manifest could not be read: only its folder is known. Its name stands for the identifier, and comes
-    // from the disk, not from a checked manifest: it is cleaned before it is shown.
-    private static PluginState Unreadable(string folder, PluginOrigin origin, PluginRejectionReason reason) =>
-        new(folder, origin, DisplayText.Clean(folder), string.Empty, PluginStatus.Rejected, reason, UiModule: null, Provides: [], Contracts: [], HasDotnet: false, HasUi: false);
-
     // A plugin whose manifest was read, and that is not in use: what it is and what it would provide is known.
     private static PluginState NotInUse(
         string folder,
@@ -128,6 +122,11 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
         }
     }
 
+    // A plugin whose manifest could not be read: only its folder is known. Its name stands for the identifier, and comes
+    // from the disk, not from a checked manifest: it is cleaned before it is shown.
+    private static PluginState Unreadable(string folder, PluginOrigin origin, PluginRejectionReason reason) =>
+        new(folder, origin, DisplayText.Clean(folder), string.Empty, PluginStatus.Rejected, reason, UiModule: null, Provides: [], Contracts: [], HasDotnet: false, HasUi: false);
+
     // Everything that decides the fate of one plugin folder. Each step that rejects a plugin says why.
     private PluginState ReadAndLoad(string directory, PluginOrigin origin, LoadContext context)
     {
@@ -160,10 +159,18 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
         }
 
         // A disabled plugin claims nothing: an installed plugin with the identifier of a disabled shipped one takes its place.
-        if (folderIsId && context.Disabled.Contains(new PluginKey(origin, manifest.Id)))
+        var plugin = new PluginKey(origin, manifest.Id);
+        if (folderIsId && context.Disabled.Contains(plugin))
         {
             PluginHostLog.PluginDisabled(_logger, manifest.Id, origin);
             return NotInUse(folder, origin, manifest, uses, PluginStatus.Disabled);
+        }
+
+        // Nor does a suspended one: loading it again would crash the service again.
+        if (folderIsId && context.Suspended.Contains(plugin))
+        {
+            PluginHostLog.PluginSuspended(_logger, manifest.Id, origin);
+            return NotInUse(folder, origin, manifest, uses, PluginStatus.Suspended);
         }
 
         if (context.SeenIds.TryGetValue(manifest.Id, out var claimedBy))
@@ -194,7 +201,21 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
             PluginHostLog.ContractDeprecated(_logger, manifest.Id, use.Contract, use.Version);
         }
 
-        var result = context.Loader.Load(directory, manifest);
+        // The code of the plugin runs from here: a crash now designates it for sure at the next start.
+        context.Activity?.BeginLoad(plugin);
+        PluginLoadResult result;
+        try
+        {
+            result = context.Loader.Load(directory, manifest);
+        }
+        catch
+        {
+            context.Activity?.EndLoad(plugin, loaded: false);
+            throw;
+        }
+
+        // Once loaded, it may be called: its calls are traced under its identifier.
+        context.Activity?.EndLoad(plugin, loaded: result.Rejection is null);
         if (result.Rejection is { } reason)
         {
             return NotInUse(folder, origin, manifest, uses, PluginStatus.Rejected, reason);
@@ -228,7 +249,7 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
 
     #endregion Private Methods
 
-    #region Public Methods
+    #region Internal Methods
 
     /// <summary>
     /// Finds and loads the plugins of a single folder of shipped plugins, none of them disabled.
@@ -244,6 +265,10 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
             new HashSet<PluginKey>(),
             loggerFactory);
 
+    #endregion Internal Methods
+
+    #region Public Methods
+
     /// <summary>
     /// Finds and loads the plugins of several folders, in their order: an identifier is used once, by the first
     /// plugin that claims it (ADR-0016, decision 1), and a disabled plugin is listed without being loaded.
@@ -252,12 +277,16 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
     /// <param name="contracts">The versions of contracts the application accepts, to check each plugin against.</param>
     /// <param name="disabled">The plugins the user disabled.</param>
     /// <param name="loggerFactory">Where the host and the plugins write their logs.</param>
+    /// <param name="suspended">The plugins suspected of a crash, listed without being loaded; none by default.</param>
+    /// <param name="activity">Where the loading of each plugin is traced; nothing is traced by default.</param>
     /// <returns>The catalog; it owns the plugins' containers and must be disposed with the host.</returns>
     public static PluginCatalog Load(
         IReadOnlyList<PluginRoot> roots,
         ContractSupport contracts,
         IReadOnlySet<PluginKey> disabled,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        IReadOnlySet<PluginKey>? suspended = null,
+        PluginActivity? activity = null)
     {
         var logger = loggerFactory.CreateLogger<PluginCatalog>();
         var registry = new ExtensionRegistry();
@@ -267,7 +296,14 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
             return new PluginCatalog([], registry, logger);
         }
 
-        var context = new LoadContext(contracts, disabled, new Dictionary<string, PluginOrigin>(StringComparer.Ordinal), new PluginLoader(loggerFactory), registry);
+        var context = new LoadContext(
+            contracts,
+            disabled,
+            suspended ?? new HashSet<PluginKey>(),
+            new Dictionary<string, PluginOrigin>(StringComparer.Ordinal),
+            new PluginLoader(loggerFactory),
+            registry,
+            activity);
         var plugins = new List<PluginState>();
 
         // The catalog exists before the plugins load, so that it owns their containers as they appear.
@@ -291,7 +327,13 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
 
         var loadedCount = plugins.Count(plugin => plugin.Status == PluginStatus.Loaded);
         var disabledCount = plugins.Count(plugin => plugin.Status == PluginStatus.Disabled);
-        PluginHostLog.PluginsLoaded(logger, loadedCount, plugins.Count - loadedCount - disabledCount, disabledCount);
+        var suspendedCount = plugins.Count(plugin => plugin.Status == PluginStatus.Suspended);
+        PluginHostLog.PluginsLoaded(
+            logger,
+            loadedCount,
+            plugins.Count - loadedCount - disabledCount - suspendedCount,
+            disabledCount,
+            suspendedCount);
         return catalog;
     }
 
@@ -334,15 +376,13 @@ public sealed class PluginCatalog : IDisposable, IAsyncDisposable
 
     #endregion Public Methods
 
-    #region Nested Types
-
     // What the loading of every folder shares: the rule for contracts, the choices of the user, and what is claimed.
     private sealed record LoadContext(
         ContractSupport Contracts,
         IReadOnlySet<PluginKey> Disabled,
+        IReadOnlySet<PluginKey> Suspended,
         Dictionary<string, PluginOrigin> SeenIds,
         PluginLoader Loader,
-        ExtensionRegistry Registry);
-
-    #endregion Nested Types
+        ExtensionRegistry Registry,
+        PluginActivity? Activity);
 }

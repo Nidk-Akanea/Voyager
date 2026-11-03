@@ -69,6 +69,15 @@ SDK » des [conventions C#](../../docs/conventions/csharp.md). L'essentiel :
   (`PluginRequestFailure`). Les fichiers illisibles sont journalisés et ignorés.
 - Supprimer un plugin installé le renomme d'abord en `.removing-<id>-…` (jamais à moitié sous son nom) ; les
   dossiers qui commencent par `.` ne sont jamais des plugins.
+- **Plantages** : `PluginActivity` écrit `activity.json` (plugin en chargement, plugins en cours d'appel) et
+  l'efface à l'arrêt normal (`ApplicationStopping`). Au démarrage, `PluginActivity.FindSuspect` désigne le plugin en
+  chargement ou le seul en cours d'appel, jamais plusieurs ; `PluginStore.ApplyRequests(suspect)` le suspend
+  (`PluginStatus.Suspended`, non chargé, identifiant laissé libre) avant d'appliquer les demandes. `Enable`,
+  `Disable` et un remplacement lèvent la suspension ; réactiver un plugin suspendu demande la confirmation renforcée
+  (rappel du soupçon, « Je comprends »). La demande `recovery` (propriété de premier niveau de `requests.json`, écrite
+  seulement quand le service a échoué) désactive une fois tous les plugins installés (`DisabledForRecovery`). La vue
+  parle toujours d'un **soupçon**, jamais d'une certitude. **Tout appel de l'hôte dans le code d'un plugin** (un
+  nouveau point d'extension compris) passe par `PluginActivity.BeginCall`/`EndCall`, comme les sources de faits.
 - L'adresse d'un fichier de plugin nomme son origine : `plugins/<shipped|installed>/<id>/ui/…` et
   `…/i18n/<langue>/messages.ftl`. Le protocole `voyager://app` ne sert que les plugins **chargés**, depuis le
   dossier que donne la liste du service ; le dossier d'un plugin ne peut pas être un lien, un fichier doit y rester

@@ -24,16 +24,18 @@ public sealed class DiagnosticFactCollector
 
     // The range of System.DateTimeOffset, and so of the instants the contract can carry.
     private static readonly Instant _earliestInstant = Instant.FromUtc(1, 1, 1, 0, 0);
+
     private static readonly Instant _latestInstant = Instant.FromDateTimeOffset(DateTimeOffset.MaxValue);
 
-    private readonly ExtensionRegistry _registry;
-    private readonly PluginHostOptions _options;
-    private readonly ILogger<DiagnosticFactCollector> _logger;
+    private readonly PluginActivity? _activity;
     private readonly ConcurrentDictionary<IDiagnosticFactSource, Lazy<FactCall>> _inFlight = new();
+    private readonly ILogger<DiagnosticFactCollector> _logger;
+    private readonly PluginHostOptions _options;
+    private readonly ExtensionRegistry _registry;
 
     #endregion Fields
 
-    #region Constructors
+    #region Public Constructors
 
     /// <summary>
     /// Creates the collector.
@@ -41,23 +43,22 @@ public sealed class DiagnosticFactCollector
     /// <param name="registry">Where the sources are registered.</param>
     /// <param name="options">The time and size limits.</param>
     /// <param name="logger">Where failures are written.</param>
+    /// <param name="activity">Where the calls to the plugins are traced, so that a crash during one designates it.</param>
     public DiagnosticFactCollector(
         ExtensionRegistry registry,
         PluginHostOptions options,
-        ILogger<DiagnosticFactCollector> logger)
+        ILogger<DiagnosticFactCollector> logger,
+        PluginActivity? activity = null)
     {
         _registry = registry;
         _options = options;
         _logger = logger;
+        _activity = activity;
     }
 
-    #endregion Constructors
+    #endregion Public Constructors
 
     #region Private Methods
-
-    // What the interface gets from a source it cannot show: the reason, and none of its facts.
-    private static DiagnosticFactSourceResult WithoutFacts(string sourceId, DiagnosticFactOutcome outcome) =>
-        new(sourceId, outcome, [], Truncated: false);
 
     // The label prefix keeps a plugin out of the host's messages: its translations are loaded under its own identifier.
     private static string? FindProblem(string ownerId, IReadOnlyList<DiagnosticFact> facts)
@@ -94,29 +95,6 @@ public sealed class DiagnosticFactCollector
         return null;
     }
 
-    private FactCall StartCall(IDiagnosticFactSource source)
-    {
-        var cancellation = new CancellationTokenSource();
-
-        // On the thread pool, so that a source that blocks before returning a task cannot hold the caller.
-        var task = Task.Run(() => source.GetFactsAsync(cancellation.Token), CancellationToken.None);
-        var call = new FactCall(task, cancellation);
-
-        // Once the call ends, whatever the way, the source can be asked again. The failure of a call nobody
-        // waits for any more is observed here, so that it never goes unobserved.
-        _ = task.ContinueWith(
-            finished =>
-            {
-                _ = finished.Exception;
-                _inFlight.TryRemove(source, out _);
-                cancellation.Dispose();
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
-        return call;
-    }
-
     // A callback a plugin registered on its token may throw or block: it must cost neither the caller nor the host.
     private static void SignalTimeout(CancellationTokenSource cancellation) =>
         _ = Task.Run(() =>
@@ -131,12 +109,16 @@ public sealed class DiagnosticFactCollector
             }
         });
 
+    // What the interface gets from a source it cannot show: the reason, and none of its facts.
+    private static DiagnosticFactSourceResult WithoutFacts(string sourceId, DiagnosticFactOutcome outcome) =>
+        new(sourceId, outcome, [], Truncated: false);
+
     private async Task<DiagnosticFactSourceResult> CollectOneAsync(
         DiagnosticFactSourceRegistration registration,
         CancellationToken cancellationToken)
     {
         var id = registration.OwnerId;
-        var call = _inFlight.GetOrAdd(registration.Source, source => new Lazy<FactCall>(() => StartCall(source))).Value;
+        var call = _inFlight.GetOrAdd(registration.Source, source => new Lazy<FactCall>(() => StartCall(id, source))).Value;
 
         // A call that already outlived its time limit is still running: do not wait for it again.
         if (call.IsOverdue)
@@ -154,6 +136,10 @@ public sealed class DiagnosticFactCollector
         catch (TimeoutException) when (!call.Task.IsCompleted)
         {
             call.MarkOverdue();
+
+            // A call past its time limit is reported as such, not as a crash (spec, rule 1 of the crashes): a stuck
+            // source would otherwise be suspected of any later crash, and hide the plugin that caused it.
+            call.EndTrace();
             SignalTimeout(call.Cancellation);
             PluginHostLog.FactSourceTimedOut(_logger, id, _options.FactTimeout.TotalMilliseconds);
             return WithoutFacts(id, DiagnosticFactOutcome.TimedOut);
@@ -169,6 +155,42 @@ public sealed class DiagnosticFactCollector
             PluginHostLog.FactSourceFailed(_logger, id, exception);
             return WithoutFacts(id, DiagnosticFactOutcome.Failed);
         }
+    }
+
+    private FactCall StartCall(string ownerId, IDiagnosticFactSource source)
+    {
+        var cancellation = new CancellationTokenSource();
+
+        // Traced until the call ends or outlives its time limit: the plugin may crash the service meanwhile.
+        var traced = _activity?.BeginCall(ownerId) ?? false;
+
+        // On the thread pool, so that a source that blocks before returning a task cannot hold the caller. The list is
+        // copied there, while the call is traced: it may be the plugin's own type, whose code runs as it is read.
+        var task = Task.Run(
+            async () =>
+            {
+                var facts = await source.GetFactsAsync(cancellation.Token);
+
+                // No list stays no list, which the validation reports.
+                return facts is null ? facts! : [.. facts];
+            },
+            CancellationToken.None);
+        var call = new FactCall(task, cancellation, traced ? () => _activity?.EndCall(ownerId) : null);
+
+        // Once the call ends, whatever the way, the source can be asked again. The failure of a call nobody
+        // waits for any more is observed here, so that it never goes unobserved.
+        _ = task.ContinueWith(
+            finished =>
+            {
+                _ = finished.Exception;
+                _inFlight.TryRemove(source, out _);
+                cancellation.Dispose();
+                call.EndTrace();
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+        return call;
     }
 
     private DiagnosticFactSourceResult Validate(string id, IReadOnlyList<DiagnosticFact>? facts)
@@ -220,22 +242,38 @@ public sealed class DiagnosticFactCollector
 
     #endregion Public Methods
 
-    #region Nested Types
+    #region Classes
 
     // One running call to a source, shared by everyone who asks while it runs.
-    private sealed class FactCall(Task<IReadOnlyList<DiagnosticFact>> task, CancellationTokenSource cancellation)
+    private sealed class FactCall(Task<IReadOnlyList<DiagnosticFact>> task, CancellationTokenSource cancellation, Action? endTrace)
     {
+        #region Fields
+
+        private Action? _endTrace = endTrace;
         private volatile bool _overdue;
 
-        public Task<IReadOnlyList<DiagnosticFact>> Task { get; } = task;
+        #endregion Fields
+
+        #region Properties
 
         public CancellationTokenSource Cancellation { get; } = cancellation;
 
         // True once a caller gave up waiting for this call and it has not ended since.
         public bool IsOverdue => _overdue && !Task.IsCompleted;
 
+        public Task<IReadOnlyList<DiagnosticFact>> Task { get; } = task;
+
+        #endregion Properties
+
+        #region Public Methods
+
+        // Ends the trace of the call once, whichever comes first: its end, or its time limit.
+        public void EndTrace() => Interlocked.Exchange(ref _endTrace, null)?.Invoke();
+
         public void MarkOverdue() => _overdue = true;
+
+        #endregion Public Methods
     }
 
-    #endregion Nested Types
+    #endregion Classes
 }

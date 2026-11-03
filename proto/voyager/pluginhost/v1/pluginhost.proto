@@ -146,6 +146,9 @@ message Plugin {
   // Why failed_request could not be applied. PLUGIN_REQUEST_FAILURE_UNSPECIFIED when failed_request is
   // PLUGIN_REQUEST_ACTION_UNSPECIFIED.
   PluginRequestFailure failed_request_reason = 18;
+  // Whether a start without the installed plugins disabled it, rather than the user: the user enables them again one by
+  // one to find the one that crashes Voyager.
+  bool disabled_for_recovery = 19;
 }
 
 // Where a plugin comes from (ADR-0016).
@@ -251,6 +254,9 @@ enum PluginStatus {
   PLUGIN_STATUS_REJECTED = 2;
   // The user disabled the plugin: it is not loaded.
   PLUGIN_STATUS_DISABLED = 3;
+  // The plugin is suspected of having crashed the service: it is not loaded until the user disables it for good or
+  // enables it again.
+  PLUGIN_STATUS_SUSPENDED = 4;
 }
 
 // Why a plugin was set aside at startup.

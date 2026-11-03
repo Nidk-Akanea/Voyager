@@ -36,6 +36,15 @@ public sealed class PluginCatalogTests
             disabled.ToHashSet(),
             NullLoggerFactory.Instance);
 
+    private static PluginCatalog LoadWithSuspended(PluginFolder shipped, PluginFolder installed, PluginActivity? activity, params PluginKey[] suspended) =>
+        PluginCatalog.Load(
+            [new PluginRoot(shipped.Path, PluginOrigin.Shipped), new PluginRoot(installed.Path, PluginOrigin.Installed)],
+            _contracts,
+            new HashSet<PluginKey>(),
+            NullLoggerFactory.Instance,
+            suspended.ToHashSet(),
+            activity);
+
     // A plugin with only an interface part: nothing to load, which keeps the tests of order and roots quick.
     private static string ViewManifest(string id) =>
         PluginFolder.Manifest(id, assembly: null, provides: string.Empty, uiPart: ", \"ui\": { \"module\": \"index.js\" }");
@@ -163,6 +172,120 @@ public sealed class PluginCatalogTests
             (PluginOrigin.Shipped, PluginStatus.Disabled, (PluginRejectionReason?)null),
             (PluginOrigin.Installed, PluginStatus.Loaded, null));
         catalog.Registry.DiagnosticFactSources.Should().ContainSingle().Which.OwnerId.Should().Be("fixture-good");
+    }
+
+    [TestMethod]
+    public void Load_SuspendedPlugin_IsListedAsSuspendedAndRegistersNothing()
+    {
+        using var shipped = new PluginFolder();
+        using var installed = new PluginFolder();
+        installed.AddPlugin("fixture-good", "Good");
+
+        using var catalog = LoadWithSuspended(shipped, installed, activity: null, new PluginKey(PluginOrigin.Installed, "fixture-good"));
+
+        catalog.Plugins.Should().ContainSingle().Which.Should().Match<PluginState>(plugin =>
+            plugin.Id == "fixture-good"
+            && plugin.Origin == PluginOrigin.Installed
+            && plugin.Status == PluginStatus.Suspended
+            && plugin.RejectionReason == null
+            && plugin.UiModule == null
+            && plugin.Provides.Count == 0);
+        catalog.Registry.DiagnosticFactSources.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public void Load_SuspendedPlugin_DoesNotRunItsCode()
+    {
+        using var shipped = new PluginFolder();
+        using var installed = new PluginFolder();
+        installed.AddPlugin("fixture-throws-on-configure", "ThrowsOnConfigure");
+
+        using var catalog = LoadWithSuspended(shipped, installed, activity: null, new PluginKey(PluginOrigin.Installed, "fixture-throws-on-configure"));
+
+        catalog.Plugins.Should().ContainSingle().Which.Status.Should().Be(PluginStatus.Suspended, "a plugin whose code ran would be set aside as failed to load");
+    }
+
+    [TestMethod]
+    public void Load_SuspendedPluginOfTheOtherOrigin_DoesNotSuspendThisOne()
+    {
+        using var shipped = new PluginFolder();
+        using var installed = new PluginFolder();
+        installed.AddManifest("fixture-view", ViewManifest("fixture-view"));
+
+        using var catalog = LoadWithSuspended(shipped, installed, activity: null, new PluginKey(PluginOrigin.Shipped, "fixture-view"));
+
+        catalog.Plugins.Should().ContainSingle().Which.Status.Should().Be(PluginStatus.Loaded);
+    }
+
+    [TestMethod]
+    public void Load_SuspendedShippedPlugin_LetsTheInstalledOneWithTheSameIdLoad()
+    {
+        using var shipped = new PluginFolder();
+        shipped.AddPlugin("fixture-good", "Good");
+        using var installed = new PluginFolder();
+        installed.AddPlugin("fixture-good", "Good");
+
+        using var catalog = LoadWithSuspended(shipped, installed, activity: null, new PluginKey(PluginOrigin.Shipped, "fixture-good"));
+
+        catalog.Plugins.Select(plugin => (plugin.Origin, plugin.Status, plugin.RejectionReason)).Should().Equal(
+            (PluginOrigin.Shipped, PluginStatus.Suspended, (PluginRejectionReason?)null),
+            (PluginOrigin.Installed, PluginStatus.Loaded, null));
+        catalog.Registry.DiagnosticFactSources.Should().ContainSingle().Which.OwnerId.Should().Be("fixture-good");
+    }
+
+    [TestMethod]
+    public void Load_SuspendedPlugin_IsCountedApartFromTheDisabledOnes()
+    {
+        using var shipped = new PluginFolder();
+        shipped.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        shipped.AddManifest("fixture-clock", ViewManifest("fixture-clock"));
+        using var installed = new PluginFolder();
+        installed.AddManifest("fixture-map", ViewManifest("fixture-map"));
+        var logs = new CapturingLoggerProvider();
+
+        using var catalog = PluginCatalog.Load(
+            [new PluginRoot(shipped.Path, PluginOrigin.Shipped), new PluginRoot(installed.Path, PluginOrigin.Installed)],
+            _contracts,
+            new HashSet<PluginKey> { new(PluginOrigin.Shipped, "fixture-clock") },
+            logs.CreateFactory(),
+            new HashSet<PluginKey> { new(PluginOrigin.Installed, "fixture-map") });
+
+        logs.Messages.Should().Contain("Plugin fixture-map (Installed) is suspended after a crash: it is not loaded until the user decides");
+        logs.Messages.Should().Contain("Plugins loaded: 1 in use, 0 set aside, 1 disabled, 1 suspended");
+    }
+
+    [TestMethod]
+    public void Load_WithActivity_LeavesATraceThatNamesNoPluginOnceEveryPluginIsLoaded()
+    {
+        using var user = new UserPluginFolder();
+        using var shipped = new PluginFolder();
+        shipped.AddPlugin("fixture-good", "Good");
+        shipped.AddPlugin("fixture-throws-on-configure", "ThrowsOnConfigure");
+        var file = new PluginLocations(null, user.Path).ActivityFile!;
+        using var activity = new PluginActivity(file, NullLogger<PluginActivity>.Instance);
+
+        using var catalog = LoadWithSuspended(shipped, user.Installed, activity);
+
+        activity.Dispose();
+        PluginStoreFiles.ReadActivity(file).Should().Match<(PluginKey? Loading, IReadOnlyList<PluginKey> Calls)>(
+            trace => trace.Loading == null && trace.Calls.Count == 0,
+            "nothing is being loaded or called any more");
+    }
+
+    [TestMethod]
+    public void Load_WithActivity_LetsTheCallsToLoadedPluginsBeTracedButNotToOthers()
+    {
+        using var user = new UserPluginFolder();
+        using var shipped = new PluginFolder();
+        shipped.AddPlugin("fixture-good", "Good");
+        shipped.AddPlugin("fixture-throws-on-configure", "ThrowsOnConfigure");
+        user.Installed.AddPlugin("fixture-probe", "Probe");
+        using var activity = new PluginActivity(new PluginLocations(null, user.Path).ActivityFile, NullLogger<PluginActivity>.Instance);
+        using var catalog = LoadWithSuspended(shipped, user.Installed, activity, new PluginKey(PluginOrigin.Installed, "fixture-probe"));
+
+        var traced = (activity.BeginCall("fixture-good"), activity.BeginCall("fixture-throws-on-configure"), activity.BeginCall("fixture-probe"));
+
+        traced.Should().Be((true, false, false), "only the loaded plugin may be called; a rejected or suspended one never is");
     }
 
     [TestMethod]

@@ -45,6 +45,11 @@ internal static class PluginStartup
         // failures are logged then.
         app.Services.GetRequiredService<PluginCatalog>();
 
+        // A normal stop (the app closes, an update restarts it) is not a crash: the trace of the plugins being called
+        // goes, so that none of them is suspected at the next start.
+        var activity = app.Services.GetRequiredService<PluginActivity>();
+        app.Lifetime.ApplicationStopping.Register(activity.Stop);
+
         app.Services.GetRequiredService<ExtensionRegistry>()
             .AddDiagnosticFactSource(PluginCatalog.SERVICE_ID, app.Services.GetRequiredService<ServiceDiagnosticFactSource>());
     }

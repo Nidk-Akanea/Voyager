@@ -22,6 +22,7 @@ import {
   type PluginActionResult,
   type PluginManagementBridge,
   type PluginTarget,
+  type RecoveryResult,
   type RestartResult,
 } from '@voyager/grpc-client';
 
@@ -42,6 +43,7 @@ import { cleanDisplayText } from './displayText';
 import { isMissing } from './files';
 import { addToInbox, findInboxPackage, InboxRefusalError, listInbox } from './inbox';
 import {
+  addRecoveryRequest,
   cancelRequest,
   concerns,
   deleteTemporaryRequestFiles,
@@ -126,6 +128,10 @@ export interface PluginManagementOptions {
   readonly restartService: () => Promise<RestartResult>;
   /** Whether the local service is ready: while it starts, it may be reading the requests, and none is changed. */
   readonly isServiceReady: () => boolean;
+  /** Whether the local service failed: it runs no more, and so reads no request until it is started again. */
+  readonly isServiceFailed: () => boolean;
+  /** Starts the local service again after it failed. */
+  readonly retryService: () => void;
   /** The language of the dialogs. */
   readonly locale: () => DialogLocale;
   readonly log: PluginManagementLog;
@@ -201,6 +207,15 @@ function refusalOf(examination: PackageExamination): InstallRefusal | undefined 
   return examination.refusal === PackageRefusal.UNSPECIFIED ? undefined : (REFUSALS[examination.refusal] ?? 'unknown');
 }
 
+/** The management of plugins, and the start without the installed plugins of the screen of a service that failed. */
+export interface PluginManagement extends PluginManagementBridge {
+  /**
+   * Writes the request to start without the installed plugins, then starts the local service again. Only once the
+   * service failed: it reads no request then.
+   */
+  readonly startWithoutInstalledPlugins: () => Promise<RecoveryResult>;
+}
+
 /** The management of plugins the preload script exposes to the user interface; one operation at a time. */
 export function createPluginManagement({
   folders,
@@ -211,9 +226,11 @@ export function createPluginManagement({
   openFolder,
   restartService,
   isServiceReady,
+  isServiceFailed,
+  retryService,
   locale,
   log,
-}: PluginManagementOptions): PluginManagementBridge {
+}: PluginManagementOptions): PluginManagement {
   // One operation at a time: two would read and write the requests over each other.
   let queue: Promise<unknown> = Promise.resolve();
   const oneAtATime = <T>(operation: () => Promise<T>): Promise<T> => {
@@ -239,10 +256,22 @@ export function createPluginManagement({
       }
     });
 
-  /** The valid requests the service has not applied yet, and how many entries of the file are not valid. */
-  const readPendingRequests = async (): Promise<{ pending: PluginRequestEntry[]; ignored: number }> => {
-    const { requests, ignored } = await readRequests(folders.requestsFile);
-    return { pending: pendingRequests(requests, await readAppliedRequestIds(folders.stateFile)), ignored };
+  /**
+   * The valid requests the service has not applied yet, the request to start without the installed plugins if it has
+   * not applied it either, and how many entries of the file are not valid.
+   */
+  const readPendingRequests = async (): Promise<{
+    pending: PluginRequestEntry[];
+    recovery?: string;
+    ignored: number;
+  }> => {
+    const { requests, ignored, recovery } = await readRequests(folders.requestsFile);
+    const applied = await readAppliedRequestIds(folders.stateFile);
+    return {
+      pending: pendingRequests(requests, applied),
+      ignored,
+      ...(recovery === undefined || applied.has(recovery) ? {} : { recovery }),
+    };
   };
 
   /** Deletes a prepared copy; a failure is only logged, as the service deletes the copies no request names. */
@@ -257,13 +286,13 @@ export function createPluginManagement({
   /** Reads the requests still pending, changes them, writes them, and deletes the prepared copies left unnamed. */
   const changeRequests = async (change: (pending: readonly PluginRequestEntry[]) => RequestChange): Promise<void> => {
     // The service remembers the requests it applied only while they are in the file: they go now.
-    const { pending, ignored } = await readPendingRequests();
+    const { pending, ignored, recovery } = await readPendingRequests();
     if (ignored > 0) {
       log.warn(`${String(ignored)} entries of the requests file are not valid: they are dropped.`);
     }
     const { requests: next, discardedPackages } = change(pending);
     await deleteTemporaryRequestFiles(folders.requestsFile);
-    await writeRequests(folders.requestsFile, next);
+    await writeRequests(folders.requestsFile, next, recovery);
     for (const stagedName of discardedPackages) {
       await discardQuietly(stagedName);
     }
@@ -374,9 +403,12 @@ export function createPluginManagement({
     if (plugin === undefined) {
       return { outcome: 'not-found' };
     }
-    // Enabling a plugin that is not disabled only cancels a request to disable it: nothing more runs.
-    const redundant = plugin.status !== PluginStatus.DISABLED;
-    if (!redundant && !(await askConfirmation(enableConfirmation(pluginFacts(plugin), locale()), showDialog))) {
+    // Enabling a plugin that is neither disabled nor suspended only cancels a request to disable it: nothing more runs.
+    // A suspected plugin asks for more: the dialog recalls the suspicion, and waits for "I understand".
+    const suspended = plugin.status === PluginStatus.SUSPENDED;
+    const redundant = plugin.status !== PluginStatus.DISABLED && !suspended;
+    const box = enableConfirmation(pluginFacts(plugin), locale(), suspended);
+    if (!redundant && !(await askConfirmation(box, showDialog))) {
       log.info(`The user declined to enable the plugin ${target.pluginId}.`);
       return { outcome: 'cancelled' };
     }
@@ -469,6 +501,25 @@ export function createPluginManagement({
           log.error(`The requests could not be read: ${describeFailure(error)}.`);
           return [];
         }
+      }),
+    startWithoutInstalledPlugins: () =>
+      oneAtATime(async (): Promise<RecoveryResult> => {
+        if (!isServiceFailed()) {
+          return { outcome: 'not-failed' };
+        }
+        try {
+          for (const stagedName of await addRecoveryRequest(folders.requestsFile, folders.stateFile)) {
+            await discardQuietly(stagedName);
+          }
+        } catch (error) {
+          log.error(
+            `The request to start without the installed plugins could not be written: ${describeFailure(error)}.`,
+          );
+          return { outcome: 'failed' };
+        }
+        log.info('Starting the local service again without the installed plugins.');
+        retryService();
+        return { outcome: 'restarting' };
       }),
     // Only when a request waits: a module of a plugin could otherwise restart Voyager over and over. The next operation
     // waits until the service is ready again.
