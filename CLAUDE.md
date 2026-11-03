@@ -82,7 +82,7 @@ src/ts/                   paquets TypeScript
 tests/                    tests .NET
 plugins/                  plugins livrés avec Voyager (`diagnostics-runtime`, `diagnostics-clock`)
 tools/                    scripts de développement et de livraison (`release.ps1`, `build-plugins.ps1`,
-                          `get-version.ps1`, `test-versions.ps1`)
+                          `pack-plugin.ps1`, `get-version.ps1`, `test-versions.ps1`)
 deploy/                   image Docker du serveur du groupe (ce qu'on livre à l'hébergeur)
 Voyager.slnx              solution .NET ; réglages : global.json, Directory.*.props, nuget.config
 package.json              espace de travail pnpm ; réglages : pnpm-workspace.yaml, eslint, prettier
@@ -161,6 +161,7 @@ ou la branche, pas tes conclusions.
 | Lancer tout en développement (Aspire : PostgreSQL + PostGIS, serveur du groupe, service local, interface Vite, fenêtre Electron, tableau de bord) | `pnpm install` une fois, puis F5 sur `Voyager.AppHost` ou `dotnet run --project src/dotnet/Voyager.AppHost` ; tableau de bord sur `https://localhost:17180` |
 | Construire l'image du serveur du groupe                                                                                                           | `docker build -f deploy/GroupServer.Dockerfile .`                                                                                                           |
 | Construire les plugins modifiés (dans `artifacts/plugins/`, lancé par Aspire avant le service local ; `-Force` pour tout refaire)                 | `pwsh tools/build-plugins.ps1`                                                                                                                              |
+| Fabriquer le paquet d'un plugin construit (`artifacts/packages/<id>-<version>.voyagerplugin`, avec son empreinte SHA-256)                         | `pwsh tools/pack-plugin.ps1 -Id <id>`                                                                                                                       |
 | Construire le paquet installable (Windows : service publié, application, Velopack ; résultat dans `artifacts/`)                                   | `pwsh tools/release.ps1` (`-Docker` ajoute l'image du serveur du groupe)                                                                                    |
 | Vérifier le Markdown                                                                                                                              | `npx markdownlint-cli2`                                                                                                                                     |
 | Calculer la version (PowerShell)                                                                                                                  | `pwsh tools/get-version.ps1 -Variable FullSemVer`                                                                                                           |

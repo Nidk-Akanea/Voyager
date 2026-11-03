@@ -5,10 +5,13 @@ using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
+using NodaTime;
+using NodaTime.Testing;
+
 namespace Voyager.PluginHost.Tests;
 
 [TestClass]
-public sealed class PluginStoreTests
+public sealed partial class PluginStoreTests
 {
     #region Fields
 
@@ -27,7 +30,11 @@ public sealed class PluginStoreTests
         PluginFolder.Manifest(id, assembly: null, provides: string.Empty, uiPart: ", \"ui\": { \"module\": \"index.js\" }");
 
     private static PluginStore Store(PluginFolder shipped, UserPluginFolder user, ILoggerFactory? loggerFactory = null) =>
-        new(new PluginLocations(shipped.Path, user.Path), (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<PluginStore>());
+        new(
+            new PluginLocations(shipped.Path, user.Path),
+            ContractSupport.Application,
+            new FakeClock(_now),
+            (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<PluginStore>());
 
     private static PluginStore Applied(PluginFolder shipped, UserPluginFolder user, ILoggerFactory? loggerFactory = null)
     {
@@ -167,16 +174,16 @@ public sealed class PluginStoreTests
     }
 
     [TestMethod]
-    public void ApplyRequests_InstallRequest_IsKeptAsNotSupported()
+    public void ApplyRequests_InstallRequestWhosePreparedCopyIsGone_IsKeptAsPackageMissing()
     {
         using var shipped = new PluginFolder();
         using var user = new UserPluginFolder();
         user.Installed.AddManifest(VIEW_ID, ViewManifest(VIEW_ID));
-        user.WriteRequests(UserPluginFolder.Request("r1", "install", VIEW_ID, "installed"));
+        user.WriteRequests(UserPluginFolder.InstallRequest("r1", VIEW_ID, GONE_STAGED_NAME, UserPluginFolder.UNKNOWN_SHA256));
 
         var store = Applied(shipped, user);
 
-        store.Find(_installedView)!.LastError.Should().Be(new PluginRequestError(PluginRequestAction.Install, PluginRequestFailure.NotSupported));
+        store.Find(_installedView)!.LastError.Should().Be(new PluginRequestError(PluginRequestAction.Install, PluginRequestFailure.PackageMissing));
         Directory.Exists(Path.Combine(user.Installed.Path, VIEW_ID)).Should().BeTrue();
     }
 
@@ -187,6 +194,10 @@ public sealed class PluginStoreTests
     [DataRow("""{ "id": "r1", "action": 3, "pluginId": "fixture-other", "origin": "shipped" }""", DisplayName = "action as a number")]
     [DataRow("""{ "id": "r1", "action": "disable", "pluginId": "fixture-other", "origin": "borrowed" }""", DisplayName = "unknown origin")]
     [DataRow("""{ "action": "disable", "pluginId": "fixture-other", "origin": "shipped" }""", DisplayName = "no request id")]
+    [DataRow("""{ "id": "r1", "action": "install", "pluginId": "fixture-other", "origin": "installed" }""", DisplayName = "installation without a package")]
+    [DataRow("""{ "id": "r1", "action": "install", "pluginId": "fixture-other", "origin": "installed", "package": "..\\0123456789abcdef0123456789abcdef.voyagerplugin", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "packageName": "a" }""", DisplayName = "installation of a package outside the staging folder")]
+    [DataRow("""{ "id": "r1", "action": "install", "pluginId": "fixture-other", "origin": "installed", "package": "travel-plugin.voyagerplugin", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "packageName": "a" }""", DisplayName = "installation of a package whose name the desktop app did not choose")]
+    [DataRow("""{ "id": "r1", "action": "install", "pluginId": "fixture-other", "origin": "installed", "package": "0123456789abcdef0123456789abcdef.voyagerplugin", "sha256": "ABC", "packageName": "a" }""", DisplayName = "installation with a fingerprint that is not one")]
     [DataRow("""{ "id": "r 1/..", "action": "disable", "pluginId": "fixture-other", "origin": "shipped" }""", DisplayName = "request id with forbidden characters")]
     [DataRow("""{ "id": "r1", "pluginId": "fixture-other", "origin": "shipped" }""", DisplayName = "no action")]
     [DataRow("""null""", DisplayName = "null entry")]
@@ -251,7 +262,7 @@ public sealed class PluginStoreTests
     {
         using var shipped = new PluginFolder();
         shipped.AddManifest(VIEW_ID, ViewManifest(VIEW_ID));
-        var store = new PluginStore(new PluginLocations(shipped.Path, UserDirectory: null), NullLogger<PluginStore>.Instance);
+        var store = new PluginStore(new PluginLocations(shipped.Path, UserDirectory: null), ContractSupport.Application, SystemClock.Instance, NullLogger<PluginStore>.Instance);
 
         store.ApplyRequests();
 

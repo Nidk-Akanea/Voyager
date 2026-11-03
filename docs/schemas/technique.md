@@ -271,6 +271,10 @@ flowchart TB
 - Au démarrage, `PluginStore` applique d'abord les **demandes** que le processus principal a écrites
   (`requests.json` : activer, désactiver, désinstaller) et écrit l'**état** (`state.json`) : le processus
   principal est le seul à écrire les demandes, le service le seul à écrire l'état (ADR-0016, décision 4).
+- Une demande d'**installation** nomme une copie de préparation (`plugins/staging/`) et l'empreinte que
+  l'utilisateur a confirmée : le service la revérifie, extrait le paquet dans un dossier temporaire, le revérifie
+  en entier (noms, contenu autorisé, manifeste, assemblies .NET, contrats), puis le pose à la place de l'ancien.
+  Avant la confirmation, `ExaminePackage` fait le même examen sans rien installer.
 - Puis `PluginCatalog` lit les **racines** dans l'ordre, les plugins livrés (dossier de l'application) puis
   les plugins installés (`plugins/installed/` des données de l'utilisateur), toutes deux données par le
   processus principal, jamais par l'utilisateur. Pour chaque sous-dossier : un manifeste valide, un

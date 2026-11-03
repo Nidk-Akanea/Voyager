@@ -75,6 +75,29 @@ SDK » des [conventions C#](../../docs/conventions/csharp.md). L'essentiel :
   une fois les liens suivis, et il est lu à son chemin réel. Après un redémarrage du service, la page est
   rechargée.
 
+## Paquets (`.voyagerplugin`)
+
+- Une archive zip : `plugin.json` et le reste du plugin à la racine. Contenu autorisé (`PackageEntryRules`, et la
+  même liste dans `tools/pack-plugin.ps1`) : à la racine le manifeste, les assemblies .NET et leurs `.pdb`,
+  `.xml`, `.deps.json`, une `signature.json` facultative (jamais extraite) ; `ui/` (`.js`, `.mjs`, `.css`,
+  `.json`, `.svg`, `.png`) ; `i18n/` (`.ftl`) ; `data/` (tout type). Une DLL native est refusée.
+- Refusés : chemin qui sort du dossier, chemin absolu ou avec lecteur, barre oblique inverse, `:` (flux), nom de
+  périphérique (`con`, `nul.txt`, `com0`, `com¹`…), nom court 8.3 (`~1`), point ou espace final, doublon de casse,
+  lien, fichier et dossier du même nom. **Aucune limite de taille** : seule la place libre du disque compte (tenue
+  pendant toute l'extraction, sans débordement de calcul), et une entrée dont les octets ne sont pas ceux que
+  l'archive annonce (longueur, CRC-32) est refusée. Une archive abîmée donne un refus, jamais une exception.
+- Le processus principal copie le paquet dans `staging/` sous un **nom aléatoire** (`<32 hex>.voyagerplugin`,
+  jamais le nom choisi par l'utilisateur) et en calcule l'empreinte ; le service l'**examine** (`ExaminePackage`,
+  un examen à la fois, annulable) : il n'écrit que les fichiers de la racine (manifeste, assemblies à vérifier)
+  et lit le reste sans l'écrire ; rien n'est installé ni exécuté.
+- Installer (au démarrage) : le paquet est lu une seule fois, l'empreinte des octets lus doit être celle
+  confirmée, tout est revérifié, son identifiant doit être celui de la demande, puis il prend la place de
+  l'ancien (renommé en `.replacing-…`, remis en place si un démarrage s'arrête au milieu). Un remplacement garde
+  l'état activé ou désactivé. La copie n'est supprimée qu'une fois `state.json` écrit.
+- Le nom du fichier choisi par l'utilisateur est réduit au nom seul, nettoyé (`DisplayText.Clean`) et **jamais
+  journalisé**. Une erreur de fichier se journalise par son type et son code (`FileError.Describe`), jamais par
+  son message, qui contient des chemins.
+
 ## Code et contrat gRPC
 
 - Un plugin ne référence que `Voyager.Sdk` (et côté interface `@voyager/plugin-sdk`, React et Fluent UI

@@ -1,6 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using NodaTime;
+
+using Voyager.PluginHost.Packages;
+
 namespace Voyager.PluginHost;
 
 /// <summary>
@@ -22,7 +26,12 @@ public static class PluginHostServiceCollectionExtensions
         this IServiceCollection services,
         Func<IServiceProvider, PluginLocations> locations)
     {
-        services.AddSingleton(provider => new PluginStore(locations(provider), provider.GetRequiredService<ILogger<PluginStore>>()));
+        services.AddSingleton(provider => new PluginStore(
+            locations(provider),
+            ContractSupport.Application,
+            provider.GetRequiredService<IClock>(),
+            provider.GetRequiredService<ILogger<PluginStore>>()));
+        services.AddSingleton(provider => new PluginPackages(provider.GetRequiredService<PluginStore>().Locations, ContractSupport.Application));
         services.AddSingleton(provider =>
         {
             var store = provider.GetRequiredService<PluginStore>();

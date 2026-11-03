@@ -4,6 +4,8 @@ using System.Text.RegularExpressions;
 
 using NodaTime.Text;
 
+using Voyager.PluginHost.Packages;
+
 namespace Voyager.PluginHost;
 
 /// <summary>
@@ -17,6 +19,7 @@ internal static partial class PluginStoreFiles
 
     private const long MAXIMUM_FILE_BYTES = 1024 * 1024;
     private const int MAXIMUM_REQUEST_ID_LENGTH = 64;
+    private const int MAXIMUM_PACKAGE_NAME_LENGTH = 260;
 
     // Names of the values are read as text, one entry at a time: an action or an origin that this version does not
     // know (written by a newer desktop app) leaves out its entry alone, never the whole file.
@@ -28,6 +31,9 @@ internal static partial class PluginStoreFiles
 
     [GeneratedRegex(@"^[A-Za-z0-9-]+\z")]
     private static partial Regex RequestIdPattern();
+
+    [GeneratedRegex(@"^[0-9a-f]{64}\z")]
+    private static partial Regex Sha256Pattern();
 
     private static string? ReadText(string path)
     {
@@ -93,16 +99,36 @@ internal static partial class PluginStoreFiles
                 Action = TextOf(element, "action"),
                 PluginId = TextOf(element, "pluginId"),
                 Origin = TextOf(element, "origin"),
+                Package = TextOf(element, "package"),
+                Sha256 = TextOf(element, "sha256"),
+                PackageName = TextOf(element, "packageName"),
             }
             : null;
 
-    private static PluginRequest? ToRequest(RequestEntry entry) =>
-        entry is { Id: { Length: > 0 and <= MAXIMUM_REQUEST_ID_LENGTH } id, PluginId: { } pluginId }
-        && RequestIdPattern().IsMatch(id)
-        && PluginManifestReader.IsValidIdentifier(pluginId)
-        && TryParse<PluginRequestAction>(entry.Action, out var action)
-        && TryParse<PluginOrigin>(entry.Origin, out var origin)
-            ? new PluginRequest(id, action, new PluginKey(origin, pluginId))
+    private static PluginRequest? ToRequest(RequestEntry entry)
+    {
+        if (entry is not { Id: { Length: > 0 and <= MAXIMUM_REQUEST_ID_LENGTH } id, PluginId: { } pluginId }
+            || !RequestIdPattern().IsMatch(id)
+            || !PluginManifestReader.IsValidIdentifier(pluginId)
+            || !TryParse<PluginRequestAction>(entry.Action, out var action)
+            || !TryParse<PluginOrigin>(entry.Origin, out var origin))
+        {
+            return null;
+        }
+
+        // Only an installation names a package, and it cannot do without a valid one.
+        var package = action == PluginRequestAction.Install ? ToPackage(entry) : null;
+        return action == PluginRequestAction.Install && package is null
+            ? null
+            : new PluginRequest(id, action, new PluginKey(origin, pluginId), package);
+    }
+
+    // An installation names its prepared copy, the fingerprint the user confirmed, and the name of the file they chose.
+    private static PluginPackageReference? ToPackage(RequestEntry entry) =>
+        entry is { Package: { } stagedName, Sha256: { } sha256, PackageName: { Length: > 0 and <= MAXIMUM_PACKAGE_NAME_LENGTH } name }
+        && PluginPackages.IsValidStagedName(stagedName)
+        && Sha256Pattern().IsMatch(sha256)
+            ? new PluginPackageReference(stagedName, sha256, name)
             : null;
 
     private static PluginRecord? ToRecord(RecordEntry entry) =>
@@ -267,6 +293,12 @@ internal static partial class PluginStoreFiles
         public string? PluginId { get; init; }
 
         public string? Origin { get; init; }
+
+        public string? Package { get; init; }
+
+        public string? Sha256 { get; init; }
+
+        public string? PackageName { get; init; }
     }
 
     private sealed class StateFile

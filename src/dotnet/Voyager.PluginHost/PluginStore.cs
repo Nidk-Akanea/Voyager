@@ -2,6 +2,10 @@ using System.Text.Json;
 
 using Microsoft.Extensions.Logging;
 
+using NodaTime;
+
+using Voyager.PluginHost.Packages;
+
 namespace Voyager.PluginHost;
 
 /// <summary>
@@ -10,8 +14,10 @@ namespace Voyager.PluginHost;
 /// is the only one to write the requests and the service the only one to write the state.
 /// </summary>
 /// <param name="locations">Where the plugins and the files that manage them are.</param>
-/// <param name="logger">Where the store writes its logs: identifiers of plugins and requests, never a path.</param>
-public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> logger)
+/// <param name="contracts">The versions of contracts the application accepts, to examine a package again before installing it.</param>
+/// <param name="clock">Gives the date of an installation.</param>
+/// <param name="logger">Where the store writes its logs: identifiers of plugins and requests, never a path nor a file name.</param>
+public sealed class PluginStore(PluginLocations locations, ContractSupport contracts, IClock clock, ILogger<PluginStore> logger)
 {
     #region Fields
 
@@ -19,9 +25,23 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
     // under its own name: the catalog skips such folders, and the next start deletes them.
     private const string REMOVAL_PREFIX = ".removing-";
 
+    // What the previous version of a plugin is renamed to while the new one is put in its place: if a start stops in
+    // between, the next one puts it back, or deletes it once the new one is there.
+    private const string REPLACEMENT_PREFIX = ".replacing-";
+
+    // A prepared copy that no request names is left alone this long: the desktop app may be asking the user about it.
+    private static readonly TimeSpan _orphanCopyAge = TimeSpan.FromHours(1);
+
+    // Pauses before a new attempt to move a folder that another program (an antivirus scanning new files) still holds.
+    private static readonly TimeSpan[] _retryDelays = [TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(250), TimeSpan.FromMilliseconds(500)];
+
     private Dictionary<PluginKey, PluginRecord> _records = [];
 
     private HashSet<string> _appliedRequests = new(StringComparer.Ordinal);
+
+    // The prepared copies of the installations applied at this start: deleted once the state says so, never before, so
+    // that a start stopped in between installs them again instead of failing for a missing copy.
+    private readonly List<string> _consumedCopies = [];
 
     #endregion Fields
 
@@ -66,7 +86,7 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
         {
             // Requests that cannot be read change nothing: the service starts with the plugins as they were.
-            PluginHostLog.RequestsUnreadable(logger, exception);
+            PluginHostLog.RequestsUnreadable(logger, FileError.Describe(exception));
             return null;
         }
     }
@@ -87,26 +107,45 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
         {
             // A lost state enables every plugin again: the user may disable them again, nothing else is lost.
-            PluginHostLog.StateUnreadable(logger, exception);
+            PluginHostLog.StateUnreadable(logger, FileError.Describe(exception));
         }
     }
 
-    private void WriteState()
+    private bool WriteState()
     {
         if (Locations.StateFile is not { } path)
         {
-            return;
+            return false;
         }
 
         try
         {
             PluginStoreFiles.WriteState(path, _records.Values, _appliedRequests);
+            return true;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // Requests not marked as applied are applied again at the next start: enabling, disabling and
-            // uninstalling twice give the same result.
-            PluginHostLog.StateNotWritten(logger, exception);
+            // uninstalling twice give the same result, and an installation finds its copy again.
+            PluginHostLog.StateNotWritten(logger, FileError.Describe(exception));
+            return false;
+        }
+    }
+
+    // Moves a folder, again a few times when another program holds one of its files for a moment.
+    private static void MoveFolder(string source, string destination)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                Directory.Move(source, destination);
+                return;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException && attempt < _retryDelays.Length)
+            {
+                Thread.Sleep(_retryDelays[attempt]);
+            }
         }
     }
 
@@ -124,7 +163,7 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // Only space on the disk: the state itself is the old one or the new one, never half written.
-            PluginHostLog.TemporaryStatesNotDeleted(logger, exception);
+            PluginHostLog.TemporaryStatesNotDeleted(logger, FileError.Describe(exception));
         }
     }
 
@@ -143,7 +182,7 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            PluginHostLog.RemovalNotFinished(logger, exception);
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
             return;
         }
 
@@ -156,7 +195,7 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                PluginHostLog.RemovalNotFinished(logger, exception);
+                PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
             }
         }
     }
@@ -210,9 +249,222 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
             case PluginRequestAction.Uninstall:
                 return Uninstall(request.Plugin);
 
+            case PluginRequestAction.Install when request.Package is { } package:
+                return Install(request.Plugin, package);
+
             default:
-                // Installing comes with packages (ADR-0016, decision 2).
                 return PluginRequestFailure.NotSupported;
+        }
+    }
+
+    // Installs or replaces a plugin from its prepared copy, checked again from scratch: the fingerprint the user
+    // confirmed, then the whole examination. The new version is complete before it takes the place of the old one.
+    private PluginRequestFailure? Install(PluginKey plugin, PluginPackageReference package)
+    {
+        if (plugin.Origin != PluginOrigin.Installed
+            || Locations.StagingDirectory is not { } staging
+            || Locations.InstalledDirectory is not { } installed)
+        {
+            return PluginRequestFailure.NotAllowed;
+        }
+
+        var copy = Path.Combine(staging, package.StagedName);
+        if (!File.Exists(copy))
+        {
+            return PluginRequestFailure.PackageMissing;
+        }
+
+        // The request is applied whatever its outcome: its copy has served. A new attempt prepares a new one.
+        _consumedCopies.Add(copy);
+        var extraction = Path.Combine(staging, $"{PluginPackages.EXTRACTION_PREFIX}{Guid.NewGuid():N}");
+        string version;
+        try
+        {
+            // The fingerprint comes from the very bytes that are extracted: the copy cannot change in between.
+            var result = PluginPackageExtractor.Extract(copy, extraction, contracts, everything: true);
+            if (!string.Equals(result.Sha256, package.Sha256, StringComparison.Ordinal))
+            {
+                return PluginRequestFailure.PackageChanged;
+            }
+
+            if (result.Refusal == PackageRefusal.NotEnoughSpace)
+            {
+                return PluginRequestFailure.NotEnoughSpace;
+            }
+
+            if (result.Refusal is { } refusal)
+            {
+                PluginHostLog.PackageRefused(logger, plugin.Id, refusal);
+                return PluginRequestFailure.PackageRefused;
+            }
+
+            if (result.Manifest?.Id != plugin.Id)
+            {
+                PluginHostLog.PackageOfAnotherPlugin(logger, plugin.Id, result.Manifest?.Id);
+                return PluginRequestFailure.PackageRefused;
+            }
+
+            version = result.Manifest.Version;
+            Place(extraction, Path.Combine(installed, plugin.Id));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.RequestFailedOnFiles(logger, plugin.Id, PluginRequestAction.Install, FileError.Describe(exception));
+            return PluginRequestFailure.FileSystemError;
+        }
+        finally
+        {
+            DeleteFolderQuietly(extraction);
+        }
+
+        PluginHostLog.PluginInstalled(logger, plugin.Id, version, package.Sha256);
+
+        // A replacement keeps the choice of the user: an enabled plugin stays enabled, a disabled one disabled.
+        var record = _records.GetValueOrDefault(plugin) ?? DefaultRecord(plugin);
+        _records[plugin] = record with
+        {
+            InstalledAt = clock.GetCurrentInstant(),
+            PackageName = DisplayText.Clean(FileNameOf(package.Name)),
+            PackageSha256 = package.Sha256,
+        };
+        return null;
+    }
+
+    // The name of a file without any folder, whatever the desktop app gave: a path would show the account of the user.
+    private static string FileNameOf(string name) => name[(name.LastIndexOfAny(['\\', '/', ':']) + 1)..];
+
+    // Puts a complete plugin in its place. The previous version is renamed first and put back if the move fails.
+    private void Place(string extraction, string target)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        string? previous = null;
+        if (Directory.Exists(target))
+        {
+            previous = Path.Combine(Path.GetDirectoryName(target)!, $"{REPLACEMENT_PREFIX}{Path.GetFileName(target)}-{Guid.NewGuid():N}");
+            MoveFolder(target, previous);
+        }
+
+        try
+        {
+            MoveFolder(extraction, target);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            if (previous is not null)
+            {
+                MoveFolder(previous, target);
+            }
+
+            throw;
+        }
+
+        if (previous is not null)
+        {
+            DeleteFolderQuietly(previous);
+        }
+    }
+
+    // Replacements that stopped half way, at the previous start: the old version is put back when the new one is not
+    // there, and deleted when it is.
+    private void FinishUnfinishedReplacements()
+    {
+        if (Locations.InstalledDirectory is not { } installed || !Directory.Exists(installed))
+        {
+            return;
+        }
+
+        string[] leftovers;
+        try
+        {
+            leftovers = [.. Directory.EnumerateDirectories(installed, REPLACEMENT_PREFIX + "*")];
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
+            return;
+        }
+
+        foreach (var leftover in leftovers)
+        {
+            var name = Path.GetFileName(leftover)[REPLACEMENT_PREFIX.Length..];
+            var dash = name.LastIndexOf('-');
+            var target = Path.Combine(installed, dash > 0 ? name[..dash] : name);
+            try
+            {
+                if (Directory.Exists(target))
+                {
+                    DeleteTree(leftover);
+                }
+                else
+                {
+                    MoveFolder(leftover, target);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
+            }
+        }
+    }
+
+    // What an installation or an examination left in the staging folder: extraction folders, and prepared copies that
+    // no request names any more (a cancelled confirmation, a request replaced by another one).
+    private void CleanStaging(IReadOnlyList<PluginRequest> requests)
+    {
+        if (Locations.StagingDirectory is not { } staging || !Directory.Exists(staging))
+        {
+            return;
+        }
+
+        var named = requests.Select(request => request.Package?.StagedName).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var old = clock.GetCurrentInstant().ToDateTimeUtc() - _orphanCopyAge;
+        try
+        {
+            foreach (var folder in Directory.EnumerateDirectories(staging).Where(folder => Path.GetFileName(folder).StartsWith('.')).ToList())
+            {
+                DeleteFolderQuietly(folder);
+            }
+
+            foreach (var copy in new DirectoryInfo(staging).EnumerateFiles("*" + PluginPackages.EXTENSION).ToList())
+            {
+                // A copy keeps the modification date of the file it was copied from: its creation tells when it was made.
+                var made = copy.CreationTimeUtc > copy.LastWriteTimeUtc ? copy.CreationTimeUtc : copy.LastWriteTimeUtc;
+                if (!named.Contains(copy.Name) && made < old)
+                {
+                    DeleteFileQuietly(copy.FullName);
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
+        }
+    }
+
+    private void DeleteFolderQuietly(string folder)
+    {
+        try
+        {
+            if (Directory.Exists(folder))
+            {
+                DeleteTree(folder);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
+        }
+    }
+
+    private void DeleteFileQuietly(string file)
+    {
+        try
+        {
+            File.Delete(file);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
         }
     }
 
@@ -236,7 +488,7 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            PluginHostLog.RequestFailedOnFiles(logger, plugin.Id, PluginRequestAction.Uninstall, exception);
+            PluginHostLog.RequestFailedOnFiles(logger, plugin.Id, PluginRequestAction.Uninstall, FileError.Describe(exception));
             return PluginRequestFailure.FileSystemError;
         }
 
@@ -248,7 +500,7 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // The plugin is uninstalled; its files go at the next start.
-            PluginHostLog.RemovalNotFinished(logger, exception);
+            PluginHostLog.RemovalNotFinished(logger, FileError.Describe(exception));
         }
 
         return null;
@@ -271,6 +523,7 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
         }
 
         DeleteUnfinishedRemovals();
+        FinishUnfinishedReplacements();
         DeleteStaleTemporaryStates();
         ReadState();
         if (ReadRequests() is not { } requests)
@@ -291,8 +544,8 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
             if (failure is { } reason)
             {
                 PluginHostLog.RequestFailed(logger, request.Plugin.Id, request.Plugin.Origin, request.Action, reason);
-                // Kept on the plugin only when it is there to show it: a plugin that is not there has nothing to show.
-                if (FolderOf(request.Plugin) is not null)
+                // Kept on the plugin when it is there to show it, and for an installation, whose plugin may be new.
+                if (FolderOf(request.Plugin) is not null || request.Action == PluginRequestAction.Install)
                 {
                     var record = _records.GetValueOrDefault(request.Plugin) ?? DefaultRecord(request.Plugin);
                     _records[request.Plugin] = record with { LastError = new PluginRequestError(request.Action, reason) };
@@ -308,7 +561,16 @@ public sealed class PluginStore(PluginLocations locations, ILogger<PluginStore> 
             }
         }
 
-        WriteState();
+        CleanStaging(requests);
+        if (WriteState())
+        {
+            foreach (var copy in _consumedCopies)
+            {
+                DeleteFileQuietly(copy);
+            }
+        }
+
+        _consumedCopies.Clear();
     }
 
     /// <summary>

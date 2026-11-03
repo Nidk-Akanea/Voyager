@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="NodaTime.Testing" />
   </ItemGroup>
 
 </Project>

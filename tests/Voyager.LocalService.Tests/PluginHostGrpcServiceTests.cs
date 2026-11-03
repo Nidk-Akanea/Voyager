@@ -15,6 +15,9 @@ public sealed class PluginHostGrpcServiceTests
 {
     #region Fields
 
+    private const string STAGED_NAME = "a1b2c3d4e5f60718293a4b5c6d7e8f90.voyagerplugin";
+    private const string GONE_STAGED_NAME = "60e60e60e60e60e60e60e60e60e60e60.voyagerplugin";
+
     private static readonly Instant _start = Instant.FromUtc(2026, 3, 14, 9, 30);
 
     #endregion Fields
@@ -37,6 +40,125 @@ public sealed class PluginHostGrpcServiceTests
     #endregion Private Methods
 
     #region Public Methods
+
+    [TestMethod]
+    public async Task ExaminePackage_InstalledOlderVersion_IsAnUpgradeThatNamesTheInstalledVersion()
+    {
+        using var user = new UserPluginFolder();
+        user.Installed.AddManifest("fixture-view", TestPackage.Manifest("fixture-view", "1.0.0"));
+        TestPackage.Stage(user, STAGED_NAME, TestPackage.View("fixture-view", "1.1.0"));
+        using var factory = new LocalServiceFactory(userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ExaminePackageAsync(new ExaminePackageRequest { StagedName = STAGED_NAME }, AuthorizedHeaders);
+
+        response.InstallKind.Should().Be(PackageInstallKind.Upgrade);
+        response.InstalledVersion.Should().Be("1.0.0");
+    }
+
+    [TestMethod]
+    [DataRow("../a.voyagerplugin", DisplayName = "parent folder")]
+    [DataRow(@"C:\Users\a.voyagerplugin", DisplayName = "absolute path")]
+    [DataRow("a1b2c3d4e5f60718293a4b5c6d7e8f90.zip", DisplayName = "other extension")]
+    [DataRow("travel-plugin.voyagerplugin", DisplayName = "name of the file the user chose")]
+    [DataRow("A1B2C3D4E5F60718293A4B5C6D7E8F90.voyagerplugin", DisplayName = "hexadecimal in upper case")]
+    [DataRow("", DisplayName = "empty")]
+    public async Task ExaminePackage_NameThatIsNotAPreparedCopy_IsInvalidArgument(string stagedName)
+    {
+        using var user = new UserPluginFolder();
+        using var factory = new LocalServiceFactory(userPluginsDirectory: user.Path);
+
+        var call = async () => await CreateClient(factory).ExaminePackageAsync(new ExaminePackageRequest { StagedName = stagedName }, AuthorizedHeaders);
+
+        (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.InvalidArgument);
+    }
+
+    [TestMethod]
+    public async Task ExaminePackage_MissingCopy_IsNotFound()
+    {
+        using var user = new UserPluginFolder();
+        Directory.CreateDirectory(user.StagingDirectory);
+        using var factory = new LocalServiceFactory(userPluginsDirectory: user.Path);
+
+        var call = async () => await CreateClient(factory).ExaminePackageAsync(new ExaminePackageRequest { StagedName = STAGED_NAME }, AuthorizedHeaders);
+
+        (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.NotFound);
+    }
+
+    [TestMethod]
+    public async Task ExaminePackage_RefusedPackage_ReturnsTheRefusalAndNoPlugin()
+    {
+        using var user = new UserPluginFolder();
+        var package = TestPackage.Stage(user, STAGED_NAME, [.. TestPackage.View("fixture-view"), PackageEntry.Text("../escaped.txt", "Traveler A")]);
+        using var factory = new LocalServiceFactory(userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ExaminePackageAsync(new ExaminePackageRequest { StagedName = STAGED_NAME }, AuthorizedHeaders);
+
+        response.Refusal.Should().Be(PackageRefusal.ForbiddenEntry);
+        response.Id.Should().BeEmpty();
+        response.InstallKind.Should().Be(PackageInstallKind.Unspecified);
+        response.Sha256.Should().Be(TestPackage.Sha256Of(package));
+    }
+
+    [TestMethod]
+    public async Task ExaminePackage_ValidPackage_ReturnsWhatItHoldsAndWhatInstallingWouldDo()
+    {
+        using var user = new UserPluginFolder();
+        var package = TestPackage.Stage(user, STAGED_NAME, TestPackage.View("fixture-view", "1.2.0"));
+        using var factory = new LocalServiceFactory(userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ExaminePackageAsync(new ExaminePackageRequest { StagedName = STAGED_NAME }, AuthorizedHeaders);
+
+        response.Refusal.Should().Be(PackageRefusal.Unspecified);
+        response.Id.Should().Be("fixture-view");
+        response.Version.Should().Be("1.2.0");
+        response.Contracts.Select(contract => (contract.Contract, contract.Version, contract.Role, contract.State))
+            .Should().Equal(("plugin", 1u, ContractRole.Required, ContractUseState.Supported));
+        response.HasUi.Should().BeTrue();
+        response.HasDotnet.Should().BeFalse();
+        response.Verification.Should().Be(PluginVerification.Unverified);
+        response.DuplicateOfShipped.Should().BeFalse();
+        response.InstalledVersion.Should().BeEmpty();
+        response.InstallKind.Should().Be(PackageInstallKind.New);
+        response.Sha256.Should().Be(TestPackage.Sha256Of(package));
+        response.Size.Should().Be((ulong)new FileInfo(package).Length);
+    }
+
+    [TestMethod]
+    public async Task ExaminePackage_WithoutUserPluginFolder_IsFailedPrecondition()
+    {
+        using var factory = new LocalServiceFactory();
+
+        var call = async () => await CreateClient(factory).ExaminePackageAsync(new ExaminePackageRequest { StagedName = STAGED_NAME }, AuthorizedHeaders);
+
+        (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.FailedPrecondition);
+    }
+
+    [TestMethod]
+    public async Task ExaminePackage_DamagedCentralDirectory_ReturnsTheRefusalUnreadable()
+    {
+        using var user = new UserPluginFolder();
+        var package = TestPackage.Stage(user, STAGED_NAME, TestPackage.View("fixture-view"));
+        TestPackage.DamageCentralDirectory(package);
+        using var factory = new LocalServiceFactory(userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ExaminePackageAsync(new ExaminePackageRequest { StagedName = STAGED_NAME }, AuthorizedHeaders);
+
+        response.Refusal.Should().Be(PackageRefusal.Unreadable);
+        response.Id.Should().BeEmpty();
+        response.Sha256.Should().Be(TestPackage.Sha256Of(package));
+    }
+
+    [TestMethod]
+    public async Task ExaminePackage_ValidPackage_LeavesOnlyTheCopyInTheStagingFolder()
+    {
+        using var user = new UserPluginFolder();
+        var package = TestPackage.Stage(user, STAGED_NAME, [.. TestPackage.View("fixture-view"), PackageEntry.Text("data/rates.csv", "EUR;1.00")]);
+        using var factory = new LocalServiceFactory(userPluginsDirectory: user.Path);
+
+        await CreateClient(factory).ExaminePackageAsync(new ExaminePackageRequest { StagedName = STAGED_NAME }, AuthorizedHeaders);
+
+        Directory.EnumerateFileSystemEntries(user.StagingDirectory).Should().Equal(package);
+    }
 
     [TestMethod]
     public async Task GetDiagnosticFacts_ServiceAndPlugin_ReturnsTheFactsOfBothSources()
@@ -141,19 +263,19 @@ public sealed class PluginHostGrpcServiceTests
         using var user = new UserPluginFolder();
         user.Installed.AddManifest("fixture-good", ViewManifest("fixture-good"));
         user.Installed.AddManifest("fixture-good-copy", ViewManifest("fixture-good"));
-        user.WriteRequests(UserPluginFolder.Request("r1", "install", "fixture-good", "installed"));
+        user.WriteRequests(UserPluginFolder.InstallRequest("r1", "fixture-good", GONE_STAGED_NAME, UserPluginFolder.UNKNOWN_SHA256));
         using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
         var client = CreateClient(factory);
         await client.ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
         user.WriteRequests(
-            UserPluginFolder.Request("r1", "install", "fixture-good", "installed"),
+            UserPluginFolder.InstallRequest("r1", "fixture-good", GONE_STAGED_NAME, UserPluginFolder.UNKNOWN_SHA256),
             UserPluginFolder.Request("r2", "disable", "fixture-good", "installed"));
 
         var response = await client.ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
 
         response.Plugins.Select(plugin => (plugin.Folder, plugin.RejectionReason, plugin.PendingRequest, plugin.FailedRequest, plugin.FailedRequestReason))
             .Should().Equal(
-                ("fixture-good", PluginRejectionReason.Unspecified, PluginRequestAction.Disable, PluginRequestAction.Install, PluginRequestFailure.NotSupported),
+                ("fixture-good", PluginRejectionReason.Unspecified, PluginRequestAction.Disable, PluginRequestAction.Install, PluginRequestFailure.PackageMissing),
                 ("fixture-good-copy", PluginRejectionReason.DuplicateId, PluginRequestAction.Unspecified, PluginRequestAction.Unspecified, PluginRequestFailure.Unspecified));
     }
 
