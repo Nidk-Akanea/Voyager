@@ -4,7 +4,8 @@ import { pathToFileURL } from 'node:url';
 
 import { net, protocol } from 'electron';
 
-import { resolvePluginFile } from './pluginFiles';
+import { resolvePluginFile, resolveRealPluginFile, type PluginFile } from './pluginFiles';
+import { findServedPlugin, type ServedPlugins } from './servedPlugins';
 import { resolveUserInterfaceFile } from './userInterfaceFiles';
 
 const APP_SCHEME = 'voyager';
@@ -30,19 +31,31 @@ export function isAppUrl(address: string): boolean {
 
 /**
  * Serves the files of `directory`, each with the given Content Security Policy, and the interface modules and
- * translations of the plugins of `pluginsDirectory` (never their manifests or assemblies).
+ * translations of the plugins the local service loaded (never their manifests or assemblies).
+ * @param servedPlugins The folder of each plugin whose files may be served, by origin and identifier, as the local
+ * service last listed them.
  */
-export function serveUserInterface(directory: string, pluginsDirectory: string, contentSecurityPolicy: string): void {
+export function serveUserInterface(
+  directory: string,
+  servedPlugins: () => Promise<ServedPlugins>,
+  contentSecurityPolicy: string,
+): void {
   protocol.handle(APP_SCHEME, async (request) => {
     if (!isAppUrl(request.url)) {
       return new Response(null, { status: NOT_FOUND });
     }
     const { pathname } = new URL(request.url);
-    const pluginFile = resolvePluginFile(pluginsDirectory, pathname);
+    let pluginFile: PluginFile | undefined;
+    let realPluginFile: string | undefined;
     // Under /plugins/ only what resolvePluginFile allows is served: the built interface never answers for that path.
-    const file =
-      pluginFile?.file ??
-      (pathname.startsWith(PLUGINS_PATH_PREFIX) ? undefined : resolveUserInterfaceFile(directory, pathname));
+    if (pathname.startsWith(PLUGINS_PATH_PREFIX)) {
+      pluginFile = resolvePluginFile(findServedPlugin(await servedPlugins()), pathname);
+      realPluginFile = pluginFile === undefined ? undefined : await resolveRealPluginFile(pluginFile);
+      if (realPluginFile === undefined) {
+        return new Response(null, { status: NOT_FOUND });
+      }
+    }
+    const file = realPluginFile ?? resolveUserInterfaceFile(directory, pathname);
     if (file === undefined) {
       return new Response(null, { status: NOT_FOUND });
     }

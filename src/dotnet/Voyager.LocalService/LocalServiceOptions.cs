@@ -42,11 +42,18 @@ public sealed class LocalServiceOptions
     public string LocalToken { get; set; } = string.Empty;
 
     /// <summary>
-    /// The folder that holds the plugins, one sub-folder each. Set by the desktop app (or Aspire in
-    /// development), never by the user: loading assemblies from a folder the user can choose is a risk
-    /// that ADR-0015 declines. Without it, no plugin is loaded.
+    /// The folder of the plugins shipped with Voyager, one sub-folder each. Set by the desktop app (or Aspire in
+    /// development), never by the user: loading assemblies from a folder the user can choose is a risk that
+    /// ADR-0015 declines. Without it, no shipped plugin is loaded.
     /// </summary>
-    public string? PluginsDirectory { get; set; }
+    public string? ShippedPluginsDirectory { get; set; }
+
+    /// <summary>
+    /// The plugins folder of the user's data (ADR-0016): the installed plugins, the requests of the desktop app and
+    /// the state of the service. Set by the desktop app (or Aspire in development), never by the user. Without it,
+    /// no plugin is installed and the plugins cannot be managed.
+    /// </summary>
+    public string? UserPluginsDirectory { get; set; }
 
     /// <summary>The database path to use: <see cref="DatabasePath"/>, or else the default one.</summary>
     public string ResolvedDatabasePath => Path.GetFullPath(DatabasePath ?? DefaultDatabasePath());

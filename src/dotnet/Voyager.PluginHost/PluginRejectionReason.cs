@@ -13,6 +13,11 @@ public enum PluginRejectionReason
     DuplicateId,
 
     /// <summary>
+    /// A plugin shipped with Voyager already has this identifier: the user can disable it to use this installed one.
+    /// </summary>
+    DuplicateOfShipped,
+
+    /// <summary>
     /// A contract that the plugin provides or requires is in a version that this application does not accept:
     /// obsolete or unknown (<see cref="PluginState.Contracts"/> says which).
     /// </summary>

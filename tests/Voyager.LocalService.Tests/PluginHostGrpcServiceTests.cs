@@ -30,6 +30,10 @@ public sealed class PluginHostGrpcServiceTests
     private static PluginHostService.PluginHostServiceClient CreateClient(LocalServiceFactory factory) =>
         new(factory.CreateChannel());
 
+    // A plugin with only an interface part: nothing to load, so that the tests of origins and requests stay quick.
+    private static string ViewManifest(string id) =>
+        PluginFolder.Manifest(id, assembly: null, provides: string.Empty, uiPart: ", \"ui\": { \"module\": \"index.js\" }");
+
     #endregion Private Methods
 
     #region Public Methods
@@ -39,7 +43,7 @@ public sealed class PluginHostGrpcServiceTests
     {
         using var plugins = new PluginFolder();
         plugins.AddPlugin("fixture-good", "Good");
-        using var factory = new LocalServiceFactory(clock: new FakeClock(_start), pluginsDirectory: plugins.Path);
+        using var factory = new LocalServiceFactory(clock: new FakeClock(_start), shippedPluginsDirectory: plugins.Path);
 
         var response = await CreateClient(factory).GetDiagnosticFactsAsync(
             new GetDiagnosticFactsRequest(),
@@ -83,7 +87,7 @@ public sealed class PluginHostGrpcServiceTests
     {
         using var plugins = new PluginFolder();
         plugins.AddPlugin("fixture-good", "Good");
-        using var factory = new LocalServiceFactory(pluginsDirectory: plugins.Path);
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path);
 
         var response = await CreateClient(factory).GetDiagnosticFactsAsync(
             new GetDiagnosticFactsRequest { SourceId = "fixture-good" },
@@ -93,13 +97,74 @@ public sealed class PluginHostGrpcServiceTests
     }
 
     [TestMethod]
+    public async Task ListPlugins_DisableRequestWrittenBeforeStart_IsDisabled()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin("fixture-good", "Good");
+        using var user = new UserPluginFolder();
+        user.WriteRequests(UserPluginFolder.Request("r1", "disable", "fixture-good", "shipped"));
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(
+            new ListPluginsRequest(),
+            AuthorizedHeaders);
+
+        var plugin = response.Plugins.Should().ContainSingle().Subject;
+        plugin.Status.Should().Be(PluginStatus.Disabled);
+        plugin.RejectionReason.Should().Be(PluginRejectionReason.Unspecified);
+        plugin.PendingRequest.Should().Be(PluginRequestAction.Unspecified);
+        plugin.FailedRequest.Should().Be(PluginRequestAction.Unspecified);
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_InstalledPluginWithTheIdOfAShippedOne_IsRejectedAsDuplicateOfShipped()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        using var user = new UserPluginFolder();
+        user.Installed.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(
+            new ListPluginsRequest(),
+            AuthorizedHeaders);
+
+        response.Plugins.Select(plugin => (plugin.Origin, plugin.Status, plugin.RejectionReason)).Should().Equal(
+            (PluginOrigin.Shipped, PluginStatus.Loaded, PluginRejectionReason.Unspecified),
+            (PluginOrigin.Installed, PluginStatus.Rejected, PluginRejectionReason.DuplicateOfShipped));
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_StrayCopyWithTheIdOfAnotherInstalledPlugin_ShowsNoneOfItsRequests()
+    {
+        using var plugins = new PluginFolder();
+        using var user = new UserPluginFolder();
+        user.Installed.AddManifest("fixture-good", ViewManifest("fixture-good"));
+        user.Installed.AddManifest("fixture-good-copy", ViewManifest("fixture-good"));
+        user.WriteRequests(UserPluginFolder.Request("r1", "install", "fixture-good", "installed"));
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+        var client = CreateClient(factory);
+        await client.ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+        user.WriteRequests(
+            UserPluginFolder.Request("r1", "install", "fixture-good", "installed"),
+            UserPluginFolder.Request("r2", "disable", "fixture-good", "installed"));
+
+        var response = await client.ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+
+        response.Plugins.Select(plugin => (plugin.Folder, plugin.RejectionReason, plugin.PendingRequest, plugin.FailedRequest, plugin.FailedRequestReason))
+            .Should().Equal(
+                ("fixture-good", PluginRejectionReason.Unspecified, PluginRequestAction.Disable, PluginRequestAction.Install, PluginRequestFailure.NotSupported),
+                ("fixture-good-copy", PluginRejectionReason.DuplicateId, PluginRequestAction.Unspecified, PluginRequestAction.Unspecified, PluginRequestFailure.Unspecified));
+    }
+
+    [TestMethod]
     public async Task ListPlugins_GoodAndBrokenPlugins_StartsAndTellsWhichOneIsSetAside()
     {
         using var plugins = new PluginFolder();
         plugins.AddPlugin("fixture-good", "Good");
         plugins.AddPlugin("fixture-throws-on-configure", "ThrowsOnConfigure");
         plugins.AddManifest("fixture-no-ui", PluginFolder.Manifest("fixture-no-ui", assembly: null, provides: string.Empty, uiPart: ", \"ui\": { \"module\": \"views/index.js\" }"));
-        using var factory = new LocalServiceFactory(pluginsDirectory: plugins.Path);
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path);
 
         var response = await CreateClient(factory).ListPluginsAsync(
             new ListPluginsRequest(),
@@ -118,7 +183,7 @@ public sealed class PluginHostGrpcServiceTests
     {
         using var plugins = new PluginFolder();
         plugins.AddPlugin("fixture-good", "Good");
-        using var factory = new LocalServiceFactory(pluginsDirectory: plugins.Path);
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path);
 
         var response = await CreateClient(factory).ListPluginsAsync(
             new ListPluginsRequest(),
@@ -130,6 +195,25 @@ public sealed class PluginHostGrpcServiceTests
     }
 
     [TestMethod]
+    public async Task ListPlugins_PendingRequestForTheInstalledPlugin_IsNotShownOnTheShippedOne()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        using var user = new UserPluginFolder();
+        user.Installed.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+        var client = CreateClient(factory);
+        await client.ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+        user.WriteRequests(UserPluginFolder.Request("r1", "uninstall", "fixture-view", "installed"));
+
+        var response = await client.ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+
+        response.Plugins.Select(plugin => (plugin.Origin, plugin.PendingRequest)).Should().Equal(
+            (PluginOrigin.Shipped, PluginRequestAction.Unspecified),
+            (PluginOrigin.Installed, PluginRequestAction.Uninstall));
+    }
+
+    [TestMethod]
     public async Task ListPlugins_PluginWrittenForAnUnknownContractVersion_IsRejectedAsContractNotSupported()
     {
         using var plugins = new PluginFolder();
@@ -137,7 +221,7 @@ public sealed class PluginHostGrpcServiceTests
             "fixture-good",
             "Good",
             PluginFolder.Manifest("fixture-good", "Voyager.PluginFixtures.Good.dll", provides: """{ "contract": "diagnostic-fact-source", "version": 2 }"""));
-        using var factory = new LocalServiceFactory(pluginsDirectory: plugins.Path);
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path);
 
         var response = await CreateClient(factory).ListPluginsAsync(
             new ListPluginsRequest(),
@@ -149,6 +233,85 @@ public sealed class PluginHostGrpcServiceTests
         plugin.Contracts.Select(use => (use.Contract, use.Version, use.Role, use.State)).Should().Equal(
             ("diagnostic-fact-source", 2u, ContractRole.Provided, ContractUseState.Unknown),
             ("plugin", 1u, ContractRole.Required, ContractUseState.Supported));
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_RequestsWrittenAfterStart_ArePendingWithTheLastOneShown()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        using var user = new UserPluginFolder();
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+        var client = CreateClient(factory);
+        await client.ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+        user.WriteRequests(
+            UserPluginFolder.Request("r1", "uninstall", "fixture-view", "shipped"),
+            UserPluginFolder.Request("r2", "disable", "fixture-view", "shipped"));
+
+        var response = await client.ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+
+        var plugin = response.Plugins.Should().ContainSingle().Subject;
+        plugin.Status.Should().Be(PluginStatus.Loaded);
+        plugin.PendingRequest.Should().Be(PluginRequestAction.Disable);
+        plugin.FailedRequest.Should().Be(PluginRequestAction.Unspecified);
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_ShippedAndInstalledPlugins_TellTheirOriginAndVerification()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        using var user = new UserPluginFolder();
+        user.Installed.AddManifest("fixture-other", ViewManifest("fixture-other"));
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(
+            new ListPluginsRequest(),
+            AuthorizedHeaders);
+
+        response.Plugins.Select(plugin => (plugin.Id, plugin.Origin, plugin.Verification, plugin.Status)).Should().Equal(
+            ("fixture-view", PluginOrigin.Shipped, PluginVerification.GuaranteedByApplication, PluginStatus.Loaded),
+            ("fixture-other", PluginOrigin.Installed, PluginVerification.Unverified, PluginStatus.Loaded));
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_ShippedPlugin_TellsWhichPartsItBrings()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin(
+            "fixture-good",
+            "Good",
+            PluginFolder.Manifest("fixture-good", "Voyager.PluginFixtures.Good.dll", uiPart: ", \"ui\": { \"module\": \"index.js\" }"));
+        plugins.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(
+            new ListPluginsRequest(),
+            AuthorizedHeaders);
+
+        response.Plugins.Select(plugin => (plugin.Id, plugin.HasDotnet, plugin.HasUi)).Should().Equal(
+            ("fixture-good", true, true),
+            ("fixture-view", false, true));
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_UninstallRequestForAShippedPlugin_FailsAsNotAllowed()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        using var user = new UserPluginFolder();
+        user.WriteRequests(UserPluginFolder.Request("r1", "uninstall", "fixture-view", "shipped"));
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(
+            new ListPluginsRequest(),
+            AuthorizedHeaders);
+
+        var plugin = response.Plugins.Should().ContainSingle().Subject;
+        plugin.Status.Should().Be(PluginStatus.Loaded);
+        plugin.FailedRequest.Should().Be(PluginRequestAction.Uninstall);
+        plugin.FailedRequestReason.Should().Be(PluginRequestFailure.NotAllowed);
+        plugin.PendingRequest.Should().Be(PluginRequestAction.Unspecified);
     }
 
     [TestMethod]

@@ -1,11 +1,14 @@
 import { FluentBundle, FluentResource } from '@fluent/bundle';
 import { describe, expect, it } from 'vitest';
 
+import { PluginOrigin } from '@voyager/grpc-client';
+
 import { findForeignMessageIds, loadPluginMessages } from './pluginMessages';
 import type { PluginRuntime } from './pluginRuntime';
 
 const FRENCH = 'diagnostics-clock-fact-now = Maintenant\ndiagnostics-clock-fact-uptime = Disponibilité';
 const ENGLISH = 'diagnostics-clock-fact-now = Now';
+const CLOCK = { id: 'diagnostics-clock', origin: PluginOrigin.SHIPPED };
 
 function runtimeWith(files: Readonly<Record<string, string>>): PluginRuntime {
   return {
@@ -16,8 +19,8 @@ function runtimeWith(files: Readonly<Record<string, string>>): PluginRuntime {
 }
 
 const FILES = {
-  'voyager://app/plugins/diagnostics-clock/i18n/fr/messages.ftl': FRENCH,
-  'voyager://app/plugins/diagnostics-clock/i18n/en/messages.ftl': ENGLISH,
+  'voyager://app/plugins/shipped/diagnostics-clock/i18n/fr/messages.ftl': FRENCH,
+  'voyager://app/plugins/shipped/diagnostics-clock/i18n/en/messages.ftl': ENGLISH,
 };
 
 describe('findForeignMessageIds', () => {
@@ -34,7 +37,7 @@ describe('findForeignMessageIds', () => {
 
 describe('loadPluginMessages', () => {
   it('loads the language of the user and French, which the missing messages fall back to', async () => {
-    const messages = await loadPluginMessages('diagnostics-clock', 'en', runtimeWith(FILES));
+    const messages = await loadPluginMessages(CLOCK, 'en', runtimeWith(FILES));
 
     expect(Object.keys(messages).sort()).toEqual(['en', 'fr']);
     const bundle = new FluentBundle('en');
@@ -43,16 +46,26 @@ describe('loadPluginMessages', () => {
   });
 
   it('loads French only for French', async () => {
-    const messages = await loadPluginMessages('diagnostics-clock', 'fr', runtimeWith(FILES));
+    const messages = await loadPluginMessages(CLOCK, 'fr', runtimeWith(FILES));
+
+    expect(Object.keys(messages)).toEqual(['fr']);
+  });
+
+  it('reads the translations of an installed plugin from its own folder', async () => {
+    const messages = await loadPluginMessages(
+      { id: 'diagnostics-clock', origin: PluginOrigin.INSTALLED },
+      'fr',
+      runtimeWith({ 'voyager://app/plugins/installed/diagnostics-clock/i18n/fr/messages.ftl': FRENCH }),
+    );
 
     expect(Object.keys(messages)).toEqual(['fr']);
   });
 
   it('leaves out a language that has no file', async () => {
     const messages = await loadPluginMessages(
-      'diagnostics-clock',
+      CLOCK,
       'en',
-      runtimeWith({ 'voyager://app/plugins/diagnostics-clock/i18n/fr/messages.ftl': FRENCH }),
+      runtimeWith({ 'voyager://app/plugins/shipped/diagnostics-clock/i18n/fr/messages.ftl': FRENCH }),
     );
 
     expect(Object.keys(messages)).toEqual(['fr']);
@@ -60,10 +73,10 @@ describe('loadPluginMessages', () => {
 
   it('refuses a file that holds a message of the page or of another plugin', async () => {
     const messages = await loadPluginMessages(
-      'diagnostics-clock',
+      CLOCK,
       'fr',
       runtimeWith({
-        'voyager://app/plugins/diagnostics-clock/i18n/fr/messages.ftl': `${FRENCH}\napp-title = Hijacked`,
+        'voyager://app/plugins/shipped/diagnostics-clock/i18n/fr/messages.ftl': `${FRENCH}\napp-title = Hijacked`,
       }),
     );
 
@@ -77,6 +90,6 @@ describe('loadPluginMessages', () => {
       resolve: (path) => path,
     };
 
-    expect(await loadPluginMessages('diagnostics-clock', 'fr', runtime)).toEqual({});
+    expect(await loadPluginMessages(CLOCK, 'fr', runtime)).toEqual({});
   });
 });

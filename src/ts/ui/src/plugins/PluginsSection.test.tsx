@@ -10,6 +10,7 @@ import {
   ContractRole,
   ContractUseState,
   FactsOutcome,
+  PluginOrigin,
   PluginRejectionReason,
   PluginStatus,
   type LocalServiceClients,
@@ -34,6 +35,7 @@ function plugin(id: string, extra: Record<string, unknown> = {}) {
     uiModule: '',
     provides: PROVIDES,
     contracts: [],
+    origin: PluginOrigin.SHIPPED,
     ...extra,
   };
 }
@@ -57,11 +59,12 @@ function sourceFacts(sourceId: string, facts: readonly unknown[], outcome = Fact
 }
 
 const MESSAGES: Readonly<Record<string, string>> = {
-  'plugins/diagnostics-runtime/i18n/fr/messages.ftl': 'diagnostics-runtime-fact-cpu = Processeurs',
-  'plugins/diagnostics-runtime/i18n/en/messages.ftl': 'diagnostics-runtime-fact-cpu = Processors',
-  'plugins/diagnostics-clock/i18n/fr/messages.ftl': 'diagnostics-clock-fact-now = Maintenant',
+  'plugins/shipped/diagnostics-runtime/i18n/fr/messages.ftl': 'diagnostics-runtime-fact-cpu = Processeurs',
+  'plugins/shipped/diagnostics-runtime/i18n/en/messages.ftl': 'diagnostics-runtime-fact-cpu = Processors',
+  'plugins/installed/diagnostics-runtime/i18n/fr/messages.ftl': 'diagnostics-runtime-fact-cpu = Processeurs',
+  'plugins/shipped/diagnostics-clock/i18n/fr/messages.ftl': 'diagnostics-clock-fact-now = Maintenant',
   // A plugin whose identifier is the start of another one's: its messages are not the other plugin's.
-  'plugins/diagnostics/i18n/fr/messages.ftl': 'diagnostics-clock-fact-now = Piraté',
+  'plugins/shipped/diagnostics/i18n/fr/messages.ftl': 'diagnostics-clock-fact-now = Piraté',
 };
 
 function createRuntime(modules: Readonly<Record<string, unknown>> = {}): PluginRuntime {
@@ -168,7 +171,7 @@ describe('PluginsSection', () => {
       plugins: [plugin('diagnostics-clock', { uiModule: 'index.js' })],
       facts: { 'diagnostics-clock': sourceFacts('diagnostics-clock', [textFact('diagnostics-clock-fact-now', 'now')]) },
       modules: {
-        'test://plugins/diagnostics-clock/ui/index.js': {
+        'test://plugins/shipped/diagnostics-clock/ui/index.js': {
           register: (registry: PluginRegistry) => {
             registry.addDiagnosticFactPanel(Panel);
           },
@@ -197,7 +200,7 @@ describe('PluginsSection', () => {
         'diagnostics-runtime': sourceFacts('diagnostics-runtime', [textFact('diagnostics-runtime-fact-cpu', '8')]),
       },
       modules: {
-        'test://plugins/diagnostics-clock/ui/index.js': {
+        'test://plugins/shipped/diagnostics-clock/ui/index.js': {
           register: (registry: PluginRegistry) => {
             registry.addDiagnosticFactPanel(Panel);
           },
@@ -311,10 +314,11 @@ describe('PluginsSection', () => {
     expect(screen.queryByText(/diagnostic-fact-source/)).toBeNull();
   });
 
-  it('says that a plugin uses a contract that a later version will remove', async () => {
+  it('says that an installed plugin uses a contract that a later version will remove', async () => {
     renderSection({
       plugins: [
         plugin('diagnostics-runtime', {
+          origin: PluginOrigin.INSTALLED,
           contracts: [contract('diagnostic-fact-source', 1, ContractUseState.DEPRECATED)],
         }),
       ],
@@ -336,6 +340,72 @@ describe('PluginsSection', () => {
       ),
     ).toBeTruthy();
     expect(screen.getByText('Chargé')).toBeTruthy();
+  });
+
+  it("says nothing of a deprecated contract for a shipped plugin: updating it is the application's business", async () => {
+    renderSection({
+      plugins: [
+        plugin('diagnostics-runtime', {
+          contracts: [contract('diagnostic-fact-source', 1, ContractUseState.DEPRECATED)],
+        }),
+      ],
+      facts: {
+        'diagnostics-runtime': sourceFacts(
+          'diagnostics-runtime',
+          [textFact('diagnostics-runtime-fact-cpu', '8')],
+          FactsOutcome.SUCCEEDED,
+        ),
+      },
+    });
+
+    expect(await screen.findByText('Processeurs')).toBeTruthy();
+    expect(screen.queryByText(/prochaine version de Voyager/)).toBeNull();
+  });
+
+  it('says that an installed plugin is set aside for a shipped one with the same identifier', async () => {
+    renderSection({
+      plugins: [
+        plugin('diagnostics-clock', {
+          origin: PluginOrigin.INSTALLED,
+          status: PluginStatus.REJECTED,
+          rejectionReason: PluginRejectionReason.DUPLICATE_OF_SHIPPED,
+          provides: [],
+        }),
+      ],
+    });
+
+    expect(
+      await screen.findByText(
+        'Un plugin livré avec Voyager porte déjà cet identifiant. Désactivez-le pour utiliser celui-ci.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('leaves out the plugins the user disabled', async () => {
+    const { getDiagnosticFacts } = renderSection({
+      plugins: [plugin('diagnostics-clock', { status: PluginStatus.DISABLED, provides: [] })],
+    });
+
+    expect(await screen.findByText('Aucun plugin n’est installé.')).toBeTruthy();
+    expect(screen.queryByText('diagnostics-clock')).toBeNull();
+    expect(getDiagnosticFacts).not.toHaveBeenCalled();
+  });
+
+  it('shows a shipped plugin and an installed one with the same folder name', async () => {
+    renderSection({
+      plugins: [
+        plugin('diagnostics-clock', { status: PluginStatus.DISABLED, provides: [] }),
+        plugin('diagnostics-clock', {
+          origin: PluginOrigin.INSTALLED,
+          status: PluginStatus.REJECTED,
+          rejectionReason: PluginRejectionReason.LOAD_FAILED,
+          provides: [],
+        }),
+      ],
+    });
+
+    expect(await screen.findAllByText('diagnostics-clock')).toHaveLength(1);
+    expect(screen.getByText('Sa partie .NET n’a pas pu être chargée.')).toBeTruthy();
   });
 
   it('notes that facts were left out', async () => {

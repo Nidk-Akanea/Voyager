@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { GithubSource, HttpSource, UpdateManager, VelopackApp } from 'velopack';
 
-import type { StartupState } from '@voyager/grpc-client';
+import { createLocalServiceClients, type LocalServiceConnection, type StartupState } from '@voyager/grpc-client';
 
 import {
   GET_LOCAL_SERVICE_STATE_CHANNEL,
@@ -23,6 +23,7 @@ import { launchLocalService, attachToRunningLocalService, type LocalService } fr
 import { superviseLocalService, type LocalServiceSupervisor } from './localServiceSupervisor';
 import { configureLogging, desktopLog } from './logging';
 import { denyAllPermissions, lockDownWebContents } from './security';
+import { servedPluginFolders, type ServedPlugins } from './servedPlugins';
 import { runStartup } from './startup';
 import { chooseUpdateSource, hideAddress, UPDATE_SOURCE_SETTING } from './updateSource';
 import { updateApp, type UpdateEvent, type UpdateOutcome } from './updates';
@@ -50,9 +51,16 @@ function packagedServiceEnvironment(): Record<string, string> {
     DOTNET_ENVIRONMENT: 'Production',
     ASPNETCORE_ENVIRONMENT: 'Production',
     Voyager__LogDirectory: logDirectory(),
-    // Given by the app and never read from the machine: loading assemblies from a folder the user can
-    // choose is a risk that ADR-0015 declines.
-    Voyager__PluginsDirectory: pluginsDirectory(),
+    ...pluginsEnvironment(),
+  };
+}
+
+// Given by the app and never read from the machine once packaged: loading assemblies from a folder the user can
+// choose is a risk that ADR-0015 declines.
+function pluginsEnvironment(): Record<string, string> {
+  return {
+    Voyager__ShippedPluginsDirectory: shippedPluginsDirectory(),
+    Voyager__UserPluginsDirectory: userPluginsDirectory(),
   };
 }
 
@@ -80,15 +88,53 @@ function userInterfaceDirectory(): string {
   return app.isPackaged ? join(process.resourcesPath, 'ui') : join(import.meta.dirname, '..', '..', 'ui', 'dist');
 }
 
+// A folder of artifacts in the repository, from the build of this package (src/ts/desktop/dist).
+function repositoryArtifacts(folder: string): string {
+  return join(import.meta.dirname, '..', '..', '..', '..', 'artifacts', folder);
+}
+
 /**
  * The plugins shipped with the app, or built next to this package in the repository (pwsh tools/build-plugins.ps1).
- * Never read from the machine's environment, whatever the development settings.
+ * Never read from the machine's environment once packaged.
  */
-function pluginsDirectory(): string {
+function shippedPluginsDirectory(): string {
   return app.isPackaged
     ? join(process.resourcesPath, 'plugins')
-    : (developmentSetting('VOYAGER_PLUGINS_DIRECTORY') ??
-        join(import.meta.dirname, '..', '..', '..', '..', 'artifacts', 'plugins'));
+    : (developmentSetting('VOYAGER_PLUGINS_DIRECTORY') ?? repositoryArtifacts('plugins'));
+}
+
+/**
+ * The plugins folder of the user's data (ADR-0016): installed plugins, requests and state, next to the local
+ * database. In development, under artifacts, never the folder of the installed app, which the developer would
+ * otherwise share with it.
+ */
+function userPluginsDirectory(): string {
+  return app.isPackaged
+    ? join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'Voyager', 'plugins')
+    : (developmentSetting('VOYAGER_USER_PLUGINS_DIRECTORY') ?? repositoryArtifacts('user-plugins'));
+}
+
+// How long the main process waits for the list of plugins: the files of the plugins wait for it.
+const LIST_PLUGINS_TIMEOUT_MS = 10_000;
+
+/** The folder of each plugin the local service loaded; undefined when it cannot tell, and nothing is served then. */
+async function listServedPlugins(connection: LocalServiceConnection): Promise<ServedPlugins | undefined> {
+  try {
+    const { plugins } = await createLocalServiceClients(connection).pluginHost.listPlugins(
+      {},
+      { timeoutMs: LIST_PLUGINS_TIMEOUT_MS },
+    );
+    return servedPluginFolders(plugins, {
+      shipped: shippedPluginsDirectory(),
+      installed: join(userPluginsDirectory(), 'installed'),
+    });
+  } catch (error) {
+    desktopLog.error(
+      'The list of plugins could not be read: no plugin interface is served until it can be.',
+      describeError(error),
+    );
+    return undefined;
+  }
 }
 
 /** The policy of the user interface: it allows the page's import map, which the plugins' modules rely on, by its hash. */
@@ -125,7 +171,7 @@ function startLocalService(): LocalService {
     onOutput: (line) => {
       desktopLog.warn('[local service]', line);
     },
-    environment: app.isPackaged ? packagedServiceEnvironment() : { Voyager__PluginsDirectory: pluginsDirectory() },
+    environment: app.isPackaged ? packagedServiceEnvironment() : pluginsEnvironment(),
     isolated: app.isPackaged,
   });
 }
@@ -275,6 +321,21 @@ function start(): void {
   let localService: LocalServiceSupervisor | undefined;
   let startupWindow: BrowserWindow | undefined;
   let mainWindow: BrowserWindow | undefined;
+  // The plugins whose files the interface may read, as the local service last listed them; asked again at the next
+  // file of a plugin when the list could not be read.
+  let serviceConnection: LocalServiceConnection | undefined;
+  let servedPlugins: Promise<ServedPlugins | undefined> = Promise.resolve(undefined);
+  const currentServedPlugins = async (): Promise<ServedPlugins> => {
+    let served = await servedPlugins;
+    if (served === undefined && serviceConnection !== undefined) {
+      servedPlugins = listServedPlugins(serviceConnection);
+      served = await servedPlugins;
+    }
+    return served ?? new Map<string, string>();
+  };
+  // A restart of the service applies the requests of the user (ADR-0016): the page then starts afresh, so that it never
+  // keeps the interface of a plugin that changed.
+  let serviceWasReady = false;
   // Set as soon as the app starts to quit: a startup still going on must then start nothing.
   let quitting = false;
   app.on('before-quit', () => {
@@ -297,6 +358,18 @@ function start(): void {
     localService = supervisor;
     // Only the main window gets to know where the service listens, and its token.
     supervisor.onChange((state) => {
+      // Asked before the window hears of the service: the page reads the files of the plugins right after.
+      if (state.status === 'ready') {
+        serviceConnection = state.connection;
+        servedPlugins = listServedPlugins(state.connection);
+        const restarted = serviceWasReady;
+        serviceWasReady = true;
+        if (restarted && mainWindow !== undefined && !mainWindow.isDestroyed()) {
+          desktopLog.info('The local service restarted: the window is reloaded to pick up the plugins it now serves.');
+          mainWindow.webContents.reload();
+          return;
+        }
+      }
       sendToWindow(mainWindow, LOCAL_SERVICE_STATE_CHANGED_CHANNEL, state);
     });
     return supervisor.whenSettled();
@@ -346,7 +419,7 @@ function start(): void {
 
   void app.whenReady().then(async () => {
     denyAllPermissions();
-    serveUserInterface(userInterfaceDirectory(), pluginsDirectory(), contentSecurityPolicy());
+    serveUserInterface(userInterfaceDirectory(), currentServedPlugins, contentSecurityPolicy());
 
     // Opening Voyager again brings back the window already open.
     app.on('second-instance', () => {

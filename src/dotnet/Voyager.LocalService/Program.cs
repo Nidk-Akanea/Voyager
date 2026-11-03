@@ -23,8 +23,11 @@ builder.Services.AddOptions<LocalServiceOptions>()
     .ValidateDataAnnotations()
     // A relative folder would depend on the working directory: the desktop app always gives a full path.
     .Validate(
-        options => string.IsNullOrEmpty(options.PluginsDirectory) || Path.IsPathFullyQualified(options.PluginsDirectory),
-        "Voyager:PluginsDirectory must be a full path.")
+        options => string.IsNullOrEmpty(options.ShippedPluginsDirectory) || Path.IsPathFullyQualified(options.ShippedPluginsDirectory),
+        "Voyager:ShippedPluginsDirectory must be a full path.")
+    .Validate(
+        options => string.IsNullOrEmpty(options.UserPluginsDirectory) || Path.IsPathFullyQualified(options.UserPluginsDirectory),
+        "Voyager:UserPluginsDirectory must be a full path.")
     .ValidateOnStart();
 
 builder.Services.AddSingleton<IClock>(SystemClock.Instance);

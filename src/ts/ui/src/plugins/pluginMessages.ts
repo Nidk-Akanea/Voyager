@@ -1,10 +1,10 @@
-// Reads the translations of a plugin (`plugins/<id>/i18n/<language>/messages.ftl`, ADR-0015 decision 11). Every
-// message of a plugin starts with its identifier, so that a plugin can neither hide a message of the page nor
+// Reads the translations of a plugin (`plugins/<origin>/<id>/i18n/<language>/messages.ftl`, ADR-0015 decision 11).
+// Every message of a plugin starts with its identifier, so that a plugin can neither hide a message of the page nor
 // borrow the name of another plugin's.
 import { FluentResource } from '@fluent/bundle';
 
 import { DEFAULT_LOCALE, type Locale, type PluginMessages } from '../i18n/localization';
-import { pluginMessagesPath, type PluginRuntime } from './pluginRuntime';
+import { pluginMessagesPath, type PluginAddress, type PluginRuntime } from './pluginRuntime';
 
 /**
  * The identifiers of the messages of a source that do not start with `<pluginId>-`. Terms (`-name`) count: a
@@ -16,13 +16,14 @@ export function findForeignMessageIds(source: string, pluginId: string): string[
 }
 
 async function loadMessages(
-  pluginId: string,
+  plugin: PluginAddress,
   locale: Locale,
   runtime: PluginRuntime,
 ): Promise<FluentResource | undefined> {
+  const pluginId = plugin.id;
   let source: string | undefined;
   try {
-    source = await runtime.fetchText(runtime.resolve(pluginMessagesPath(pluginId, locale)));
+    source = await runtime.fetchText(runtime.resolve(pluginMessagesPath(plugin, locale)));
   } catch {
     // Translations are an extra: a plugin whose file cannot be read is shown with its labels' identifiers.
     return undefined;
@@ -39,13 +40,13 @@ async function loadMessages(
 
 /** Loads the translations of a plugin for a language, and for French when the language is another one. */
 export async function loadPluginMessages(
-  pluginId: string,
+  plugin: PluginAddress,
   locale: Locale,
   runtime: PluginRuntime,
 ): Promise<PluginMessages> {
   const locales = locale === DEFAULT_LOCALE ? [locale] : [locale, DEFAULT_LOCALE];
   const loaded = await Promise.all(
-    locales.map(async (candidate) => [candidate, await loadMessages(pluginId, candidate, runtime)] as const),
+    locales.map(async (candidate) => [candidate, await loadMessages(plugin, candidate, runtime)] as const),
   );
   return Object.fromEntries(
     loaded.filter((entry): entry is readonly [Locale, FluentResource] => entry[1] !== undefined),

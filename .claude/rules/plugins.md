@@ -51,6 +51,30 @@ SDK » des [conventions C#](../../docs/conventions/csharp.md). L'essentiel :
   l'ancienne. Les deux moitiés d'un contrat (.NET et `@voyager/plugin-sdk`) ont le même numéro.
 - Numéro du SDK : déclarer une version obsolète est `feat!:`, ajouter un contrat ou une version est `feat:`.
 
+## Gestion des plugins (ADR-0016)
+
+- Deux **racines**, lues dans cet ordre : les plugins livrés (dossier de l'application, `ShippedPluginsDirectory`),
+  puis les installés (`<UserPluginsDirectory>/installed/<id>`). Les dossiers sont donnés par le processus principal,
+  jamais par un réglage propre à Voyager dans l'application installée (seul le dossier standard de Windows,
+  `%LOCALAPPDATA%`, comme pour les journaux). En développement, les données de l'utilisateur sont sous
+  `artifacts/user-plugins`, jamais celles de l'application installée.
+- Un identifiant n'est actif qu'une fois : un installé qui porte celui d'un livré est écarté
+  (`DuplicateOfShipped`), un autre doublon l'est avec `DuplicateId`. Un plugin désactivé est listé sans être chargé
+  et laisse son identifiant libre. Le service désigne un plugin par son origine et son **dossier**.
+- Le **processus principal écrit seul** `requests.json` ; le **service écrit seul** `state.json`. Le service
+  applique les demandes au démarrage, **avant tout chargement** (`PluginStore.ApplyRequests`), une seule fois
+  chacune (identifiants des demandes appliquées gardés dans l'état). Aucune opération de gestion n'est un appel
+  gRPC : le service ne fait que lire.
+- Une demande qui échoue ne bloque jamais le démarrage : elle reste sur le plugin comme dernière erreur
+  (`PluginRequestFailure`). Les fichiers illisibles sont journalisés et ignorés.
+- Supprimer un plugin installé le renomme d'abord en `.removing-<id>-…` (jamais à moitié sous son nom) ; les
+  dossiers qui commencent par `.` ne sont jamais des plugins.
+- L'adresse d'un fichier de plugin nomme son origine : `plugins/<shipped|installed>/<id>/ui/…` et
+  `…/i18n/<langue>/messages.ftl`. Le protocole `voyager://app` ne sert que les plugins **chargés**, depuis le
+  dossier que donne la liste du service ; le dossier d'un plugin ne peut pas être un lien, un fichier doit y rester
+  une fois les liens suivis, et il est lu à son chemin réel. Après un redémarrage du service, la page est
+  rechargée.
+
 ## Code et contrat gRPC
 
 - Un plugin ne référence que `Voyager.Sdk` (et côté interface `@voyager/plugin-sdk`, React et Fluent UI

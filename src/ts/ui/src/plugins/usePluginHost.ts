@@ -10,6 +10,7 @@ import { useAppContext } from '../app/appContext';
 import type { Locale } from '../i18n/localization';
 import { loadPluginUi } from './loadPluginUi';
 import { loadPluginMessages } from './pluginMessages';
+import type { PluginAddress } from './pluginRuntime';
 
 // What plugins say does not change while the page is open, and asking a plugin runs its code: nothing here is read
 // again when the window gets the focus back. The refresh button of a panel asks again when the user wants.
@@ -41,7 +42,7 @@ export function usePluginFacts(pluginId: string, enabled: boolean) {
 export function usePluginUi(plugin: Plugin, enabled: boolean) {
   const { pluginRuntime } = useAppContext();
   return useQuery({
-    queryKey: ['plugins', 'ui', plugin.id],
+    queryKey: ['plugins', 'ui', plugin.origin, plugin.id],
     queryFn: () => loadPluginUi(plugin, pluginRuntime),
     enabled,
     staleTime: Infinity,
@@ -50,11 +51,11 @@ export function usePluginUi(plugin: Plugin, enabled: boolean) {
 }
 
 /** The translations of a plugin for a language; empty when they could not be read. */
-export function usePluginMessages(pluginId: string, locale: Locale, enabled: boolean) {
+export function usePluginMessages(plugin: PluginAddress, locale: Locale, enabled: boolean) {
   const { pluginRuntime } = useAppContext();
   return useQuery({
-    queryKey: ['plugins', 'messages', pluginId, locale],
-    queryFn: () => loadPluginMessages(pluginId, locale, pluginRuntime),
+    queryKey: ['plugins', 'messages', plugin.origin, plugin.id, locale],
+    queryFn: () => loadPluginMessages(plugin, locale, pluginRuntime),
     enabled,
     staleTime: Infinity,
     retry: false,

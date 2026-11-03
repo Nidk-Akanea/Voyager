@@ -1,12 +1,18 @@
 import type { ComponentType } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { PluginOrigin } from '@voyager/grpc-client';
 import type { DiagnosticFactPanelProps, PluginRegistry } from '@voyager/plugin-sdk';
 
 import { loadPluginUi, type PluginToLoad } from './loadPluginUi';
 import type { PluginRuntime } from './pluginRuntime';
 
-const PLUGIN: PluginToLoad = { id: 'diagnostics-clock', uiModule: 'index.js', provides: ['diagnostic-fact-source'] };
+const PLUGIN: PluginToLoad = {
+  id: 'diagnostics-clock',
+  origin: PluginOrigin.SHIPPED,
+  uiModule: 'index.js',
+  provides: ['diagnostic-fact-source'],
+};
 const PANEL: ComponentType<DiagnosticFactPanelProps> = () => null;
 
 function runtimeThatImports(importModule: PluginRuntime['importModule']): PluginRuntime {
@@ -34,7 +40,7 @@ describe('loadPluginUi', () => {
 
     const ui = await loadPluginUi(PLUGIN, runtimeThatImports(importModule));
 
-    expect(importModule).toHaveBeenCalledWith('voyager://app/plugins/diagnostics-clock/ui/index.js');
+    expect(importModule).toHaveBeenCalledWith('voyager://app/plugins/shipped/diagnostics-clock/ui/index.js');
     expect(ui).toEqual({ status: 'ready', panel: PANEL });
   });
 

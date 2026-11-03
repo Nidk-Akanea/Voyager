@@ -9,6 +9,7 @@ plugins-state-rejected = Écarté
 plugins-state-error = En erreur
 plugins-reason-manifest-invalid = Son manifeste est absent, illisible ou ne correspond pas à son dossier.
 plugins-reason-duplicate-id = Un autre plugin porte déjà cet identifiant.
+plugins-reason-duplicate-of-shipped = Un plugin livré avec Voyager porte déjà cet identifiant. Désactivez-le pour utiliser celui-ci.
 plugins-reason-contract-not-supported = Il utilise un contrat dans une version que cette application ne prend pas en charge.
 plugins-reason-load-failed = Sa partie .NET n’a pas pu être chargée.
 plugins-reason-undeclared-registration = Il fournit quelque chose que son manifeste n’annonce pas.

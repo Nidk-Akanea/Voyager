@@ -9,6 +9,7 @@
     <ProjectReference Include="..\plugin-fixtures\Good\Good.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\plugin-fixtures\ThrowsOnConfigure\ThrowsOnConfigure.csproj" ReferenceOutputAssembly="false" />
     <Compile Include="..\Voyager.PluginHost.Tests\PluginFolder.cs" Link="PluginFolder.cs" />
+    <Compile Include="..\Voyager.PluginHost.Tests\UserPluginFolder.cs" Link="UserPluginFolder.cs" />
   </ItemGroup>
 
   <ItemGroup>
