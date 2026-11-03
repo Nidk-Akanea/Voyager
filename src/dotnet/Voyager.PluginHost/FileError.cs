@@ -9,10 +9,13 @@ internal static class FileError
 {
     #region Fields
 
+    // What Windows says of a file another process holds.
+    private const int ERROR_SHARING_VIOLATION = 32;
     private const int ERROR_LOCK_VIOLATION = 33;
 
-    // The Windows codes .NET also gives on other systems for a file another process holds.
-    private const int ERROR_SHARING_VIOLATION = 32;
+    // What Linux and macOS say of a file whose lock another process holds (EWOULDBLOCK), which .NET passes on as it is.
+    private const int LINUX_WOULD_BLOCK = 11;
+    private const int MACOS_WOULD_BLOCK = 35;
 
     #endregion Fields
 
@@ -29,7 +32,9 @@ internal static class FileError
     /// </summary>
     /// <param name="exception">The error of the file system.</param>
     public static bool IsSharingViolation(IOException exception) =>
-        (exception.HResult & 0xFFFF) is ERROR_SHARING_VIOLATION or ERROR_LOCK_VIOLATION;
+        OperatingSystem.IsWindows()
+            ? (exception.HResult & 0xFFFF) is ERROR_SHARING_VIOLATION or ERROR_LOCK_VIOLATION
+            : exception.HResult is LINUX_WOULD_BLOCK or MACOS_WOULD_BLOCK;
 
     #endregion Public Methods
 }
