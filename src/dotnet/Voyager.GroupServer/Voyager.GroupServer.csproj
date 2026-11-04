@@ -10,4 +10,16 @@
     <ProjectReference Include="..\Voyager.ServiceDefaults\Voyager.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- google.rpc.ErrorInfo: the stable reason of a refusal, which the app translates (docs/conventions/grpc.md). -->
+    <PackageReference Include="Google.Api.CommonProtos" />
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.AspNetCore.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The integration tests start this host in memory (WebApplicationFactory<Program>). -->
+    <InternalsVisibleTo Include="Voyager.GroupServer.Tests" />
+  </ItemGroup>
+
 </Project>

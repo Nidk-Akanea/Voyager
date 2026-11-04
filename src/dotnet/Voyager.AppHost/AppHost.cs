@@ -12,11 +12,6 @@ var database = builder.AddPostgres("postgres")
     .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase("voyager");
 
-builder.AddProject<Projects.Voyager_GroupServer>("group-server")
-    .WithHttpEndpoint(port: 5180)
-    .WithReference(database)
-    .WaitFor(database);
-
 // Shared secret between the desktop app and the local service, generated anew on every run.
 var localToken = builder.AddParameter(
     "local-token",
@@ -24,8 +19,9 @@ var localToken = builder.AddParameter(
     secret: true,
     persist: false);
 
-// The plugins that ship with Voyager, built into artifacts/plugins before anything loads them (ADR-0015): the local
-// service loads them at startup, and the user interface served by Vite reads their modules from the same folder.
+// The plugins that ship with Voyager, built into artifacts/plugins before anything loads them (ADR-0015): the group
+// server and the local service load them at startup, and the user interface served by Vite reads their modules from
+// the same folder.
 var repositoryRoot = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".."));
 var pluginsFolder = Path.Combine(repositoryRoot, "artifacts", "plugins");
 // The plugins folder of the user's data in development (installed plugins, requests, state): under artifacts, never
@@ -45,6 +41,17 @@ var plugins = builder.AddExecutable(
     "0.0.0-dev",
     "-Configuration",
     "Debug");
+
+// The group server runs the plugins (ADR-0020) and serves the desktop app (ADR-0018). The development identity lets
+// it accept calls without signing in, on behalf of a development account and group: Aspire alone sets it, and the
+// server refuses it outside the Development environment (ADR-0019, decision 9).
+builder.AddProject<Projects.Voyager_GroupServer>("group-server")
+    .WithHttpEndpoint(port: 5180)
+    .WithReference(database)
+    .WithEnvironment("Voyager__DevelopmentIdentity", "true")
+    .WithEnvironment("Voyager__ShippedPluginsDirectory", pluginsFolder)
+    .WaitFor(database)
+    .WaitForCompletion(plugins);
 
 // The TypeScript packages must be installed beforehand (pnpm install at the repository root).
 var userInterface = builder.AddViteApp("ui", "../../ts/ui")

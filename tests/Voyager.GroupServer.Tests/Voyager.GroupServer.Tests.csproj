@@ -1,0 +1,22 @@
+<Project Sdk="MSTest.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\dotnet\Voyager.GroupServer\Voyager.GroupServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Test plugins, built before the tests and copied into a plugins folder by PluginFolder. -->
+    <ProjectReference Include="..\plugin-fixtures\Good\Good.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\ThrowsOnConfigure\ThrowsOnConfigure.csproj" ReferenceOutputAssembly="false" />
+    <!-- Shared with the plugin host tests: copies those built plugins into a temporary folder. -->
+    <Compile Include="..\Voyager.PluginHost.Tests\PluginFolder.cs" Link="PluginFolder.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="NodaTime.Testing" />
+  </ItemGroup>
+
+</Project>

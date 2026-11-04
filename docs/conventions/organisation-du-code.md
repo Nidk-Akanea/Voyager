@@ -49,7 +49,7 @@ Voyager/
 | `Voyager.Sync`                   | Moteur de synchronisation entre service local et serveur                                                                                                                       | `Voyager.Core`, `Voyager.Contracts`           |
 | `Voyager.PluginHost`             | Découverte, chargement, cycle de vie et gestion des plugins (racines, demandes, état, examen et pose des paquets)                                                              | `Voyager.Sdk`                                 |
 | `Voyager.LocalService`           | Hôte ASP.NET Core du service local (gRPC-Web, SQLite)                                                                                                                          | tous les adaptateurs                          |
-| `Voyager.GroupServer`            | Hôte ASP.NET Core du serveur du groupe (gRPC, PostgreSQL)                                                                                                                      | tous les adaptateurs                          |
+| `Voyager.GroupServer`            | Hôte ASP.NET Core du serveur du groupe (gRPC et gRPC-Web, plugins, authentification, PostgreSQL) ; il exécute le cœur et les plugins (ADR-0018)                                | tous les adaptateurs                          |
 | `Voyager.ServiceDefaults`        | Réglages techniques communs aux hôtes : télémétrie OpenTelemetry, journaux dans Seq en développement, points de santé, résilience HTTP, adresses d'écoute (ADR-0011, ADR-0012) | paquets techniques uniquement                 |
 | `Voyager.AppHost`                | Orchestration Aspire, **en développement uniquement** : PostgreSQL + PostGIS, hôtes, tableau de bord (ADR-0011)                                                                | les deux hôtes ; aucun projet ne le référence |
 
@@ -199,7 +199,8 @@ Un projet de test par projet testé, avec le suffixe `.Tests` :
 pour les règles de dépendance. Les tests TypeScript sont à côté du code (`QuoteCard.test.tsx`).
 Détails : [tests](tests.md).
 
-`tests/plugin-fixtures/` contient de petits plugins qui n'existent que pour tester l'hôte de plugins
-(`tests/Voyager.PluginHost.Tests`) : un plugin conforme, un par défaut (exception au chargement, source
+`tests/plugin-fixtures/` contient de petits plugins qui n'existent que pour tester l'hôte de plugins et
+les hôtes qui le chargent (`tests/Voyager.PluginHost.Tests`, `Voyager.LocalService.Tests`,
+`Voyager.GroupServer.Tests`) : un plugin conforme, un par défaut (exception au chargement, source
 lente, conteneur invalide, inscription non déclarée…). Ils ne sont jamais livrés ; chacun s'appelle
 `Voyager.PluginFixtures.<Nom>` et ne référence que `Voyager.Sdk`.

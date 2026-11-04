@@ -15,11 +15,18 @@
 
     A plugin is only built again when something it is made of changed since the last build: its own files, the SDKs
     it is written against, the shared build settings, or the version. Otherwise it is left as it is, which is also
-    what lets this run while the local service has its assemblies loaded. A plugin whose folder was deleted from
-    plugins/ is removed from the output.
+    what lets this run while the local service or the group server has its assemblies loaded. A plugin whose folder
+    was deleted from plugins/ is removed from the output.
 
     The result is what the packaged app ships in resources/plugins, and what the development environment (Aspire)
-    and `pnpm start` give the local service and the user interface in development.
+    and `pnpm start` give the local service, the group server and the user interface in development; the image of the
+    group server builds its .NET part only (-SkipInterface).
+
+.PARAMETER PluginVersions
+    The version of each plugin, as id=version pairs separated by commas, such as
+    diagnostics-clock=0.2.1,diagnostics-runtime=0.1.4: what tools/release.ps1 gives the image of the group server,
+    built where GitVersion cannot run. A plugin it names takes that version rather than -Version; a name that is no
+    plugin of plugins/ is reported and ignored.
 
 .PARAMETER Version
     The version to write in every manifest, such as 0.2.0-beta.3. Defaults to the version of each plugin, which
@@ -33,6 +40,10 @@
 .PARAMETER Force
     Builds every plugin again, even those that did not change.
 
+.PARAMETER SkipInterface
+    Builds the .NET part and the translations only, without the interface modules (no pnpm): what the image of the
+    group server needs, built where Node.js is not installed. The manifest still names the module.
+
 .EXAMPLE
     pwsh tools/build-plugins.ps1
 
@@ -42,9 +53,11 @@
 [CmdletBinding()]
 param(
     [string] $Version,
+    [string] $PluginVersions,
     [ValidateSet('Debug', 'Release')]
     [string] $Configuration = 'Release',
-    [switch] $Force
+    [switch] $Force,
+    [switch] $SkipInterface
 )
 
 $ErrorActionPreference = 'Stop'
@@ -106,7 +119,7 @@ function Get-InputFile {
 # A fingerprint of everything a plugin is built from: it changes when any of it, the version or the configuration does.
 function Get-Fingerprint {
     param([string] $PluginSource, [string] $PluginVersion)
-    $lines = @("version $PluginVersion", "configuration $Configuration")
+    $lines = @("version $PluginVersion", "configuration $Configuration", "skip-interface $SkipInterface")
     foreach ($path in @($PluginSource) + ($sharedInputs | ForEach-Object { Join-Path $root $_ })) {
         if (-not (Test-Path -LiteralPath $path)) { continue }
         foreach ($file in (Get-InputFile $path | Sort-Object FullName)) {
@@ -118,7 +131,7 @@ function Get-Fingerprint {
     return [BitConverter]::ToString([Security.Cryptography.SHA256]::HashData($bytes)).Replace('-', '')
 }
 
-# Windows keeps the assemblies of a plugin locked while the local service that loaded them runs.
+# Windows keeps the assemblies of a plugin locked while the local service or the group server that loaded them runs.
 function Remove-PluginOutput {
     param([string] $Path)
     try {
@@ -128,7 +141,7 @@ function Remove-PluginOutput {
         # Nothing built yet: nothing to clean.
     }
     catch {
-        throw "A plugin could not be replaced ($Path): stop the local service (or Voyager) that uses it, then run this again. $($_.Exception.Message)"
+        throw "A plugin could not be replaced ($Path): stop the local service, the group server (or Voyager) that uses it, then run this again. $($_.Exception.Message)"
     }
 }
 
@@ -136,6 +149,18 @@ Set-Location -LiteralPath $root
 
 if ($Version) {
     Assert-Version $Version 'the -Version parameter'
+}
+
+$versionOf = @{}
+if ($PluginVersions) {
+    foreach ($pair in ($PluginVersions -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+        $parts = $pair -split '=', 2
+        if ($parts.Count -ne 2 -or -not $parts[0]) {
+            throw "Not an id=version pair in -PluginVersions: '$pair'."
+        }
+        Assert-Version $parts[1] "-PluginVersions, plugin $($parts[0])"
+        $versionOf[$parts[0]] = $parts[1]
+    }
 }
 
 New-Item -ItemType Directory -Path $pluginsOutput -Force | Out-Null
@@ -154,7 +179,7 @@ foreach ($manifestPath in $manifests) {
         throw "The folder $(Split-Path -Leaf $source) does not have the identifier of its manifest ($id)."
     }
     $builtIds += $id
-    $pluginVersion = $Version
+    $pluginVersion = if ($versionOf.ContainsKey($id)) { $versionOf[$id] } else { $Version }
     if (-not $pluginVersion) {
         Write-Host "==> Compute the version of $id (GitVersion)" -ForegroundColor Cyan
         $pluginVersion = (& (Join-Path $PSScriptRoot 'get-version.ps1') -Component $id | Select-Object -Last 1).Trim()
@@ -190,7 +215,7 @@ foreach ($manifestPath in $manifests) {
         }
     }
 
-    if (Test-ManifestPart $manifest 'ui') {
+    if (-not $SkipInterface -and (Test-ManifestPart $manifest 'ui')) {
         Invoke-Step "Build the interface module of $id" {
             pnpm --filter "./plugins/$id/ui" run build
         }
@@ -216,6 +241,11 @@ foreach ($manifestPath in $manifests) {
     $built | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $output 'plugin.json') -Encoding utf8NoBOM
     # Written last: a build that failed half way leaves no stamp, and is done again.
     Set-Content -LiteralPath $stamp -Value $fingerprint -Encoding utf8NoBOM
+}
+
+# A misspelt name would leave its plugin on -Version without a word: the image would ship it as 0.0.0-dev.
+foreach ($unknownId in ($versionOf.Keys | Where-Object { $_ -notin $builtIds })) {
+    Write-Warning "-PluginVersions names $unknownId, which is no plugin of plugins/: its version is ignored."
 }
 
 # A plugin deleted from plugins/ must not stay in what is loaded or shipped.

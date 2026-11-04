@@ -131,9 +131,19 @@ Invoke-Step 'Pack the installer and the update packages (Velopack)' {
 }
 
 if ($Docker) {
+    # GitVersion cannot run inside Docker: each plugin gets the version of its own history from here (ADR-0007).
+    Invoke-Step 'Compute the versions of the shipped plugins (GitVersion)' {
+        $script:pluginVersions = (Get-ChildItem -LiteralPath (Join-Path $root 'plugins') -Directory |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'plugin.json') } |
+            ForEach-Object {
+                $pluginVersion = (& (Join-Path $PSScriptRoot 'get-version.ps1') -Component $_.Name | Select-Object -Last 1).Trim()
+                "$($_.Name)=$pluginVersion"
+            }) -join ','
+    }
     Invoke-Step 'Build the group server image' {
         docker build --file (Join-Path $root 'deploy/GroupServer.Dockerfile') `
-            --build-arg "VERSION=$Version" --tag "voyager-group-server:$Version" $root
+            --build-arg "VERSION=$Version" --build-arg "SDK_VERSION=$sdkVersion" --build-arg "PLUGIN_VERSIONS=$pluginVersions" `
+            --tag "voyager-group-server:$Version" $root
     }
 }
 

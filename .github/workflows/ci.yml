@@ -34,6 +34,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build --file deploy/GroupServer.Dockerfile --tag voyager-group-server:ci .
+      # The shipped plugins are in the fixed folder the server reads them from (ADR-0020, decision 3), and it loads them.
+      - name: The image holds and loads the shipped plugins
+        run: |
+          for plugin in diagnostics-clock/Voyager.Plugins.DiagnosticsClock diagnostics-runtime/Voyager.Plugins.DiagnosticsRuntime; do
+            docker run --rm --entrypoint test voyager-group-server:ci -f "/app/plugins/${plugin}.dll"
+          done
+          docker run --detach --name plugins-check voyager-group-server:ci
+          sleep 10
+          docker logs plugins-check > plugins.log 2>&1
+          docker rm --force plugins-check
+          cat plugins.log
+          grep -q "Plugins loaded: 2 in use, 0 set aside" plugins.log
+      # Outside the Development environment, the development identity stops the server (ADR-0019, decision 9). A server
+      # that started anyway would run until the time limit: both that and a start are failures; the refusal must be the
+      # reason it stopped.
+      - name: The image refuses the development identity
+        run: |
+          set +e
+          timeout 60 docker run --name identity-check --env Voyager__DevelopmentIdentity=true voyager-group-server:ci > identity.log 2>&1
+          status=$?
+          set -e
+          docker rm --force identity-check > /dev/null 2>&1 || true
+          cat identity.log
+          if [ "$status" -eq 0 ] || [ "$status" -eq 124 ]; then
+            echo "The server started with the development identity outside Development (exit code $status)." >&2
+            exit 1
+          fi
+          grep -q "DevelopmentIdentity is only allowed in the Development environment" identity.log
 
   typescript:
     name: TypeScript lint, types, tests, format, contracts

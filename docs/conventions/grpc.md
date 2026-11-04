@@ -79,6 +79,19 @@ Côté C#, les adaptateurs convertissent ces types vers le domaine : `google.typ
 
 - Le message d'erreur est destiné aux développeurs (anglais) ; l'interface affiche un texte traduit à
   partir de la `reason`.
+- Le domaine des raisons de Voyager est `voyager`. Raisons déjà en usage : `APP_VERSION_TOO_OLD` (le serveur
+  ne sert plus cette version de l'application, ADR-0018, décision 6).
+
+## En-têtes du client
+
+Le client se présente au serveur du groupe à chaque appel (ADR-0018, décision 6) :
+
+- `x-voyager-app` : l'application qui appelle (`desktop`, plus tard `mobile`) ;
+- `x-voyager-app-version` : sa version, telle que GitVersion la calcule (`0.4.0-beta.2`).
+
+Le serveur refuse une application plus ancienne que sa version minimale (`Voyager__MinimumAppVersion`),
+avec `FAILED_PRECONDITION` et la raison `APP_VERSION_TOO_OLD`. Ce contrôle passe aujourd'hui après
+l'authentification ; il passera avant, avec la connexion réelle (ADR-0019).
 
 ## Documentation
 
