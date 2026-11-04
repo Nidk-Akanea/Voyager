@@ -107,6 +107,9 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 ### E1 — Projet de voyage et idéation
 
 - [ ] Créer un voyage, inviter des membres, déclarer les voyageurs (avec leur catégorie)
+  - [ ] Socle : le voyage et les voyageurs (personnes réutilisables, l'utilisateur en est un), au strict
+    minimum, sans membres ni invitations :
+    [projet-voyage-et-voyageurs](specs/projet-voyage-et-voyageurs.md) (validée)
 - [ ] Noter des envies : thèmes, destinations, activités
 - [ ] Trier, préciser, regrouper les envies (affinage)
 
