@@ -3,6 +3,7 @@
 - **Statut** : Acceptée
 - **Date** : 2026-10-24
 - **Remplace** : —
+- **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (le service local, sa base et la synchronisation)
 
 ## Contexte
 

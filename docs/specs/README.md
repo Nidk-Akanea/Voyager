@@ -9,5 +9,5 @@ qu'une spec validée.
 | Spec                                                                | Épic                      | Statut      |
 | ------------------------------------------------------------------- | ------------------------- | ----------- |
 | [plateforme-preuve-des-plugins](plateforme-preuve-des-plugins.md)   | E9 — Plateforme modulaire | Implémentée |
-| [plateforme-gestion-des-plugins](plateforme-gestion-des-plugins.md) | E9 — Plateforme modulaire | Validée     |
-| [projet-voyage-et-voyageurs](projet-voyage-et-voyageurs.md)         | E1 — Projet de voyage     | Validée     |
+| [plateforme-gestion-des-plugins](plateforme-gestion-des-plugins.md) | E9 — Plateforme modulaire | Brouillon   |
+| [projet-voyage-et-voyageurs](projet-voyage-et-voyageurs.md)         | E1 — Projet de voyage     | Brouillon   |

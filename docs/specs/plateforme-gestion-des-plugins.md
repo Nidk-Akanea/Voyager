@@ -1,6 +1,7 @@
 # Spec — Gestion des plugins
 
-- **Statut** : Validée
+- **Statut** : Brouillon
+- **À revoir** : depuis l'[ADR-0018](../adr/0018-client-serveur-et-copie-de-voyage.md) (client-serveur), repassée au statut « Brouillon » jusqu'à une nouvelle validation
 - **Épic** : E9 — Plateforme modulaire (transverse)
 - **Date** : 2026-10-30
 

@@ -1,6 +1,7 @@
 # Spec — Le voyage et ses voyageurs
 
-- **Statut** : Validée
+- **Statut** : Brouillon
+- **À revoir** : depuis l'[ADR-0018](../adr/0018-client-serveur-et-copie-de-voyage.md) (client-serveur), repassée au statut « Brouillon » jusqu'à une nouvelle validation
 - **Épic** : E1 — Projet de voyage et idéation
 - **Date** : 2026-11-04
 

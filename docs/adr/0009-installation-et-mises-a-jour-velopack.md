@@ -4,6 +4,7 @@
 - **Date** : 2026-10-24
 - **Remplace** : la ligne « Application, packaging, mises à jour : Electron + Electron Forge » de
   l'[ADR-0006](0006-dependances-principales.md), pour l'installation et les mises à jour
+- **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (décisions 6 et 7, le service local et les plugins livrés avec l'application)
 
 ## Contexte
 

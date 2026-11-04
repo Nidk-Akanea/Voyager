@@ -1,6 +1,6 @@
 # ADR-0004 — Stockage des données
 
-- **Statut** : Acceptée
+- **Statut** : Remplacée par [ADR-0018](0018-client-serveur-et-copie-de-voyage.md)
 - **Date** : 2026-10-24
 - **Remplace** : —
 

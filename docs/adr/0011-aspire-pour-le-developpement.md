@@ -5,6 +5,7 @@
 - **Remplace** : —
 - **Complète** : l'[ADR-0006](0006-dependances-principales.md) (ajout d'Aspire ; OpenTelemetry dès
   maintenant, sur les deux hôtes)
+- **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (le service local lancé par Aspire)
 
 ## Contexte
 

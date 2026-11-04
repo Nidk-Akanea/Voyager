@@ -5,6 +5,7 @@
 - **Remplace** : en partie [ADR-0009](0009-installation-et-mises-a-jour-velopack.md) : la décision 2
   (« propose de l'installer au prochain lancement ») et la décision 5 (hébergement des mises à jour sur
   les *releases* GitHub seulement)
+- **À réviser** : depuis l'[ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (acceptée), l'application ne démarre ni ne surveille plus de service local
 
 ## Contexte
 
