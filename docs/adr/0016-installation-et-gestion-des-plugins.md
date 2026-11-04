@@ -7,6 +7,7 @@
   le « pas de signature » ; **l'absence d'isolation reste**, et l'import d'un fichier accepte du code de
   tiers aux risques de l'utilisateur (décision 7) ; précise la décision 7 de
   [ADR-0009](0009-installation-et-mises-a-jour-velopack.md))
+- **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (décisions 1, 3 à 6 et 8, les plugins installés et gérés sur le serveur)
 
 ## Contexte
 

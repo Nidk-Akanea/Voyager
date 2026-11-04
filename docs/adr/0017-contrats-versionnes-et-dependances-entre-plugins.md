@@ -8,6 +8,7 @@
   sens du numéro de version du SDK d'[ADR-0007](0007-git-flow-et-versions-gitversion.md) ; répond à la
   question Q27 ; **touche les décisions 6 et 9** de [ADR-0016](0016-installation-et-gestion-des-plugins.md)
   et **la décision 3** de [ADR-0014](0014-ecran-de-demarrage-et-mise-a-jour-au-demarrage.md))
+- **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (décisions 2, 6 et 7, les deux moitiés d'un contrat ne sont plus mises à jour ensemble)
 
 ## Contexte
 

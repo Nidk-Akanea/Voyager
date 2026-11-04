@@ -5,6 +5,7 @@
 - **Remplace** : — (complète [ADR-0009](0009-installation-et-mises-a-jour-velopack.md), qui laisse ouvert
   l'outil assemblant le dossier de l'application, et précise la ligne « Electron + Electron Forge » de
   [ADR-0006](0006-dependances-principales.md))
+- **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (le service local publié dans le paquet)
 
 ## Contexte
 

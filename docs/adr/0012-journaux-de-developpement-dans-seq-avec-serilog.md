@@ -4,6 +4,7 @@
 - **Date** : 2026-10-25
 - **Remplace** : — (complète [ADR-0006](0006-dependances-principales.md), dont il élargit la ligne
   « Journalisation (écriture) », et [ADR-0011](0011-aspire-pour-le-developpement.md))
+- **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (décision 6, l'application et son service local)
 
 ## Contexte
 

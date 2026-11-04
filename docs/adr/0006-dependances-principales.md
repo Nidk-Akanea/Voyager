@@ -6,6 +6,7 @@
 - **Complétée par** : [ADR-0008](0008-globalisation-fluent-et-linguini.md) (traductions),
   [ADR-0009](0009-installation-et-mises-a-jour-velopack.md) (installation),
   [ADR-0011](0011-aspire-pour-le-developpement.md) (Aspire, OpenTelemetry)
+- **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (`Microsoft.EntityFrameworkCore.Sqlite` sur le poste)
 
 ## Contexte
 
