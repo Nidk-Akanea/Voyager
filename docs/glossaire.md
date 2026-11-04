@@ -5,15 +5,18 @@ Un terme ajouté ici doit être utilisé tel quel partout.
 
 ## Le projet et le groupe
 
-| Terme métier          | Nom de code        | Définition                                                                                                 |
-| --------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------- |
-| Voyage                | `Trip`             | Le projet : un groupe, ses envies, ses devis, et à la fin le voyage réalisé. Racine des données du voyage. |
-| Membre                | `Member`           | Personne qui a accès au voyage dans Voyager : consulte, modifie, crée des devis, vote.                     |
-| Voyageur              | `Traveler`         | Personne qui part. Un voyageur n'est pas forcément membre (un enfant, par exemple).                        |
-| Catégorie de voyageur | `TravelerCategory` | Classe utilisée par les tarifs : adulte, enfant…                                                           |
-| Envie                 | `Wish`             | Une idée émise pendant l'idéation : un thème, une destination ou une activité qu'on aimerait faire.        |
-| Thème                 | `Theme`            | Une orientation du voyage (nature, culture, plage…), utilisée pour classer les envies.                     |
-| Destination           | `Destination`      | Un lieu envisagé pour le voyage, en général une zone (pays, région, ville).                                |
+| Terme métier          | Nom de code        | Définition                                                                                                                                                                                                                                 |
+| --------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Voyage                | `Trip`             | Le projet : un groupe, ses envies, ses devis, et à la fin le voyage réalisé. Racine des données du voyage.                                                                                                                                 |
+| Membre                | `Member`           | Personne qui a accès au voyage dans Voyager : consulte, modifie, crée des devis, vote.                                                                                                                                                     |
+| Voyageur              | `Traveler`         | Une personne qui fait des voyages, réutilisable d'un voyage à l'autre : nom, pseudo, date de naissance, avatar, description. Un voyageur n'est pas forcément un utilisateur (un enfant, par exemple) ; il pourra être associé à un membre. |
+| Utilisateur           | `User`             | La personne qui utilise Voyager sur ce poste. Toujours un voyageur : son profil, créé au premier lancement, ne peut pas être supprimé.                                                                                                     |
+| Voyageurs du voyage   | `Trip.Travelers`   | Les voyageurs ajoutés à un voyage, chacun une fois, dans l'ordre d'ajout. Retirer un voyageur d'un voyage ne supprime pas le voyageur.                                                                                                     |
+| Pseudo                | `Nickname`         | Le nom court d'un voyageur ; quand il existe, c'est lui que les écrans montrent.                                                                                                                                                           |
+| Catégorie de voyageur | `TravelerCategory` | Classe utilisée par les tarifs : adulte, enfant…                                                                                                                                                                                           |
+| Envie                 | `Wish`             | Une idée émise pendant l'idéation : un thème, une destination ou une activité qu'on aimerait faire.                                                                                                                                        |
+| Thème                 | `Theme`            | Une orientation du voyage (nature, culture, plage…), utilisée pour classer les envies.                                                                                                                                                     |
+| Destination           | `Destination`      | Un lieu envisagé pour le voyage, en général une zone (pays, région, ville).                                                                                                                                                                |
 
 ## Devis et programme
 
