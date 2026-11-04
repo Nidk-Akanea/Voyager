@@ -33,6 +33,10 @@
 .PARAMETER Force
     Builds every plugin again, even those that did not change.
 
+.PARAMETER SkipInterface
+    Builds the .NET part and the translations only, without the interface modules (no pnpm): what the image of the
+    group server needs, built where Node.js is not installed. The manifest still names the module.
+
 .EXAMPLE
     pwsh tools/build-plugins.ps1
 
@@ -44,7 +48,8 @@ param(
     [string] $Version,
     [ValidateSet('Debug', 'Release')]
     [string] $Configuration = 'Release',
-    [switch] $Force
+    [switch] $Force,
+    [switch] $SkipInterface
 )
 
 $ErrorActionPreference = 'Stop'
@@ -106,7 +111,7 @@ function Get-InputFile {
 # A fingerprint of everything a plugin is built from: it changes when any of it, the version or the configuration does.
 function Get-Fingerprint {
     param([string] $PluginSource, [string] $PluginVersion)
-    $lines = @("version $PluginVersion", "configuration $Configuration")
+    $lines = @("version $PluginVersion", "configuration $Configuration", "skip-interface $SkipInterface")
     foreach ($path in @($PluginSource) + ($sharedInputs | ForEach-Object { Join-Path $root $_ })) {
         if (-not (Test-Path -LiteralPath $path)) { continue }
         foreach ($file in (Get-InputFile $path | Sort-Object FullName)) {
@@ -190,7 +195,7 @@ foreach ($manifestPath in $manifests) {
         }
     }
 
-    if (Test-ManifestPart $manifest 'ui') {
+    if (-not $SkipInterface -and (Test-ManifestPart $manifest 'ui')) {
         Invoke-Step "Build the interface module of $id" {
             pnpm --filter "./plugins/$id/ui" run build
         }

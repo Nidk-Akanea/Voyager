@@ -12,11 +12,6 @@ var database = builder.AddPostgres("postgres")
     .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase("voyager");
 
-builder.AddProject<Projects.Voyager_GroupServer>("group-server")
-    .WithHttpEndpoint(port: 5180)
-    .WithReference(database)
-    .WaitFor(database);
-
 // Shared secret between the desktop app and the local service, generated anew on every run.
 var localToken = builder.AddParameter(
     "local-token",
@@ -45,6 +40,17 @@ var plugins = builder.AddExecutable(
     "0.0.0-dev",
     "-Configuration",
     "Debug");
+
+// The group server runs the plugins (ADR-0020) and serves the desktop app (ADR-0018). The development identity lets
+// it accept calls without signing in, on behalf of a development account and group: Aspire alone sets it, and the
+// server refuses it outside the Development environment (ADR-0019, decision 9).
+builder.AddProject<Projects.Voyager_GroupServer>("group-server")
+    .WithHttpEndpoint(port: 5180)
+    .WithReference(database)
+    .WithEnvironment("Voyager__DevelopmentIdentity", "true")
+    .WithEnvironment("Voyager__ShippedPluginsDirectory", pluginsFolder)
+    .WaitFor(database)
+    .WaitForCompletion(plugins);
 
 // The TypeScript packages must be installed beforehand (pnpm install at the repository root).
 var userInterface = builder.AddViteApp("ui", "../../ts/ui")

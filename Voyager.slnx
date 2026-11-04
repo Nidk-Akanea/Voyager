@@ -43,6 +43,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Voyager.Architecture.Tests/Voyager.Architecture.Tests.csproj" />
+    <Project Path="tests/Voyager.GroupServer.Tests/Voyager.GroupServer.Tests.csproj" />
     <Project Path="tests/Voyager.LocalService.Tests/Voyager.LocalService.Tests.csproj" />
     <Project Path="tests/Voyager.PluginHost.Tests/Voyager.PluginHost.Tests.csproj" />
   </Folder>

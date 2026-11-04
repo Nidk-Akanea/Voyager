@@ -34,6 +34,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build --file deploy/GroupServer.Dockerfile --tag voyager-group-server:ci .
+      # The shipped plugins are in the fixed folder the server reads them from (ADR-0020, decision 3).
+      - run: docker run --rm --entrypoint test voyager-group-server:ci -f /app/plugins/diagnostics-clock/plugin.json
+      # Outside the Development environment, the development identity stops the server (ADR-0019, decision 9).
+      - name: The image refuses the development identity
+        run: |
+          if timeout 60 docker run --rm --env Voyager__DevelopmentIdentity=true voyager-group-server:ci; then
+            echo "The server started with the development identity outside Development." >&2
+            exit 1
+          fi
 
   typescript:
     name: TypeScript lint, types, tests, format, contracts
