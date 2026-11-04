@@ -8,6 +8,9 @@ import { PluginHostService } from './gen/voyager/pluginhost/v1/pluginhost_pb.js'
 export * from './gen/voyager/diagnostics/v1/diagnostics_pb.js';
 export * from './gen/voyager/pluginhost/v1/pluginhost_pb.js';
 export type * from './pluginManagement.js';
+export * from './servers.js';
+// The errors of a call, for the screens that tell them apart (and their tests), without depending on Connect themselves.
+export { Code, ConnectError } from '@connectrpc/connect';
 
 /**
  * Header carrying the secret shared by the desktop app and its local service. Must match
@@ -41,11 +44,14 @@ export type StartupState =
   | { readonly status: 'installing-update'; readonly version: string }
   | { readonly status: 'starting-service' };
 
-/** Clients for every service exposed by the local service. */
-export interface LocalServiceClients {
+/** Clients for every service the screens call, on a group server (or, until it goes, the local service). */
+export interface VoyagerClients {
   readonly diagnostics: Client<typeof DiagnosticsService>;
   readonly pluginHost: Client<typeof PluginHostService>;
 }
+
+/** Clients for every service exposed by the local service. */
+export type LocalServiceClients = VoyagerClients;
 
 /** Creates the gRPC-Web clients of the local service (ADR-0003). */
 export function createLocalServiceClients(connection: LocalServiceConnection): LocalServiceClients {

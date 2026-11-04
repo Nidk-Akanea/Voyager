@@ -50,3 +50,6 @@ export const RESTART_FOR_PLUGINS_CHANNEL = 'voyager:plugins:restart';
 
 /** Starts the local service again without the installed plugins, after it failed (RecoveryResult). */
 export const START_WITHOUT_INSTALLED_PLUGINS_CHANNEL = 'voyager:start-without-installed-plugins';
+
+/** Returns the group servers the app knows, by identifier and address (RegisteredServer[]); main window only. */
+export const GET_SERVERS_CHANNEL = 'voyager:get-servers';

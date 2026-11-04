@@ -1,4 +1,4 @@
-// What the local service reports about itself, as a list of labelled values. Formats, never computes.
+// What the server reports about itself, as a list of labelled values, with its address. Formats, never computes.
 import { Body1, Card, makeStyles, tokens } from '@fluentui/react-components';
 import { useLocalization } from '@fluent/react';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
@@ -27,7 +27,7 @@ const useStyles = makeStyles({
 
 export function ServiceFacts({ info }: { readonly info: GetServiceInfoResponse }) {
   const styles = useStyles();
-  const { locale } = useAppContext();
+  const { locale, server } = useAppContext();
   const { l10n } = useLocalization();
   const startedAt = info.startedAt
     ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }).format(
@@ -36,6 +36,7 @@ export function ServiceFacts({ info }: { readonly info: GetServiceInfoResponse }
     : '—';
 
   const facts: readonly (readonly [string, ReactNode])[] = [
+    ...(server === undefined ? [] : [['about-server', server.address] as const]),
     ['about-version', info.version],
     ['about-runtime', info.runtime],
     ['about-environment', info.environment],

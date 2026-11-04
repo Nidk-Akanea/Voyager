@@ -1,12 +1,13 @@
 about-title = À propos de Voyager
+about-server = Serveur
 about-version = Version
 about-runtime = Moteur d'exécution
 about-environment = Mode
 about-started-at = Démarré le
-about-database = Base de données locale
+about-database = Base de données du serveur
 about-database-available = Disponible
 about-database-unavailable = Indisponible
 about-database-unknown = Inconnue
-about-loading = Connexion au service local…
-about-error = Le service local ne répond pas.
+about-loading = Connexion au serveur…
+about-error = Le serveur ne répond pas.
 about-retry = Réessayer

@@ -60,11 +60,11 @@ describe('AboutPage', () => {
     expect(await screen.findByText('Indisponible')).toBeTruthy();
   });
 
-  it('offers to try again when the local service does not answer', async () => {
+  it('offers to try again when the server does not answer', async () => {
     const clients = renderAboutPage(() => Promise.reject(new Error('connection refused')));
 
     const retry = await screen.findByRole('button', { name: 'Réessayer' });
-    expect(screen.getByText('Le service local ne répond pas.')).toBeTruthy();
+    expect(screen.getByText('Le serveur ne répond pas.')).toBeTruthy();
 
     await userEvent.click(retry);
     expect(vi.mocked(clients.diagnostics.getServiceInfo).mock.calls.length).toBeGreaterThan(1);

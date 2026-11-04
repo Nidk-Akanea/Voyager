@@ -11,6 +11,7 @@ import type {
   PluginManagementBridge,
   PluginTarget,
   RecoveryResult,
+  RegisteredServer,
   RestartResult,
   StartupState,
 } from '@voyager/grpc-client';
@@ -21,6 +22,7 @@ import {
   DISABLE_PLUGIN_CHANNEL,
   ENABLE_PLUGIN_CHANNEL,
   GET_LOCAL_SERVICE_STATE_CHANNEL,
+  GET_SERVERS_CHANNEL,
   GET_STARTUP_STATE_CHANNEL,
   INSTALL_PLUGIN_CHANNEL,
   LIST_INBOX_CHANNEL,
@@ -53,6 +55,7 @@ const plugins: PluginManagementBridge = {
 
 // Same shape as VoyagerBridge in src/ts/ui/src/app/bridge.ts.
 contextBridge.exposeInMainWorld('voyager', {
+  getServers: () => ipcRenderer.invoke(GET_SERVERS_CHANNEL) as Promise<readonly RegisteredServer[]>,
   getLocalServiceState: () => ipcRenderer.invoke(GET_LOCAL_SERVICE_STATE_CHANNEL) as Promise<LocalServiceState>,
   // The listener never sees the IPC event: it would give the page a handle on Electron's internals.
   onLocalServiceStateChange: (listener: (state: LocalServiceState) => void) => {

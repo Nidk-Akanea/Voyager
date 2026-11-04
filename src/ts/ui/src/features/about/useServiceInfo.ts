@@ -1,4 +1,4 @@
-// Reads the diagnostics of the local service (proto/voyager/diagnostics/v1/diagnostics.proto).
+// Reads the diagnostics of the server (proto/voyager/diagnostics/v1/diagnostics.proto).
 import { useQuery } from '@tanstack/react-query';
 
 import { useAppContext } from '../../app/appContext';
