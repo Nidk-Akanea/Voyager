@@ -26,7 +26,8 @@
     ses effets sur les ADR voisins (décisions 6 et 7) ;
   - l'[ADR-0014](0014-ecran-de-demarrage-et-mise-a-jour-au-demarrage.md), encore proposé, sera révisé
     directement (il démarre et surveille le service local).
-- **Complétée par** : [ADR-0019](0019-authentification-et-invitations.md) (le mécanisme du jeton et le chemin des requêtes)
+- **Complétée par** : [ADR-0019](0019-authentification-et-invitations.md) (le mécanisme du jeton et le chemin des requêtes),
+  [ADR-0020](0020-plugins-sur-le-serveur.md) (décision 4, les plugins sur le serveur)
 
 ## Contexte
 
