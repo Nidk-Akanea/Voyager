@@ -22,15 +22,15 @@ internal static class AuthenticationStartup
         var developmentIdentity = builder.Environment.IsDevelopment()
             && builder.Configuration.GetValue<bool>($"{GroupServerOptions.SECTION}:{nameof(GroupServerOptions.DevelopmentIdentity)}");
 
-        var scheme = developmentIdentity ? DevelopmentIdentity.SCHEME : NoSignInAuthenticationHandler.SCHEME;
-        var authentication = builder.Services.AddAuthentication(scheme);
         if (developmentIdentity)
         {
-            authentication.AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(DevelopmentIdentity.SCHEME, configureOptions: null);
+            builder.Services.AddAuthentication(DevelopmentIdentity.SCHEME)
+                .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(DevelopmentIdentity.SCHEME, configureOptions: null);
         }
         else
         {
-            authentication.AddScheme<AuthenticationSchemeOptions, NoSignInAuthenticationHandler>(NoSignInAuthenticationHandler.SCHEME, configureOptions: null);
+            builder.Services.AddAuthentication(NoSignInAuthenticationHandler.SCHEME)
+                .AddScheme<AuthenticationSchemeOptions, NoSignInAuthenticationHandler>(NoSignInAuthenticationHandler.SCHEME, configureOptions: null);
         }
 
         builder.Services.AddAuthorization();

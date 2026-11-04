@@ -11,6 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 using NodaTime;
 
+using Voyager.Contracts.Diagnostics.V1;
+using Voyager.Contracts.PluginHost.V1;
 using Voyager.GroupServer.Api;
 
 namespace Voyager.GroupServer.Tests;
@@ -47,6 +49,14 @@ internal sealed class GroupServerFactory(
     /// <summary>Creates a gRPC channel that talks to the in-memory server.</summary>
     public GrpcChannel CreateChannel() =>
         GrpcChannel.ForAddress(Server.BaseAddress, new GrpcChannelOptions { HttpHandler = Server.CreateHandler() });
+
+    /// <summary>Creates a client of the plugin host service of the in-memory server.</summary>
+    public PluginHostService.PluginHostServiceClient CreatePluginHostClient() => new(CreateChannel());
+
+    /// <summary>Asks the in-memory server for its "About" information, the call most tests make.</summary>
+    /// <param name="headers">The headers of the call, such as <see cref="AppVersionHeader"/>, or null for none.</param>
+    public async Task<GetServiceInfoResponse> GetServiceInfoAsync(Metadata? headers = null) =>
+        await new DiagnosticsService.DiagnosticsServiceClient(CreateChannel()).GetServiceInfoAsync(new GetServiceInfoRequest(), headers);
 
     #endregion Public Methods
 

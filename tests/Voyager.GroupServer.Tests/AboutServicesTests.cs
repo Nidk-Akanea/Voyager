@@ -34,8 +34,7 @@ public sealed class AboutServicesTests
     {
         using var factory = new GroupServerFactory(clock: new FakeClock(_start));
 
-        var response = await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
-            .GetServiceInfoAsync(new GetServiceInfoRequest());
+        var response = await factory.GetServiceInfoAsync();
 
         response.Version.Should().NotBeNullOrWhiteSpace().And.NotContain("+");
         response.Runtime.Should().StartWith(".NET");
@@ -71,8 +70,7 @@ public sealed class AboutServicesTests
         // Port 1 on this machine: nothing listens there, so the connection is refused at once.
         using var factory = new GroupServerFactory(connectionString: "Host=127.0.0.1;Port=1;Database=voyager;Username=voyager;Timeout=2");
 
-        var response = await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
-            .GetServiceInfoAsync(new GetServiceInfoRequest());
+        var response = await factory.GetServiceInfoAsync();
 
         response.DatabaseStatus.Should().Be(DatabaseStatus.Unavailable);
     }
@@ -85,8 +83,7 @@ public sealed class AboutServicesTests
         plugins.AddPlugin("fixture-throws-on-configure", "ThrowsOnConfigure");
         using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path);
 
-        var response = await new PluginHostService.PluginHostServiceClient(factory.CreateChannel())
-            .ListPluginsAsync(new ListPluginsRequest());
+        var response = await factory.CreatePluginHostClient().ListPluginsAsync(new ListPluginsRequest());
 
         response.Plugins.Select(plugin => (plugin.Id, plugin.Status, plugin.Origin)).Should().BeEquivalentTo(
         [
@@ -109,8 +106,7 @@ public sealed class AboutServicesTests
         plugins.AddPlugin("fixture-good", "Good");
         using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path, clock: new FakeClock(_start));
 
-        var response = await new PluginHostService.PluginHostServiceClient(factory.CreateChannel())
-            .GetDiagnosticFactsAsync(new GetDiagnosticFactsRequest());
+        var response = await factory.CreatePluginHostClient().GetDiagnosticFactsAsync(new GetDiagnosticFactsRequest());
 
         response.Sources.Select(source => (source.SourceId, source.Outcome)).Should().BeEquivalentTo(
         [
@@ -132,7 +128,7 @@ public sealed class AboutServicesTests
     {
         using var factory = new GroupServerFactory();
 
-        var call = async () => await new PluginHostService.PluginHostServiceClient(factory.CreateChannel())
+        var call = async () => await factory.CreatePluginHostClient()
             .GetDiagnosticFactsAsync(new GetDiagnosticFactsRequest { SourceId = "nobody" });
 
         (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.NotFound);
@@ -143,7 +139,7 @@ public sealed class AboutServicesTests
     {
         using var factory = new GroupServerFactory();
 
-        var call = async () => await new PluginHostService.PluginHostServiceClient(factory.CreateChannel())
+        var call = async () => await factory.CreatePluginHostClient()
             .ExaminePackageAsync(new ExaminePackageRequest { StagedName = "a1b2c3d4e5f60718293a4b5c6d7e8f90.voyagerplugin" });
 
         (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.Unimplemented);

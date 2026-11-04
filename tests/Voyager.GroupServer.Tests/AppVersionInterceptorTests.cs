@@ -15,10 +15,8 @@ public sealed class AppVersionInterceptorTests
 {
     #region Private Methods
 
-    private static async Task<GetServiceInfoResponse> CallAsync(GroupServerFactory factory, string? appVersion) =>
-        await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel()).GetServiceInfoAsync(
-            new GetServiceInfoRequest(),
-            appVersion is null ? null : GroupServerFactory.AppVersionHeader(appVersion));
+    private static Task<GetServiceInfoResponse> CallAsync(GroupServerFactory factory, string? appVersion) =>
+        factory.GetServiceInfoAsync(appVersion is null ? null : GroupServerFactory.AppVersionHeader(appVersion));
 
     #endregion Private Methods
 

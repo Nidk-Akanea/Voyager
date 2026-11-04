@@ -15,17 +15,18 @@
 
     A plugin is only built again when something it is made of changed since the last build: its own files, the SDKs
     it is written against, the shared build settings, or the version. Otherwise it is left as it is, which is also
-    what lets this run while the local service or the group server has its assemblies loaded. A plugin whose folder was deleted from
-    plugins/ is removed from the output.
+    what lets this run while the local service or the group server has its assemblies loaded. A plugin whose folder
+    was deleted from plugins/ is removed from the output.
 
     The result is what the packaged app ships in resources/plugins, and what the development environment (Aspire)
     and `pnpm start` give the local service, the group server and the user interface in development; the image of the
-    group server builds its .NET part (-SkipInterface).
+    group server builds its .NET part only (-SkipInterface).
 
 .PARAMETER PluginVersions
     The version of each plugin, as id=version pairs separated by commas, such as
     diagnostics-clock=0.2.1,diagnostics-runtime=0.1.4: what tools/release.ps1 gives the image of the group server,
-    built where GitVersion cannot run. A plugin it names takes that version, before -Version.
+    built where GitVersion cannot run. A plugin it names takes that version rather than -Version; a name that is no
+    plugin of plugins/ is reported and ignored.
 
 .PARAMETER Version
     The version to write in every manifest, such as 0.2.0-beta.3. Defaults to the version of each plugin, which
@@ -240,6 +241,11 @@ foreach ($manifestPath in $manifests) {
     $built | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $output 'plugin.json') -Encoding utf8NoBOM
     # Written last: a build that failed half way leaves no stamp, and is done again.
     Set-Content -LiteralPath $stamp -Value $fingerprint -Encoding utf8NoBOM
+}
+
+# A misspelt name would leave its plugin on -Version without a word: the image would ship it as 0.0.0-dev.
+foreach ($unknownId in ($versionOf.Keys | Where-Object { $_ -notin $builtIds })) {
+    Write-Warning "-PluginVersions names $unknownId, which is no plugin of plugins/: its version is ignored."
 }
 
 # A plugin deleted from plugins/ must not stay in what is loaded or shipped.

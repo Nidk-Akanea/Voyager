@@ -39,7 +39,8 @@ builder.Services.AddSingleton<ServerInfo>();
 builder.Services.AddSingleton<DatabaseHealth>();
 
 // Aspire gives the connection string of the "voyager" database; without one, the database is reported unavailable.
-var connectionString = builder.Configuration.GetConnectionString("voyager");
+var databaseConnection = "voyager";
+var connectionString = builder.Configuration.GetConnectionString(databaseConnection);
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
     builder.Services.AddVoyagerPostgreSql(connectionString);
@@ -61,6 +62,11 @@ try
     if (options.DevelopmentIdentity)
     {
         GroupServerLog.DevelopmentIdentityOn(app.Logger);
+    }
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        GroupServerLog.NoDatabase(app.Logger, databaseConnection);
     }
 
     // Created now so that its start time is the real start of the server.

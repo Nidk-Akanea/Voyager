@@ -19,12 +19,20 @@ namespace Voyager.GroupServer.Authentication;
 /// <param name="options">The options of the scheme.</param>
 /// <param name="logger">The logger factory of the scheme.</param>
 /// <param name="encoder">The URL encoder of the scheme.</param>
-public sealed class DevelopmentAuthenticationHandler(
+public sealed partial class DevelopmentAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
+    #region Private Methods
+
+    // Without the remote address: an IP address is personal data, and the telemetry may leave the machine.
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A call from another machine is not signed in as the development identity: this development server is reachable from the network")]
+    private static partial void LogRemoteCallRefused(ILogger logger);
+
+    #endregion Private Methods
+
     #region Protected Methods
 
     /// <inheritdoc />
@@ -33,6 +41,7 @@ public sealed class DevelopmentAuthenticationHandler(
         var remote = Context.Connection.RemoteIpAddress;
         if (remote is not null && !IPAddress.IsLoopback(remote))
         {
+            LogRemoteCallRefused(Logger);
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 

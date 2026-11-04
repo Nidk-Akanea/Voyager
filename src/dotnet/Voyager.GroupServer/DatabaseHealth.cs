@@ -19,8 +19,11 @@ public sealed partial class DatabaseHealth(IServiceScopeFactory scopeFactory, IL
 
     #region Private Methods
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The database could not be reached: {Reason}")]
-    private static partial void LogUnreachable(ILogger logger, string reason);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The database could not be reached: the connection was refused or failed")]
+    private static partial void LogUnreachable(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The database could not be reached: no answer within {TimeoutMilliseconds} ms")]
+    private static partial void LogNoAnswer(ILogger logger, double timeoutMilliseconds);
 
     #endregion Private Methods
 
@@ -49,12 +52,12 @@ public sealed partial class DatabaseHealth(IServiceScopeFactory scopeFactory, IL
                 return true;
             }
 
-            LogUnreachable(logger, "the connection was refused or failed");
+            LogUnreachable(logger);
             return false;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            LogUnreachable(logger, "no answer in time");
+            LogNoAnswer(logger, _timeout.TotalMilliseconds);
             return false;
         }
     }

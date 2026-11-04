@@ -1,8 +1,11 @@
 using Google.Protobuf.WellKnownTypes;
+
 using Grpc.Core;
+
 using Voyager.Contracts.PluginHost.V1;
 using Voyager.PluginHost;
 using Voyager.Sdk.Diagnostics;
+
 using HostContractRole = Voyager.PluginHost.ContractRole;
 using HostContractUse = Voyager.PluginHost.ContractUse;
 using HostContractUseState = Voyager.PluginHost.ContractUseState;

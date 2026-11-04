@@ -6,7 +6,7 @@ using Grpc.Core;
 
 using Microsoft.Extensions.Options;
 
-using Voyager.Contracts.Diagnostics.V1;
+using Voyager.PluginHost.Tests;
 
 namespace Voyager.GroupServer.Tests;
 
@@ -24,8 +24,7 @@ public sealed class GroupServerStartupTests
     {
         using var factory = new GroupServerFactory();
 
-        var response = await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
-            .GetServiceInfoAsync(new GetServiceInfoRequest());
+        var response = await factory.GetServiceInfoAsync();
 
         response.Environment.Should().Be("Development");
     }
@@ -35,8 +34,7 @@ public sealed class GroupServerStartupTests
     {
         using var factory = new GroupServerFactory(developmentIdentity: false);
 
-        var call = async () => await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
-            .GetServiceInfoAsync(new GetServiceInfoRequest());
+        var call = async () => await factory.GetServiceInfoAsync();
 
         (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
@@ -48,8 +46,7 @@ public sealed class GroupServerStartupTests
     {
         using var factory = new GroupServerFactory(environment: environment, developmentIdentity: false);
 
-        var call = async () => await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
-            .GetServiceInfoAsync(new GetServiceInfoRequest());
+        var call = async () => await factory.GetServiceInfoAsync();
 
         (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
@@ -70,7 +67,7 @@ public sealed class GroupServerStartupTests
     [TestMethod]
     public void Startup_PluginsFolderOutsideDevelopment_Fails()
     {
-        using var plugins = new Voyager.PluginHost.Tests.PluginFolder();
+        using var plugins = new PluginFolder();
         using var factory = new GroupServerFactory(environment: "Production", developmentIdentity: false, shippedPluginsDirectory: plugins.Path);
 
         var start = () => factory.Server;
@@ -86,8 +83,7 @@ public sealed class GroupServerStartupTests
     {
         using var factory = new GroupServerFactory(remoteAddress: IPAddress.Parse(address));
 
-        var call = async () => await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
-            .GetServiceInfoAsync(new GetServiceInfoRequest());
+        var call = async () => await factory.GetServiceInfoAsync();
 
         (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
@@ -99,8 +95,7 @@ public sealed class GroupServerStartupTests
     {
         using var factory = new GroupServerFactory(remoteAddress: IPAddress.Parse(address));
 
-        var response = await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
-            .GetServiceInfoAsync(new GetServiceInfoRequest());
+        var response = await factory.GetServiceInfoAsync();
 
         response.Environment.Should().Be("Development");
     }
