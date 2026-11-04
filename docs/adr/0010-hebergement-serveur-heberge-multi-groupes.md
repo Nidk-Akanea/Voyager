@@ -4,6 +4,7 @@
 - **Date** : 2026-10-25
 - **Remplace** : —
 - **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (décision 4, le mode solo sans serveur)
+- **Complétée par** : [ADR-0019](0019-authentification-et-invitations.md) (l'authentification, les groupes et les invitations)
 
 ## Contexte
 
