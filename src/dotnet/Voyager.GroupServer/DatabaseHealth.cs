@@ -7,7 +7,7 @@ namespace Voyager.GroupServer;
 /// migration comes with the first brick of the core.
 /// </summary>
 /// <param name="scopeFactory">Gives the database context, which lives in a request scope; none without a connection string.</param>
-/// <param name="logger">Records why the database could not be reached, without the connection string.</param>
+/// <param name="logger">Records that the database could not be reached, never where it is (EF Core's own connection log is off, appsettings.json).</param>
 public sealed partial class DatabaseHealth(IServiceScopeFactory scopeFactory, ILogger<DatabaseHealth> logger)
 {
     #region Fields
@@ -19,8 +19,8 @@ public sealed partial class DatabaseHealth(IServiceScopeFactory scopeFactory, IL
 
     #region Private Methods
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The database could not be reached: {Error}")]
-    private static partial void LogUnreachable(ILogger logger, string error);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The database could not be reached: {Reason}")]
+    private static partial void LogUnreachable(ILogger logger, string reason);
 
     #endregion Private Methods
 
@@ -44,7 +44,13 @@ public sealed partial class DatabaseHealth(IServiceScopeFactory scopeFactory, IL
         timeout.CancelAfter(_timeout);
         try
         {
-            return await database.Database.CanConnectAsync(timeout.Token);
+            if (await database.Database.CanConnectAsync(timeout.Token))
+            {
+                return true;
+            }
+
+            LogUnreachable(logger, "the connection was refused or failed");
+            return false;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

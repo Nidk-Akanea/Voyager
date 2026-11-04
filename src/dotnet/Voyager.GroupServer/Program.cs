@@ -28,6 +28,10 @@ builder.Services.AddOptions<GroupServerOptions>()
     .Validate(
         options => string.IsNullOrWhiteSpace(options.ShippedPluginsDirectory) || Path.IsPathFullyQualified(options.ShippedPluginsDirectory),
         "Voyager:ShippedPluginsDirectory must be a full path.")
+    // A minimum the server cannot read would silently serve every app: it stops the server instead.
+    .Validate(
+        options => string.IsNullOrWhiteSpace(options.MinimumAppVersion) || AppVersion.ParseCore(options.MinimumAppVersion) is not null,
+        "Voyager:MinimumAppVersion must be a version in the form x.y.z, such as 0.4.0.")
     .ValidateOnStart();
 
 builder.Services.AddSingleton<IClock>(SystemClock.Instance);

@@ -1,3 +1,5 @@
+using System.Net;
+
 using AwesomeAssertions;
 
 using Grpc.Core;
@@ -75,6 +77,57 @@ public sealed class GroupServerStartupTests
 
         start.Should().Throw<OptionsValidationException>()
             .WithMessage("*ShippedPluginsDirectory is only allowed in the Development environment*");
+    }
+
+    [TestMethod]
+    [DataRow("10.0.0.7", DisplayName = "IPv4 of another machine")]
+    [DataRow("2001:db8::7", DisplayName = "IPv6 of another machine")]
+    public async Task Call_WithDevelopmentIdentityFromAnotherMachine_IsUnauthenticated(string address)
+    {
+        using var factory = new GroupServerFactory(remoteAddress: IPAddress.Parse(address));
+
+        var call = async () => await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
+            .GetServiceInfoAsync(new GetServiceInfoRequest());
+
+        (await call.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
+    }
+
+    [TestMethod]
+    [DataRow("127.0.0.1")]
+    [DataRow("::1")]
+    public async Task Call_WithDevelopmentIdentityFromThisMachine_IsServed(string address)
+    {
+        using var factory = new GroupServerFactory(remoteAddress: IPAddress.Parse(address));
+
+        var response = await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
+            .GetServiceInfoAsync(new GetServiceInfoRequest());
+
+        response.Environment.Should().Be("Development");
+    }
+
+    [TestMethod]
+    [DataRow("0.4", DisplayName = "without a patch number")]
+    [DataRow("v0.4.0", DisplayName = "with a v")]
+    [DataRow("latest", DisplayName = "not a version")]
+    public void Startup_UnreadableMinimumAppVersion_Fails(string minimum)
+    {
+        using var factory = new GroupServerFactory(minimumAppVersion: minimum);
+
+        var start = () => factory.Server;
+
+        start.Should().Throw<OptionsValidationException>().WithMessage("*MinimumAppVersion must be a version*");
+    }
+
+    [TestMethod]
+    public void Startup_InvalidConnectionString_FailsWithoutQuotingIt()
+    {
+        using var factory = new GroupServerFactory(connectionString: "Host=localhost;Password=secret-of-test;NoSuchKeyword=1");
+
+        var start = () => factory.Server;
+
+        start.Should().Throw<ArgumentException>()
+            .WithMessage("The connection string of the database is not valid.*")
+            .Which.ToString().Should().NotContain("secret-of-test");
     }
 
     [TestMethod]

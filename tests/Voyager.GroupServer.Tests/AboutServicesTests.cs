@@ -1,3 +1,7 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
+
 using AwesomeAssertions;
 
 using Grpc.Core;
@@ -37,6 +41,40 @@ public sealed class AboutServicesTests
         response.Runtime.Should().StartWith(".NET");
         response.StartedAt.ToDateTimeOffset().Should().Be(_start.ToDateTimeOffset());
         response.DatabaseStatus.Should().Be(DatabaseStatus.Unavailable, "the tests give the server no database");
+    }
+
+    [TestMethod]
+    public async Task GetServiceInfo_OverGrpcWebOnHttp11_IsServed()
+    {
+        using var factory = new GroupServerFactory();
+        using var client = factory.CreateClient();
+        // An empty request, framed as gRPC-Web frames it: no compression, a length of zero.
+        using var content = new ByteArrayContent([0, 0, 0, 0, 0]);
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/grpc-web+proto");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/voyager.diagnostics.v1.DiagnosticsService/GetServiceInfo")
+        {
+            Content = content,
+            Version = HttpVersion.Version11,
+        };
+
+        using var response = await client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/grpc-web");
+        // gRPC-Web carries the status in a trailer frame at the end of the body.
+        Encoding.ASCII.GetString(await response.Content.ReadAsByteArrayAsync()).Should().Contain("grpc-status: 0");
+    }
+
+    [TestMethod]
+    public async Task GetServiceInfo_DatabaseThatRefusesConnections_ReportsUnavailableDatabase()
+    {
+        // Port 1 on this machine: nothing listens there, so the connection is refused at once.
+        using var factory = new GroupServerFactory(connectionString: "Host=127.0.0.1;Port=1;Database=voyager;Username=voyager;Timeout=2");
+
+        var response = await new DiagnosticsService.DiagnosticsServiceClient(factory.CreateChannel())
+            .GetServiceInfoAsync(new GetServiceInfoRequest());
+
+        response.DatabaseStatus.Should().Be(DatabaseStatus.Unavailable);
     }
 
     [TestMethod]

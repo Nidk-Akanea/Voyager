@@ -15,11 +15,17 @@
 
     A plugin is only built again when something it is made of changed since the last build: its own files, the SDKs
     it is written against, the shared build settings, or the version. Otherwise it is left as it is, which is also
-    what lets this run while the local service has its assemblies loaded. A plugin whose folder was deleted from
+    what lets this run while the local service or the group server has its assemblies loaded. A plugin whose folder was deleted from
     plugins/ is removed from the output.
 
     The result is what the packaged app ships in resources/plugins, and what the development environment (Aspire)
-    and `pnpm start` give the local service and the user interface in development.
+    and `pnpm start` give the local service, the group server and the user interface in development; the image of the
+    group server builds its .NET part (-SkipInterface).
+
+.PARAMETER PluginVersions
+    The version of each plugin, as id=version pairs separated by commas, such as
+    diagnostics-clock=0.2.1,diagnostics-runtime=0.1.4: what tools/release.ps1 gives the image of the group server,
+    built where GitVersion cannot run. A plugin it names takes that version, before -Version.
 
 .PARAMETER Version
     The version to write in every manifest, such as 0.2.0-beta.3. Defaults to the version of each plugin, which
@@ -46,6 +52,7 @@
 [CmdletBinding()]
 param(
     [string] $Version,
+    [string] $PluginVersions,
     [ValidateSet('Debug', 'Release')]
     [string] $Configuration = 'Release',
     [switch] $Force,
@@ -123,7 +130,7 @@ function Get-Fingerprint {
     return [BitConverter]::ToString([Security.Cryptography.SHA256]::HashData($bytes)).Replace('-', '')
 }
 
-# Windows keeps the assemblies of a plugin locked while the local service that loaded them runs.
+# Windows keeps the assemblies of a plugin locked while the local service or the group server that loaded them runs.
 function Remove-PluginOutput {
     param([string] $Path)
     try {
@@ -133,7 +140,7 @@ function Remove-PluginOutput {
         # Nothing built yet: nothing to clean.
     }
     catch {
-        throw "A plugin could not be replaced ($Path): stop the local service (or Voyager) that uses it, then run this again. $($_.Exception.Message)"
+        throw "A plugin could not be replaced ($Path): stop the local service, the group server (or Voyager) that uses it, then run this again. $($_.Exception.Message)"
     }
 }
 
@@ -141,6 +148,18 @@ Set-Location -LiteralPath $root
 
 if ($Version) {
     Assert-Version $Version 'the -Version parameter'
+}
+
+$versionOf = @{}
+if ($PluginVersions) {
+    foreach ($pair in ($PluginVersions -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+        $parts = $pair -split '=', 2
+        if ($parts.Count -ne 2 -or -not $parts[0]) {
+            throw "Not an id=version pair in -PluginVersions: '$pair'."
+        }
+        Assert-Version $parts[1] "-PluginVersions, plugin $($parts[0])"
+        $versionOf[$parts[0]] = $parts[1]
+    }
 }
 
 New-Item -ItemType Directory -Path $pluginsOutput -Force | Out-Null
@@ -159,7 +178,7 @@ foreach ($manifestPath in $manifests) {
         throw "The folder $(Split-Path -Leaf $source) does not have the identifier of its manifest ($id)."
     }
     $builtIds += $id
-    $pluginVersion = $Version
+    $pluginVersion = if ($versionOf.ContainsKey($id)) { $versionOf[$id] } else { $Version }
     if (-not $pluginVersion) {
         Write-Host "==> Compute the version of $id (GitVersion)" -ForegroundColor Cyan
         $pluginVersion = (& (Join-Path $PSScriptRoot 'get-version.ps1') -Component $id | Select-Object -Last 1).Trim()

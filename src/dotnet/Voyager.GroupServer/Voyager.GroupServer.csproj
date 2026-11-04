@@ -11,6 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- google.rpc.ErrorInfo: the stable reason of a refusal, which the app translates (docs/conventions/grpc.md). -->
+    <PackageReference Include="Google.Api.CommonProtos" />
     <PackageReference Include="Grpc.AspNetCore" />
     <PackageReference Include="Grpc.AspNetCore.Web" />
   </ItemGroup>

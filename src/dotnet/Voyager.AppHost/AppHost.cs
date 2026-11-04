@@ -19,8 +19,9 @@ var localToken = builder.AddParameter(
     secret: true,
     persist: false);
 
-// The plugins that ship with Voyager, built into artifacts/plugins before anything loads them (ADR-0015): the local
-// service loads them at startup, and the user interface served by Vite reads their modules from the same folder.
+// The plugins that ship with Voyager, built into artifacts/plugins before anything loads them (ADR-0015): the group
+// server and the local service load them at startup, and the user interface served by Vite reads their modules from
+// the same folder.
 var repositoryRoot = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".."));
 var pluginsFolder = Path.Combine(repositoryRoot, "artifacts", "plugins");
 // The plugins folder of the user's data in development (installed plugins, requests, state): under artifacts, never

@@ -65,6 +65,12 @@ public sealed class AppVersionInterceptorTests
         var exception = (await call.Should().ThrowAsync<RpcException>()).Which;
         exception.StatusCode.Should().Be(StatusCode.FailedPrecondition);
         exception.Status.Detail.Should().Be(AppVersionInterceptor.TOO_OLD_MESSAGE);
+
+        // The stable reason the app translates (docs/conventions/grpc.md).
+        var details = Google.Rpc.Status.Parser.ParseFrom(exception.Trailers.GetValueBytes("grpc-status-details-bin"));
+        var info = details.Details.Should().ContainSingle().Which.Unpack<Google.Rpc.ErrorInfo>();
+        info.Reason.Should().Be(AppVersionInterceptor.TOO_OLD_REASON);
+        info.Domain.Should().Be(AppVersionInterceptor.ERROR_DOMAIN);
     }
 
     #endregion Public Methods

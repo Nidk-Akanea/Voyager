@@ -5,9 +5,11 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 # The .git folder is not sent to Docker, so GitVersion cannot run here: the versions come from the caller
 # (GitVersion on the host or in CI). "0.0.0-dev" marks a local, unversioned build.
 ARG VERSION=0.0.0-dev
-# The SDK and the shipped plugins have versions of their own (ADR-0007), computed by tools/get-version.ps1.
+# The SDK and each shipped plugin have versions of their own (ADR-0007), computed by tools/get-version.ps1:
+# tools/release.ps1 -Docker gives them, the plugins as id=version pairs separated by commas. A plugin it does not
+# name takes 0.0.0-dev.
 ARG SDK_VERSION=0.0.0-dev
-ARG PLUGINS_VERSION=0.0.0-dev
+ARG PLUGIN_VERSIONS=
 WORKDIR /src
 COPY global.json nuget.config Directory.Build.props Directory.Packages.props .editorconfig ./
 # Voyager.Contracts generates its C# code from the .proto contracts at build time.
@@ -23,7 +25,7 @@ RUN dotnet publish src/dotnet/Voyager.GroupServer/Voyager.GroupServer.csproj \
 # reads them from. Their interface modules need Node.js, which this image does not have: they come with the desktop app.
 COPY plugins/ plugins/
 COPY tools/build-plugins.ps1 tools/
-RUN pwsh -NoProfile -File tools/build-plugins.ps1 -Version ${PLUGINS_VERSION} -SkipInterface \
+RUN pwsh -NoProfile -File tools/build-plugins.ps1 -Version 0.0.0-dev -PluginVersions "${PLUGIN_VERSIONS}" -SkipInterface \
     && cp -r artifacts/plugins /app/plugins
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

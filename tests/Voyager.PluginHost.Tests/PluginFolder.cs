@@ -27,7 +27,7 @@ internal sealed class PluginFolder : IDisposable
     {
     }
 
-    /// <summary>A plugins folder at a given place, for example the installed plugins of a <see cref="UserPluginFolder"/>.</summary>
+    /// <summary>A plugins folder at a given place, for example the installed plugins of a <c>UserPluginFolder</c>.</summary>
     /// <param name="path">The folder; created with the first plugin added.</param>
     public PluginFolder(string path) => Path = path;
 
