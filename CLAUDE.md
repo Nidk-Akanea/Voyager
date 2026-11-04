@@ -18,34 +18,21 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
 
 ## État actuel
 
-- **Squelette — étapes 1 et 2 en place** : fondations (solution .NET, tests d'architecture, espace
-  pnpm, ESLint, Prettier, Buf, CI, Aspire) et une tranche technique « À propos » de bout en bout :
-  Electron → interface React (Fluent UI, français et anglais) → gRPC-Web → service local → SQLite.
-  **Aucun code métier encore.** Le paquet installable est en place, sans publication automatique
-  (`tools/release.ps1`, Velopack, journaux en fichiers, verrous Electron), avec un écran de démarrage et
-  une mise à jour automatique au démarrage (ADR-0014, proposée) ; le service local est surveillé. Reste à
-  faire : l'essai d'installation et de mise à jour, la première release publiée.
-- **Étape 3, la preuve des plugins, terminée** (ADR-0015 acceptée, spec implémentée) : le SDK .NET,
-  `Voyager.PluginHost`, le service gRPC `voyager.pluginhost.v1`, le chargement côté interface et deux plugins
-  de démonstration (`plugins/`) sont en place et visibles dans la page « À propos ». Ils sont aussi dans le
-  paquet (`resources/plugins`) et une règle de lint contrôle les imports d'un plugin. Chaque composant a sa
-  version, calculée de son propre historique (`tools/get-version.ps1`), et le skill `/new-plugin` crée un
-  plugin à partir des deux modèles. Essayée en développement et avec `Setup.exe`. Les plugins sont livrés
-  avec l'application ; leur installation et leur gestion par l'utilisateur et par le groupe sont décidées
-  (ADR-0016, pas encore construites) ; les plugins de tiers d'un catalogue ouvert restent à décider (Q11).
-- **Les décisions techniques sont prises** (ADR 0002 à 0013 et 0015 à 0017) : Electron + React/TypeScript pour
-  l'interface, un service local .NET 10 pour la logique et le hors-ligne, un serveur hébergé pour
-  plusieurs groupes en ASP.NET Core, gRPC (pas de REST), PostgreSQL + PostGIS (serveur) et SQLite
-  (local), architecture hexagonale rangée par domaine, Git Flow avec versions calculées par
-  GitVersion, français et anglais avec Fluent (Linguini côté .NET), installation et mises à jour avec
-  Velopack, développement orchestré par Aspire (`Voyager.AppHost`, `Voyager.ServiceDefaults`),
-  journaux de développement écrits dans Seq par Serilog, paquet assemblé avec `@electron/packager`
-  (fuses verrouillées, identifiant de paquet `VoyagerApp`, journaux en fichiers sur le poste),
-  mécanisme de plugins (un contexte de chargement par plugin, interface par `import()`), installation
-  et gestion des plugins (dossier de données, paquet `.voyagerplugin`, demandes écrites par le processus
-  principal, appliquées au démarrage), contrats versionnés et dépendances entre plugins par contrat (une
-  version par contrat, des adaptateurs pour garder les anciennes versions).
-- Les étapes suivantes du squelette se font **sur demande** de l'utilisateur.
+- **L'architecture vient de changer** ([ADR-0018](docs/adr/0018-client-serveur-et-copie-de-voyage.md),
+  acceptée) : **client-serveur**. L'application de bureau affiche et saisit les données du serveur du
+  groupe, qui exécute le cœur, les calculs et les plugins ; la copie de voyage hors-ligne va sur le mobile.
+  **Le code tourne encore sur l'ancienne architecture** (service local, SQLite) jusqu'à la bascule : n'y
+  construis rien de nouveau.
+- **Ce qui est construit** : le squelette (solution .NET, tests d'architecture, pnpm, ESLint, Prettier,
+  Buf, CI, Aspire), une tranche « À propos » de bout en bout, le paquet installable (`tools/release.ps1`,
+  Velopack, écran de démarrage), la preuve des plugins (SDK, `Voyager.PluginHost`, deux plugins de
+  démonstration, versions par composant, `/new-plugin`) et l'étape 1 de la gestion des plugins sur le poste
+  (PR 26 à 31), qui passera côté serveur. **Aucun code métier encore** ; aucune release publiée.
+- **La suite, dans l'ordre** : l'ADR d'authentification et d'invitations, l'ADR des plugins sur le serveur,
+  la bascule (« À propos » par le serveur, retrait du service local), puis la première brique du cœur, le
+  voyage et ses voyageurs (spec repassée en brouillon, à revoir). Chaque étape se fait **sur demande**.
+- **Décisions prises** : ADR 0002 à 0013 et 0015 à 0018 ([index](docs/adr/README.md)) ; l'ADR-0014 est
+  proposée et à réviser.
 
 ## Langues
 
@@ -107,6 +94,8 @@ Détail et règles de rangement : [organisation du code](docs/conventions/organi
    que de trancher seul.
 6. Avant de dire « fini », applique la [definition of done](.claude/rules/definition-of-done.md).
 7. L'utilisateur découvre GitHub et les PR : explique ce que tu fais en termes simples.
+8. Le cœur se construit **brique par brique, au strict minimum** (d'abord le voyage et ses voyageurs) ;
+   pas de cadrage large d'un MVP : le reste viendra par d'autres specs et par des plugins.
 
 ## Outils de Claude
 
@@ -170,6 +159,9 @@ ou la branche, pas tes conclusions.
 
 ## Principes d'architecture
 
+- **Client-serveur** ([ADR-0018](docs/adr/0018-client-serveur-et-copie-de-voyage.md)) : le serveur du
+  groupe est la seule vérité ; il exécute le cœur, les calculs et les plugins ; un plugin ne voit que les
+  données de son groupe.
 - **Tout est modulaire** ([ADR-0002](docs/adr/0002-architecture-modulaire-par-contrats-et-plugins.md)) :
   un cœur minimal, des contrats versionnés, des plugins — y compris pour les fonctionnalités de base.
   Pas de point d'extension sans au moins deux implémentations connues ou prévues.
@@ -196,4 +188,6 @@ Les règles détaillées de chaque langage sont dans `.claude/rules/` (chargées
   lieu ; dates « de calendrier » (jour d'une étape) sans heure.
 - **Argent** : montants en décimal (jamais en flottant) accompagnés d'un code devise ISO 4217.
 - **Lieux** : coordonnées en WGS 84 (latitude, longitude), comme les GPS et les EXIF des photos.
-- **Hors-ligne** : consulter le programme et saisir les dépenses sans réseau, puis synchroniser.
+- **Hors-ligne** : seulement en voyage, sur le mobile : on consulte la copie du voyage et on n'y fait
+  qu'ajouter (des dépenses), envoyé au retour du réseau. Dans un voyage commencé, on annule au lieu de
+  supprimer.

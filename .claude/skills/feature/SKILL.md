@@ -22,8 +22,8 @@ Spec ou fonctionnalité demandée : $ARGUMENTS
    `pnpm proto:breaking` doivent passer.
 2. **Cœur** : un cas d'usage par opération (`/new-use-case`), avec ses tests (`test-writer`) qui
    couvrent les critères d'acceptation et les cas limites de la spec.
-3. **Adaptateurs** : implémentation des ports dans `Voyager.Persistence` (et migrations SQLite et
-   PostgreSQL si le modèle change), service gRPC dans l'hôte concerné, correspondances écrites à la
+3. **Adaptateurs** : implémentation des ports dans `Voyager.Persistence` (et migration PostgreSQL si
+   le modèle change), service gRPC dans le serveur du groupe (ADR-0018), correspondances écrites à la
    main ; tests d'intégration des chemins principaux.
 4. **Interface** : écran dans `src/ts/ui/src/features/<domaine>/`, données via TanStack Query et le
    client généré, Fluent UI, textes en messages Fluent (`.ftl`) français et anglais, **aucun calcul métier**.
