@@ -8,6 +8,7 @@
   `Voyager.Sdk` d'[ADR-0006](0006-dependances-principales.md) deux paquets d'abstractions, et rend plus
   simple la « plage de versions » d'[ADR-0007](0007-git-flow-et-versions-gitversion.md))
 - **Remplacée en partie par** : [ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (décisions 2, 7 et 9, les plugins chargés par le serveur et non plus par le service local)
+- **Complétée par** : [ADR-0020](0020-plugins-sur-le-serveur.md) (décision 4, la suspension pour un groupe)
 
 ## Contexte
 

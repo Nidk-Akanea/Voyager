@@ -26,4 +26,5 @@ plus modifié ; s'il devient caduc, un nouvel ADR le **remplace**.
 | [0016](0016-installation-et-gestion-des-plugins.md)              | Installation et gestion des plugins                     | Acceptée           | 2026-10-29 |
 | [0017](0017-contrats-versionnes-et-dependances-entre-plugins.md) | Contrats versionnés et dépendances entre plugins        | Acceptée           | 2026-11-02 |
 | [0018](0018-client-serveur-et-copie-de-voyage.md)                | Client-serveur, et une copie de voyage sur le mobile    | Acceptée           | 2026-11-04 |
-| [0019](0019-authentification-et-invitations.md)                  | Authentification, groupes et invitations                | Proposée           | 2026-11-04 |
+| [0019](0019-authentification-et-invitations.md)                  | Authentification, groupes et invitations                | Acceptée           | 2026-11-04 |
+| [0020](0020-plugins-sur-le-serveur.md)                           | Les plugins sur le serveur                              | Acceptée           | 2026-11-04 |
