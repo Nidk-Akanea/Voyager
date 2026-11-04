@@ -159,8 +159,9 @@ ligne et la clé de signature de production n'en font pas partie (voir « Hors p
    s'exécute avec vos droits sur cet ordinateur ; un plugin d'interface peut parler au service de Voyager et
    lire vos voyages ; l'auteur de ce plugin n'est pas vérifié*.
 7. Le bouton par défaut est **« Annuler »**. Pour installer ou remplacer un plugin « Non vérifié »,
-   « Installer » n'est actif qu'une fois la case **« Je comprends »** cochée. Annuler n'enregistre rien et
-   **supprime la copie de préparation**.
+   « Installer » ne compte qu'une fois la case **« Je comprends »** cochée : une boîte de dialogue du système
+   ne sait pas griser un bouton, elle se rouvre donc avec un rappel quand la case n'est pas cochée. Annuler
+   n'enregistre rien et **supprime la copie de préparation**.
 8. Confirmer **enregistre une demande** (en entier ou pas du tout) ; le plugin passe à l'état « en attente
    de redémarrage ». Il ne s'exécute qu'après le redémarrage (voir « Appliquer les changements »).
 9. Installer un plugin dont l'identifiant est **déjà installé** le **remplace** : la confirmation dit
@@ -307,7 +308,8 @@ contrat en version 2 est créé** : avant cela, aucun plugin n'est jamais touch�
 3. Quand **plusieurs** plugins sont désignés, **aucun**, ou que Voyager n'arrive plus à démarrer (l'écran
    d'échec), rien n'est suspendu seul : l'écran propose, en plus de « Réessayer », **« Démarrer sans les
    plugins installés »**. Tous les plugins installés passent alors à l'état « désactivé », avec la mention
-   « désactivé pour le rétablissement » ; les plugins livrés restent chargés ; l'écran « Plugins » est
+   « désactivé pour le rétablissement », sauf un plugin déjà suspendu, qui le reste (sa réactivation garde la
+   confirmation renforcée) ; les plugins livrés restent chargés ; l'écran « Plugins » est
    utilisable, et l'utilisateur **réactive les plugins installés un à un**, en redémarrant à chaque fois,
    jusqu'à retrouver celui qui fait planter (à l'étape 2, avec les plugins dont ils dépendent).
 4. **Réactiver un plugin suspendu** demande une **confirmation renforcée** : la boîte rappelle le soupçon,
