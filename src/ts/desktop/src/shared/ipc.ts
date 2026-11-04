@@ -53,3 +53,6 @@ export const START_WITHOUT_INSTALLED_PLUGINS_CHANNEL = 'voyager:start-without-in
 
 /** Returns the group servers the app knows, by identifier and address (RegisteredServer[]); main window only. */
 export const GET_SERVERS_CHANNEL = 'voyager:get-servers';
+
+/** Returns the version of the app, for the "About" screen; main window only. */
+export const GET_APP_VERSION_CHANNEL = 'voyager:get-app-version';

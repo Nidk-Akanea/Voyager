@@ -126,4 +126,52 @@ describe('handleServerApiRequest', () => {
     expect(response.status).toBe(204);
     expect(response.headers.get('access-control-allow-origin')).toBeNull();
   });
+
+  it('never follows a redirection nor sends cookies, and passes the body as the page sent it', async () => {
+    const fetch = vi.fn<ServerApiOptions['fetch']>().mockResolvedValue(new Response(null, { status: 200 }));
+
+    await handleServerApiRequest(call(`/api/development/${GET_SERVICE_INFO}`), options(fetch));
+
+    const init = fetch.mock.calls[0]?.[1];
+    expect(init?.redirect).toBe('error');
+    expect(init?.credentials).toBe('omit');
+    expect(new Uint8Array(init?.body as ArrayBuffer)).toEqual(new Uint8Array([0, 0, 0, 0, 0]));
+  });
+
+  it('relays the HTTP status of the server as it is', async () => {
+    const fetch = vi.fn<ServerApiOptions['fetch']>().mockResolvedValue(new Response(null, { status: 503 }));
+
+    const response = await handleServerApiRequest(call(`/api/development/${GET_SERVICE_INFO}`), options(fetch));
+
+    expect(response.status).toBe(503);
+  });
+
+  it('refuses a badly encoded address as any refused call', async () => {
+    const response = await handleServerApiRequest(call('/api/%E0%A4%A/x/y'), options());
+
+    expect(response.headers.get('grpc-status')).toBe('7');
+  });
+
+  it('refuses a call from an origin it does not know, without calling the server', async () => {
+    const fetch = vi.fn<ServerApiOptions['fetch']>();
+
+    const response = await handleServerApiRequest(
+      call(`/api/development/${GET_SERVICE_INFO}`, { headers: { origin: 'https://elsewhere.example.org' } }),
+      options(fetch),
+    );
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(response.headers.get('grpc-status')).toBe('7');
+  });
+
+  it('writes nothing the page chose to the log', async () => {
+    const settings = options();
+
+    await handleServerApiRequest(call('/api/made-up%0AFAKE%20LINE/Some.Service/Steal'), settings);
+
+    const logged = vi.mocked(settings.log.warn).mock.calls.flat().join(' ');
+    expect(logged).not.toContain('FAKE');
+    expect(logged).not.toContain('Steal');
+    expect(logged).toContain('unknown');
+  });
 });

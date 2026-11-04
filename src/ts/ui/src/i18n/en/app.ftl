@@ -15,4 +15,4 @@ app-server-connecting = Connecting to the server…
 app-server-unreachable = The server does not answer. Voyager tries again every few seconds.
 app-server-too-old = This version of Voyager is too old for this server: update Voyager.
 app-server-not-signed-in = The server asks you to sign in, which Voyager cannot do yet.
-app-server-failed = The server refused the request. The details are in the log of Voyager.
+app-server-failed = The server refused the request or ran into an error.

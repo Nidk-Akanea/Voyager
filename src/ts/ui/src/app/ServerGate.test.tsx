@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -12,8 +12,12 @@ import {
   type VoyagerClients,
 } from '@voyager/grpc-client';
 
+import { QueryClient } from '@tanstack/react-query';
+
 import { useAppContext } from './appContext';
+import { AppProviders } from './AppProviders';
 import type { ServerBridge } from './bridge';
+import { ServerConnection } from './ServerConnection';
 import { ServerGate } from './ServerGate';
 import { ShellProviders } from './ShellProviders';
 
@@ -40,7 +44,7 @@ function fakeClients(...answers: (() => Promise<unknown>)[]): VoyagerClients {
 }
 
 function bridgeWith(servers: readonly RegisteredServer[]): ServerBridge {
-  return { getServers: () => Promise.resolve(servers) };
+  return { getServers: () => Promise.resolve(servers), getAppVersion: () => Promise.resolve('0.4.0') };
 }
 
 /** What the screens see once the server answers: the server they show. */
@@ -63,9 +67,20 @@ function failure(code: Code, reason?: string): () => Promise<never> {
   return () => {
     const error = new ConnectError('refused', code);
     if (reason !== undefined) {
-      // As the server sends it: a google.rpc.ErrorInfo whose reason is field 1.
-      const encoded = new TextEncoder().encode(reason);
-      error.details.push({ type: 'google.rpc.ErrorInfo', value: new Uint8Array([0x0a, encoded.length, ...encoded]) });
+      // As the server sends it: a google.rpc.ErrorInfo, reason in field 1, domain in field 2.
+      const encodedReason = new TextEncoder().encode(reason);
+      const encodedDomain = new TextEncoder().encode('voyager');
+      error.details.push({
+        type: 'google.rpc.ErrorInfo',
+        value: new Uint8Array([
+          0x0a,
+          encodedReason.length,
+          ...encodedReason,
+          0x12,
+          encodedDomain.length,
+          ...encodedDomain,
+        ]),
+      });
     }
     return Promise.reject(error);
   };
@@ -87,9 +102,11 @@ describe('ServerGate', () => {
   });
 
   it('says the server does not answer, and shows the screens once it answers again', async () => {
-    renderGate([SERVER], fakeClients(failure(Code.Unavailable), answers));
+    // Twice: the check tries once more before it counts the server as unreachable.
+    renderGate([SERVER], fakeClients(failure(Code.Unavailable), failure(Code.Unavailable), answers));
 
-    expect(await screen.findByText(/Le serveur ne répond pas/)).toBeTruthy();
+    // After the second try, a second later.
+    expect(await screen.findByText(/Le serveur ne répond pas/, undefined, { timeout: 4000 })).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
 
     expect(await screen.findByText('Screens of http://localhost:5180')).toBeTruthy();
@@ -106,6 +123,34 @@ describe('ServerGate', () => {
     renderGate([SERVER], fakeClients(failure(Code.Unauthenticated)));
 
     expect(await screen.findByText(/demande de vous connecter/)).toBeTruthy();
+  });
+
+  it('keeps the screens, with the problem above them, when a server that answered stops answering', async () => {
+    const clients = fakeClients(answers);
+    const queryClient = new QueryClient();
+    render(
+      <ShellProviders locale="fr">
+        <AppProviders locale="fr" server={SERVER} clients={clients} queryClient={queryClient}>
+          <ServerConnection>
+            <Screens />
+          </ServerConnection>
+        </AppProviders>
+      </ShellProviders>,
+    );
+    expect(await screen.findByText('Screens of http://localhost:5180')).toBeTruthy();
+
+    // What the check every half minute finds when the server stops answering.
+    vi.mocked(clients.diagnostics.getServiceInfo).mockImplementation(failure(Code.Unavailable));
+    await act(() => queryClient.refetchQueries());
+
+    expect(await screen.findByText(/Le serveur ne répond pas/, undefined, { timeout: 4000 })).toBeTruthy();
+    expect(screen.getByText('Screens of http://localhost:5180')).toBeTruthy();
+  });
+
+  it('counts an error of the server itself as a refusal, not as a server that does not answer', async () => {
+    renderGate([SERVER], fakeClients(failure(Code.Unknown)));
+
+    expect(await screen.findByText(/a rencontré une erreur/)).toBeTruthy();
   });
 
   it('tells any other refusal apart from an app too old', async () => {

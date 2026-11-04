@@ -11,6 +11,8 @@ import type {
 export interface VoyagerBridge {
   /** The group servers the app knows, by identifier and address; the page calls them through the main process. */
   readonly getServers: () => Promise<readonly RegisteredServer[]>;
+  /** The version of the app, for the "About" screen. */
+  readonly getAppVersion: () => Promise<string>;
   /** Where the local service stands: starting, ready (with its address and secret), restarting or failed. */
   readonly getLocalServiceState: () => Promise<LocalServiceState>;
   /** Calls the listener at every change of the local service; returns the function that stops it. */
@@ -37,7 +39,7 @@ export type LocalServiceBridge = Pick<
 >;
 
 /** What the main screens need to reach the group servers. */
-export type ServerBridge = Pick<VoyagerBridge, 'getServers'>;
+export type ServerBridge = Pick<VoyagerBridge, 'getServers' | 'getAppVersion'>;
 
 /** What the startup screen needs from the desktop app. */
 export type StartupBridge = Pick<VoyagerBridge, 'getStartupState' | 'onStartupStateChange'>;

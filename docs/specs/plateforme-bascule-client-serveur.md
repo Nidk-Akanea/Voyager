@@ -50,14 +50,21 @@ la première brique du cœur sur la bonne architecture.
 
 ### L'application de bureau
 
-1. L'interface n'appelle plus le service local : elle appelle `voyager://api/<serveur>/…`, que le **processus
-   principal** transmet au serveur (ADR-0019, décision 4). La page ne connaît ni l'adresse du serveur ni aucun
-   jeton.
+1. L'interface n'appelle plus le service local : elle appelle `voyager://app/api/<serveur>/…`, que le
+   **processus principal** transmet au serveur (ADR-0019, décision 4). C'est le chemin interne `/api/` du protocole
+   de l'application, plutôt qu'un hôte `voyager://api` à part : la page reste dans sa propre origine, donc sans CORS
+   ni ouverture de sa politique de sécurité. La page n'appelle jamais le serveur elle-même et ne tient aucun jeton ;
+   elle peut montrer son adresse (« À propos »). Le processus principal refuse un appel d'une origine inconnue, ne
+   suit pas les redirections du serveur et n'envoie pas de cookie.
 2. **Les serveurs enregistrés** : un utilisateur peut avoir des groupes sur plusieurs serveurs (question Q52),
    donc l'application connaît une **liste** de serveurs, chacun désigné par un identifiant, dès la bascule.
    - En développement, la liste contient le serveur lancé par Aspire. L'application installée lit la liste de
-     ses serveurs dans un **réglage, vide par défaut** ; vide, elle montre « aucun serveur configuré ». Un essai
-     avec `Setup.exe` se fait contre un serveur de développement, avec l'identité de développement.
+     ses serveurs dans un **réglage, vide par défaut** : le fichier `%LOCALAPPDATA%\Voyager\servers.json`,
+     `{ "servers": [ { "id": "famille", "url": "https://…" } ] }`, où un identifiant est en minuscules, chiffres et
+     tirets, et une adresse en HTTPS (HTTP seulement sur le poste lui-même), sans identifiant, mot de passe ni
+     paramètre. Sans fichier, ou avec un fichier invalide, elle montre « aucun serveur configuré » et le journal dit
+     pourquoi. Un essai avec `Setup.exe` se fait contre un serveur de développement, avec l'identité de
+     développement.
    - **Chaque serveur a sa propre vue**, isolée (une session Electron par serveur, ADR-0019, décision 4) : les
      modules d'interface d'un serveur ne peuvent appeler que lui. Quand la liste compte plusieurs serveurs,
      l'application montre un **sélecteur de serveur** ; avec un seul, rien ne change à l'écran.
@@ -106,10 +113,15 @@ Chaque lot se livre seul, par sa propre PR, avec l'application qui fonctionne à
 1. **Lot 1 — Le serveur sert « À propos ».** Le serveur expose les deux services en gRPC-Web, charge les plugins
    livrés, accepte l'identité de développement, et ses tests passent. L'application parle encore au service
    local : rien ne change pour elle.
-2. **Lot 2 — L'application parle aux serveurs.** Le protocole interne `voyager://api`, la liste des serveurs
-   enregistrés, une vue isolée par serveur et le sélecteur, la liste des services permis, l'état de la
-   connexion, les modules d'interface venus du serveur, l'écran de démarrage révisé. La page « À propos » montre
-   le serveur. Le service local tourne encore, mais n'est plus appelé.
+2. **Lot 2 — L'application parle aux serveurs**, livré en trois PR pour rester court à relire :
+   - **2a** : le protocole interne `voyager://app/api`, la liste des serveurs enregistrés (le premier est montré),
+     la liste des services permis, l'état de la connexion, la page « À propos » du serveur (avec la version de
+     l'application et celle du serveur) ; l'onglet « Plugins » n'est plus montré, puisque la fenêtre ne parle plus
+     au service local ;
+   - **2b** : une vue isolée par serveur et le sélecteur ;
+   - **2c** : les modules d'interface venus du serveur, l'écran de démarrage révisé.
+
+   Le service local tourne encore, mais n'est plus appelé.
 3. **Lot 3 — Le retrait.** Le service local, SQLite sur le poste, `Voyager.Sync`, la gestion des plugins côté
    Electron et l'écran « Plugins » sont retirés ; le paquet installable et la documentation suivent.
 

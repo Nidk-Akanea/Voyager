@@ -17,11 +17,17 @@ const PLUGINS_PATH_PREFIX = '/plugins/';
 /** Entry page of the user interface. Its origin is PACKAGED_UI_ORIGIN of the local service. */
 export const APP_ENTRY_URL = `${APP_SCHEME}://${APP_HOST}/index.html`;
 
-/** Must run before the app is ready. */
-export function registerAppScheme(): void {
+/**
+ * Must run before the app is ready.
+ * @param allowOtherOrigins Lets a page of another origin call the protocol under CORS: in development only, where the
+ * page comes from Vite and calls the servers through this protocol.
+ */
+export function registerAppScheme(allowOtherOrigins: boolean): void {
   protocol.registerSchemesAsPrivileged([
-    // corsEnabled: in development the page comes from Vite, another origin, and calls the servers through this protocol.
-    { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+    {
+      scheme: APP_SCHEME,
+      privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: allowOtherOrigins },
+    },
   ]);
 }
 

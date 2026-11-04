@@ -27,7 +27,7 @@ const useStyles = makeStyles({
 
 export function ServiceFacts({ info }: { readonly info: GetServiceInfoResponse }) {
   const styles = useStyles();
-  const { locale, server } = useAppContext();
+  const { locale, server, appVersion } = useAppContext();
   const { l10n } = useLocalization();
   const startedAt = info.startedAt
     ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }).format(
@@ -38,6 +38,7 @@ export function ServiceFacts({ info }: { readonly info: GetServiceInfoResponse }
   const facts: readonly (readonly [string, ReactNode])[] = [
     ...(server === undefined ? [] : [['about-server', server.address] as const]),
     ['about-version', info.version],
+    ...(appVersion === undefined ? [] : [['about-app-version', appVersion] as const]),
     ['about-runtime', info.runtime],
     ['about-environment', info.environment],
     ['about-started-at', startedAt],

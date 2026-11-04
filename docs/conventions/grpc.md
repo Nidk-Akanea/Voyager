@@ -84,7 +84,8 @@ Côté C#, les adaptateurs convertissent ces types vers le domaine : `google.typ
 
 ## En-têtes du client
 
-Le client se présente au serveur du groupe à chaque appel (ADR-0018, décision 6) :
+Le client se présente au serveur du groupe à chaque appel (ADR-0018, décision 6). Sur le bureau, c'est le
+processus principal qui ajoute ces en-têtes en transmettant l'appel : la page ne peut pas les choisir.
 
 - `x-voyager-app` : l'application qui appelle (`desktop`, plus tard `mobile`) ;
 - `x-voyager-app-version` : sa version, telle que GitVersion la calcule (`0.4.0-beta.2`).

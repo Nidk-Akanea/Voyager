@@ -14,6 +14,8 @@ export interface AppProvidersProps {
   readonly locale: Locale;
   /** The server the screens show, for the "About" screen; none in tests that need none. */
   readonly server?: RegisteredServer;
+  /** The version of the app, for the "About" screen. */
+  readonly appVersion?: string;
   /** Clients of that server. */
   readonly clients: VoyagerClients;
   /** Data cache; tests pass one that does not retry failed calls. */
@@ -27,6 +29,7 @@ export interface AppProvidersProps {
 export function AppProviders({
   locale,
   server,
+  appVersion,
   clients,
   queryClient: givenQueryClient,
   pluginRuntime = browserPluginRuntime,
@@ -37,7 +40,10 @@ export function AppProviders({
     () => new QueryClient({ defaultOptions: { queries: { retry: CALL_RETRIES } } }),
   );
   const queryClient = givenQueryClient ?? defaultQueryClient;
-  const context = useMemo(() => ({ locale, server, clients, pluginRuntime }), [locale, server, clients, pluginRuntime]);
+  const context = useMemo(
+    () => ({ locale, server, appVersion, clients, pluginRuntime }),
+    [locale, server, appVersion, clients, pluginRuntime],
+  );
 
   return (
     <QueryClientProvider client={queryClient}>

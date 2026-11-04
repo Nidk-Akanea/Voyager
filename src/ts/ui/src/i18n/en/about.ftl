@@ -1,6 +1,7 @@
 about-title = About Voyager
 about-server = Server
-about-version = Version
+about-version = Server version
+about-app-version = App version
 about-runtime = Runtime
 about-environment = Mode
 about-started-at = Started on

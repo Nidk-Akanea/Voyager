@@ -10,6 +10,8 @@ export interface AppContextValue {
   readonly locale: Locale;
   /** The server the screens show; undefined in tests that need none. */
   readonly server?: RegisteredServer;
+  /** The version of the app, shown next to the server's; undefined when unknown. */
+  readonly appVersion?: string;
   /** The clients of that server, through the main process. */
   readonly clients: VoyagerClients;
   /** How plugin modules and translations are loaded; tests give one that loads nothing from the network. */

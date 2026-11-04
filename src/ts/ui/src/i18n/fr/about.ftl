@@ -1,6 +1,7 @@
 about-title = À propos de Voyager
 about-server = Serveur
-about-version = Version
+about-version = Version du serveur
+about-app-version = Version de l’application
 about-runtime = Moteur d'exécution
 about-environment = Mode
 about-started-at = Démarré le

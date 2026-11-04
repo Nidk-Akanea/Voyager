@@ -15,7 +15,7 @@
 
 ## La règle d'or
 
-**Aucun calcul métier dans l'interface.** L'interface affiche ce que renvoie le service local et lui
+**Aucun calcul métier dans l'interface.** L'interface affiche ce que renvoie le serveur du groupe et lui
 envoie ce que saisit l'utilisateur. Un total, une part, une faisabilité : c'est calculé en C#.
 
 - Les montants arrivent en `google.type.Money` (unités + nanos) : on les **formate** avec
@@ -48,7 +48,7 @@ Le nommage est vérifié par la règle ESLint `@typescript-eslint/naming-convent
 ## React
 
 - Composants fonctionnels et hooks uniquement.
-- **Données venant du service local** : TanStack Query au-dessus du client gRPC généré (cache,
+- **Données venant du serveur** : TanStack Query au-dessus du client gRPC généré (cache,
   rechargement, états de chargement). Pas d'appel gRPC directement dans un composant.
 - **État d'interface local** (onglet ouvert, filtre) : `useState` dans le composant. Un état global
   ne s'ajoute que s'il est vraiment partagé, et par décision explicite.
