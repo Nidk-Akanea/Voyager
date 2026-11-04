@@ -10,16 +10,11 @@ namespace Voyager.PluginHost;
 /// </param>
 public sealed record PluginLocations(string? ShippedDirectory, string? UserDirectory)
 {
-    #region Fields
-
     private const string INSTALLED_FOLDER = "installed";
     private const string STAGING_FOLDER = "staging";
     private const string REQUESTS_FILE = "requests.json";
     private const string STATE_FILE = "state.json";
-
-    #endregion Fields
-
-    #region Properties
+    private const string ACTIVITY_FILE = "activity.json";
 
     /// <summary>The folder of the installed plugins, one sub-folder each; null when plugins cannot be managed.</summary>
     public string? InstalledDirectory => UserDirectory is null ? null : Path.Combine(UserDirectory, INSTALLED_FOLDER);
@@ -36,16 +31,18 @@ public sealed record PluginLocations(string? ShippedDirectory, string? UserDirec
     /// <summary>The state written by the service; null when plugins cannot be managed.</summary>
     public string? StateFile => UserDirectory is null ? null : Path.Combine(UserDirectory, STATE_FILE);
 
+    /// <summary>
+    /// The trace of the plugins being loaded or called, written by the service while it runs and deleted when it stops
+    /// normally: found at startup, it tells which plugin the service crashed with. Null when plugins cannot be managed.
+    /// </summary>
+    public string? ActivityFile => UserDirectory is null ? null : Path.Combine(UserDirectory, ACTIVITY_FILE);
+
     /// <summary>The folders of plugins in the order they are read: shipped first, then installed.</summary>
     public IReadOnlyList<PluginRoot> Roots =>
     [
         .. ShippedDirectory is null ? Array.Empty<PluginRoot>() : [new PluginRoot(ShippedDirectory, PluginOrigin.Shipped)],
         .. InstalledDirectory is null ? Array.Empty<PluginRoot>() : [new PluginRoot(InstalledDirectory, PluginOrigin.Installed)],
     ];
-
-    #endregion Properties
-
-    #region Public Methods
 
     /// <summary>
     /// The folder of the plugins of an origin.
@@ -58,6 +55,4 @@ public sealed record PluginLocations(string? ShippedDirectory, string? UserDirec
         PluginOrigin.Installed => InstalledDirectory,
         _ => null,
     };
-
-    #endregion Public Methods
 }

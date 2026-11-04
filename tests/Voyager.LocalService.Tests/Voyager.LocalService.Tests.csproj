@@ -5,8 +5,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Test plugins, built before the tests and copied into a plugins folder by PluginFolder. -->
+    <!-- Test plugins, built before the tests and copied into a plugins folder by PluginFolder. CrashesOnLoad and
+         CrashesOnCall end the process that loads or calls them: only a service started apart does. -->
+    <ProjectReference Include="..\plugin-fixtures\CrashesOnCall\CrashesOnCall.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\CrashesOnLoad\CrashesOnLoad.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\plugin-fixtures\Good\Good.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\plugin-fixtures\SlowSource\SlowSource.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\plugin-fixtures\ThrowsOnConfigure\ThrowsOnConfigure.csproj" ReferenceOutputAssembly="false" />
     <Compile Include="..\Voyager.PluginHost.Tests\PluginFolder.cs" Link="PluginFolder.cs" />
     <Compile Include="..\Voyager.PluginHost.Tests\TestPackage.cs" Link="TestPackage.cs" />

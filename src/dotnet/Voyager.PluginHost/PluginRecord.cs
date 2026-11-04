@@ -12,10 +12,18 @@ namespace Voyager.PluginHost;
 /// <param name="PackageName">The file name of the package it was installed from; null for a shipped one.</param>
 /// <param name="PackageSha256">The SHA-256 fingerprint of that package, in lower-case hexadecimal; null for a shipped one.</param>
 /// <param name="LastError">The last request for this plugin that could not be applied; null when the last one was.</param>
+/// <param name="Suspended">
+/// Whether the plugin is suspected of having crashed the service: it is not loaded until the user decides.
+/// </param>
+/// <param name="DisabledForRecovery">
+/// Whether the plugin was disabled by a start without the installed plugins, rather than by the user one by one.
+/// </param>
 public sealed record PluginRecord(
     PluginKey Plugin,
     bool Enabled,
     Instant? InstalledAt,
     string? PackageName,
     string? PackageSha256,
-    PluginRequestError? LastError);
+    PluginRequestError? LastError,
+    bool Suspended = false,
+    bool DisabledForRecovery = false);

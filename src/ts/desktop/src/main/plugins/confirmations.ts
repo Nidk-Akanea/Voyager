@@ -163,6 +163,17 @@ function confirmationBox(
   };
 }
 
+/** The same confirmation, counting only once "I understand" is ticked. */
+function withUnderstanding(box: ConfirmationBox, locale: DialogLocale): ConfirmationBox {
+  return {
+    ...box,
+    checkboxLabel: message(locale, 'plugins-dialog-understand'),
+    checkboxChecked: false,
+    requiresCheckbox: true,
+    checkboxReminder: message(locale, 'plugins-dialog-understand-reminder'),
+  };
+}
+
 const CONFIRM_LABELS: Readonly<Record<InstallKind, string>> = {
   new: 'plugins-dialog-install',
   reinstall: 'plugins-dialog-reinstall',
@@ -209,15 +220,7 @@ export function installConfirmation(facts: InstallFacts, locale: DialogLocale): 
     details,
     confirmLabel: CONFIRM_LABELS[facts.kind],
   });
-  return verified
-    ? box
-    : {
-        ...box,
-        checkboxLabel: message(locale, 'plugins-dialog-understand'),
-        checkboxChecked: false,
-        requiresCheckbox: true,
-        checkboxReminder: message(locale, 'plugins-dialog-understand-reminder'),
-      };
+  return verified ? box : withUnderstanding(box, locale);
 }
 
 /** The confirmation of an uninstallation. */
@@ -233,20 +236,38 @@ export function uninstallConfirmation(plugin: PluginFacts, locale: DialogLocale)
   });
 }
 
-/** The confirmation of enabling a plugin: it lets code run again, without the box, which only an installation needs. */
-export function enableConfirmation(plugin: PluginFacts, locale: DialogLocale): ConfirmationBox {
-  return confirmationBox(locale, {
-    type: 'question',
-    question: message(locale, 'plugins-dialog-enable-question', {
-      id: cleanDisplayText(plugin.id),
-      version: cleanDisplayText(plugin.version),
+/**
+ * The confirmation of enabling a plugin: it lets code run again, without the box an installation needs; with it, and a
+ * reminder of the suspicion, for a plugin suspended after a crash.
+ */
+export function enableConfirmation(plugin: PluginFacts, locale: DialogLocale, suspended = false): ConfirmationBox {
+  const names = { id: cleanDisplayText(plugin.id), version: cleanDisplayText(plugin.version) };
+  if (!suspended) {
+    return confirmationBox(locale, {
+      type: 'question',
+      question: message(locale, 'plugins-dialog-enable-question', names),
+      details: [
+        message(locale, 'plugins-dialog-enable-detail'),
+        message(locale, 'plugins-dialog-verification', { verification: plugin.verification }),
+      ],
+      confirmLabel: 'plugins-dialog-enable',
+    });
+  }
+  // A plugin suspected of having crashed Voyager: the dialog recalls it, and waits for "I understand" (spec, rule 4 of
+  // "Quand Voyager plante à cause d'un plugin").
+  return withUnderstanding(
+    confirmationBox(locale, {
+      type: 'warning',
+      question: message(locale, 'plugins-dialog-reenable-question', names),
+      details: [
+        message(locale, 'plugins-dialog-suspicion'),
+        message(locale, 'plugins-dialog-reenable-detail'),
+        message(locale, 'plugins-dialog-verification', { verification: plugin.verification }),
+      ],
+      confirmLabel: 'plugins-dialog-reenable',
     }),
-    details: [
-      message(locale, 'plugins-dialog-enable-detail'),
-      message(locale, 'plugins-dialog-verification', { verification: plugin.verification }),
-    ],
-    confirmLabel: 'plugins-dialog-enable',
-  });
+    locale,
+  );
 }
 
 /** The title of the dialog that chooses a package file, and the name of its filter. */

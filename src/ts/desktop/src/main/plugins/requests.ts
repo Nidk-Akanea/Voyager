@@ -133,20 +133,31 @@ async function readJson(file: string): Promise<unknown> {
 /**
  * Reads the requests the app wrote; none when the file does not exist. A damaged file (not JSON, too large) holds
  * nothing the service would apply: it counts as one entry dropped, and the next write replaces it.
- * @returns The valid requests, in the order of the file, and how many entries were not valid and are dropped.
+ * @returns The valid requests, in the order of the file, the request to start without the installed plugins if the
+ * file holds a valid one, and how many entries were not valid and are dropped.
  * @throws when the file cannot be read.
  */
-export async function readRequests(file: string): Promise<{ requests: PluginRequestEntry[]; ignored: number }> {
+export async function readRequests(
+  file: string,
+): Promise<{ requests: PluginRequestEntry[]; ignored: number; recovery?: string }> {
   const content = await readJson(file);
   if (content === DAMAGED) {
     return { requests: [], ignored: 1 };
   }
-  const entries = (content as { requests?: unknown } | undefined)?.requests;
+  const { requests: entries, recovery } = (content ?? {}) as { requests?: unknown; recovery?: unknown };
+  const validRecovery = typeof recovery === 'string' && REQUEST_ID_PATTERN.test(recovery) ? recovery : undefined;
+  // A null recovery is none, as the service reads it.
+  const ignoredRecovery = recovery !== undefined && recovery !== null && validRecovery === undefined ? 1 : 0;
+  const withRecovery = validRecovery === undefined ? {} : { recovery: validRecovery };
   if (!Array.isArray(entries)) {
-    return { requests: [], ignored: content === undefined ? 0 : 1 };
+    return {
+      requests: [],
+      ignored: (content === undefined || entries === undefined ? 0 : 1) + ignoredRecovery,
+      ...withRecovery,
+    };
   }
   const requests = entries.map(toEntry).filter((entry) => entry !== undefined);
-  return { requests, ignored: entries.length - requests.length };
+  return { requests, ignored: entries.length - requests.length + ignoredRecovery, ...withRecovery };
 }
 
 /**
@@ -218,14 +229,20 @@ export function describeRequest({ action, origin, pluginId, packageName }: Plugi
 /**
  * Writes the requests in full or not at all: a temporary file next to it, flushed to the disk, then a replacement.
  * The service may read the file at any time.
+ * @param recovery The request to start without the installed plugins, while the service has not applied it.
  */
-export async function writeRequests(file: string, requests: readonly PluginRequestEntry[]): Promise<void> {
+export async function writeRequests(
+  file: string,
+  requests: readonly PluginRequestEntry[],
+  recovery?: string,
+): Promise<void> {
   await mkdir(dirname(file), { recursive: true });
   const temporary = `${file}.${randomBytes(8).toString('hex')}.tmp`;
   try {
     const handle = await open(temporary, 'wx');
     try {
-      await handle.writeFile(`${JSON.stringify({ requests }, undefined, 2)}\n`, 'utf8');
+      // Undefined, the recovery is left out of the file.
+      await handle.writeFile(`${JSON.stringify({ requests, recovery }, undefined, 2)}\n`, 'utf8');
       await handle.sync();
     } finally {
       await handle.close();
@@ -257,4 +274,19 @@ export async function deleteTemporaryRequestFiles(file: string): Promise<void> {
       await rm(join(dirname(file), entry), { force: true });
     }
   }
+}
+
+/**
+ * Writes a request to start without the installed plugins (ADR-0016, decision 6): at its next start, the service
+ * disables every installed plugin, and the user enables them again one by one. The requests still pending are dropped:
+ * one of them (an installation too long, a plugin enabled again) may be what keeps the service from starting.
+ * @returns The prepared copies the dropped requests named, which nothing needs any more.
+ */
+export async function addRecoveryRequest(requestsFile: string, stateFile: string): Promise<string[]> {
+  const { requests } = await readRequests(requestsFile);
+  const dropped = pendingRequests(requests, await readAppliedRequestIds(stateFile));
+  await deleteTemporaryRequestFiles(requestsFile);
+  // An identifier of its own, as any request: the service applies it once, and remembers it while it is in the file.
+  await writeRequests(requestsFile, [], randomUUID());
+  return dropped.map((request) => request.package).filter((name) => name !== undefined);
 }

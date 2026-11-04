@@ -109,3 +109,12 @@ export interface PluginManagementBridge {
   /** Restarts the local service when a request waits, so that it applies them; the page reloads once it is ready. */
   readonly restart: () => Promise<RestartResult>;
 }
+
+/** What became of a request to start without the installed plugins, from the screen of a service that failed. */
+export type RecoveryResult =
+  /** The request is written and the service starts again: the installed plugins come back disabled. */
+  | { readonly outcome: 'restarting' }
+  /** The service has not failed: nothing is written (the "Plugins" screen disables plugins one by one). */
+  | { readonly outcome: 'not-failed' }
+  /** The request could not be written: the details are in the app's log. */
+  | { readonly outcome: 'failed' };

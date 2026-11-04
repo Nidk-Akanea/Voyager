@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Voyager.PluginFixtures.CrashesOnCall</AssemblyName>
+    <RootNamespace>Voyager.PluginFixtures.CrashesOnCall</RootNamespace>
+  </PropertyGroup>
+
+</Project>

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  addRecoveryRequest,
   cancelRequest,
   deleteTemporaryRequestFiles,
   describeRequest,
@@ -189,12 +190,48 @@ describe('the file the service reads', () => {
 
   it('is written exactly as the fixture the .NET tests read', async () => {
     const fixture = await readFile(FIXTURE, 'utf8');
-    const { requests } = await readRequests(FIXTURE);
+    const { requests, recovery } = await readRequests(FIXTURE);
 
-    await writeRequests(file, requests);
+    await writeRequests(file, requests, recovery);
 
     expect(requests).toHaveLength(4);
+    expect(recovery).toBe('4f5a6b7c-8d9e-4f0a-1b2c-3d4e5f6a7b8c');
     expect(await readFile(file, 'utf8')).toBe(fixture.replaceAll('\r\n', '\n'));
+  });
+});
+
+describe('the request to start without the installed plugins', () => {
+  it('drops the requests still pending, which may keep the service from starting, and names their copies', async () => {
+    await writeRequests(file, [newRequest('disable', CLOCK), install(COPY_V2)]);
+
+    const discarded = await addRecoveryRequest(file, join(folder, 'state.json'));
+
+    const read = await readRequests(file);
+    expect(read.requests).toEqual([]);
+    expect(read.recovery).toMatch(/^[A-Za-z0-9-]{1,64}$/u);
+    expect(discarded).toEqual([COPY_V2]);
+  });
+
+  it('drops the requests the service applied', async () => {
+    const applied = newRequest('disable', CLOCK);
+    await writeRequests(file, [applied]);
+    await writeFile(join(folder, 'state.json'), JSON.stringify({ plugins: [], appliedRequests: [applied.id] }));
+
+    await addRecoveryRequest(file, join(folder, 'state.json'));
+
+    expect((await readRequests(file)).requests).toEqual([]);
+  });
+
+  it('counts a recovery that is not valid as an entry dropped', async () => {
+    await writeFile(file, JSON.stringify({ requests: [], recovery: '../not an id' }));
+
+    expect(await readRequests(file)).toEqual({ requests: [], ignored: 1 });
+  });
+
+  it('is left out of the file when there is none', async () => {
+    await writeRequests(file, []);
+
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({ requests: [] });
   });
 });
 

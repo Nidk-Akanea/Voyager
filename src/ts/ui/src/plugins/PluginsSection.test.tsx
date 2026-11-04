@@ -391,6 +391,13 @@ describe('PluginsSection', () => {
     expect(getDiagnosticFacts).not.toHaveBeenCalled();
   });
 
+  it('leaves out a plugin suspended after a crash', async () => {
+    renderSection({ plugins: [plugin('diagnostics-clock', { status: PluginStatus.SUSPENDED, provides: [] })] });
+
+    expect(await screen.findByText('Aucun plugin n’est actif.')).toBeTruthy();
+    expect(screen.queryByText('diagnostics-clock')).toBeNull();
+  });
+
   it('shows a shipped plugin and an installed one with the same folder name', async () => {
     renderSection({
       plugins: [

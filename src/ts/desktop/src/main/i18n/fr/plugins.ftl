@@ -39,3 +39,7 @@ plugins-dialog-enable = Activer
 plugins-dialog-enable-detail = Il sera chargé au démarrage et pourra de nouveau agir dans Voyager.
 plugins-dialog-choose-package = Ajouter un paquet de plugin
 plugins-dialog-package-files = Paquets de plugin Voyager
+plugins-dialog-reenable-question = Réactiver le plugin « { $id } » (version { $version }) ?
+plugins-dialog-suspicion = Ce plugin est soupçonné d’avoir fait planter Voyager. C’est un soupçon, pas une certitude : un autre plugin, ou une coupure de courant, a pu en être la cause.
+plugins-dialog-reenable-detail = Il sera chargé au prochain démarrage. S’il fait de nouveau planter Voyager, il sera suspendu de nouveau.
+plugins-dialog-reenable = Réactiver

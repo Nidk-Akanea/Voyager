@@ -13,7 +13,6 @@ import {
   PluginOrigin,
   PluginStatus,
   PluginVerification,
-  type PluginManagementBridge,
   type RestartResult,
 } from '@voyager/grpc-client';
 
@@ -23,6 +22,7 @@ import {
   describeFailure,
   type ListedPlugin,
   type PackageExamination,
+  type PluginManagement,
   type PluginManagementFolders,
 } from './pluginManagement';
 import type { PluginRequestEntry } from './requests';
@@ -69,9 +69,11 @@ let chosenFile: string | undefined;
 let opened: string[];
 let logged: string[];
 let serviceReady: boolean;
+let serviceFailed: boolean;
+let retries: number;
 let restartService: () => Promise<RestartResult>;
 let examineThen: (() => Promise<void>) | undefined;
-let management: PluginManagementBridge;
+let management: PluginManagement;
 
 const CONFIRMED: DialogAnswer = { response: 1, checkboxChecked: true };
 const CANCELLED: DialogAnswer = { response: 0, checkboxChecked: false };
@@ -92,6 +94,8 @@ beforeEach(async () => {
   opened = [];
   logged = [];
   serviceReady = true;
+  serviceFailed = false;
+  retries = 0;
   examineThen = undefined;
   restartService = () => Promise.resolve({ outcome: 'restarting' });
   management = createPluginManagement({
@@ -110,6 +114,10 @@ beforeEach(async () => {
     },
     restartService: () => restartService(),
     isServiceReady: () => serviceReady,
+    isServiceFailed: () => serviceFailed,
+    retryService: () => {
+      retries++;
+    },
     locale: () => 'fr',
     log: {
       info: (message) => logged.push(message),
@@ -337,6 +345,94 @@ describe('uninstall', () => {
   });
 });
 
+describe('a suspended plugin', () => {
+  it('is enabled again only after a confirmation that recalls the suspicion and waits for "I understand"', async () => {
+    plugins = [listed('diagnostics-clock', PluginOrigin.SHIPPED, PluginStatus.SUSPENDED)];
+    answers = [{ response: 1, checkboxChecked: false }, CONFIRMED];
+
+    expect(await management.enable(CLOCK)).toEqual({ outcome: 'requested' });
+
+    expect(shown).toHaveLength(2);
+    expect(shown[0]?.detail).toContain('Ce plugin est soupçonné d’avoir fait planter Voyager.');
+    expect(shown[0]?.requiresCheckbox).toBe(true);
+    expect(await writtenRequests()).toMatchObject([{ action: 'enable', ...CLOCK }]);
+  });
+
+  it('stays suspended when the user declines', async () => {
+    plugins = [listed('diagnostics-clock', PluginOrigin.SHIPPED, PluginStatus.SUSPENDED)];
+    answers = [CANCELLED];
+
+    expect(await management.enable(CLOCK)).toEqual({ outcome: 'cancelled' });
+    expect(await writtenRequests()).toEqual([]);
+  });
+
+  it('is disabled for good without a confirmation', async () => {
+    plugins = [listed('diagnostics-clock', PluginOrigin.SHIPPED, PluginStatus.SUSPENDED)];
+
+    expect(await management.disable(CLOCK)).toEqual({ outcome: 'requested' });
+
+    expect(shown).toEqual([]);
+    expect(await writtenRequests()).toMatchObject([{ action: 'disable', ...CLOCK }]);
+  });
+});
+
+describe('the request to start without the installed plugins', () => {
+  it('is written, and the service started again, once the service failed', async () => {
+    serviceReady = false;
+    serviceFailed = true;
+    await writeFile(folders.requestsFile, JSON.stringify({ requests: [] }));
+
+    expect(await management.startWithoutInstalledPlugins()).toEqual({ outcome: 'restarting' });
+
+    expect(JSON.parse(await readFile(folders.requestsFile, 'utf8'))).toHaveProperty('recovery');
+    expect(retries).toBe(1);
+  });
+
+  it('is not written while the service runs', async () => {
+    expect(await management.startWithoutInstalledPlugins()).toEqual({ outcome: 'not-failed' });
+
+    expect(await writtenRequests()).toEqual([]);
+    expect(retries).toBe(0);
+  });
+
+  it('waits for the operation on its way, then drops the requests that waited, and their copies', async () => {
+    await putInInbox();
+    answers = [CONFIRMED];
+    let recovering: Promise<unknown> = Promise.resolve();
+    // Asked while the confirmation of the installation is still open.
+    examineThen = () => {
+      serviceFailed = true;
+      recovering = management.startWithoutInstalledPlugins();
+      return Promise.resolve();
+    };
+
+    expect(await management.install(PACKAGE_NAME)).toEqual({ outcome: 'requested' });
+    expect(await recovering).toEqual({ outcome: 'restarting' });
+
+    const file = JSON.parse(await readFile(folders.requestsFile, 'utf8')) as { requests: unknown[]; recovery?: string };
+    expect(file.requests).toEqual([]);
+    expect(file.recovery).toBeDefined();
+    expect(await stagedCopies()).toEqual([]);
+  });
+
+  it('is kept when another request is written, until the service applies it', async () => {
+    await writeFile(folders.requestsFile, JSON.stringify({ requests: [], recovery: 'recovery-1' }));
+
+    await management.disable(CLOCK);
+
+    expect(JSON.parse(await readFile(folders.requestsFile, 'utf8'))).toMatchObject({ recovery: 'recovery-1' });
+  });
+
+  it('is dropped once the service applied it', async () => {
+    await writeFile(folders.requestsFile, JSON.stringify({ requests: [], recovery: 'recovery-1' }));
+    await writeFile(folders.stateFile, JSON.stringify({ plugins: [], appliedRequests: ['recovery-1'] }));
+
+    await management.disable(CLOCK);
+
+    expect(JSON.parse(await readFile(folders.requestsFile, 'utf8'))).not.toHaveProperty('recovery');
+  });
+});
+
 describe('disable and enable', () => {
   it('disables without asking', async () => {
     expect(await management.disable(CLOCK)).toEqual({ outcome: 'requested' });
@@ -451,6 +547,8 @@ describe('the inbox', () => {
       openFolder: () => Promise.resolve(),
       restartService: () => Promise.resolve({ outcome: 'restarting' }),
       isServiceReady: () => true,
+      isServiceFailed: () => false,
+      retryService: () => undefined,
       locale: () => 'fr',
       log: { info: () => undefined, warn: () => undefined, error: (message) => logged.push(message) },
     });

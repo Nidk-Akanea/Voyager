@@ -239,6 +239,75 @@ public sealed class PluginHostGrpcServiceTests
     }
 
     [TestMethod]
+    public async Task ListPlugins_PluginThePreviousRunCrashedWhileLoading_IsSuspended()
+    {
+        using var plugins = new PluginFolder();
+        using var user = new UserPluginFolder();
+        user.Installed.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        File.WriteAllText(
+            Path.Combine(user.Path, "activity.json"),
+            """{ "loading": { "origin": "installed", "id": "fixture-view" }, "calls": [] }""");
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+
+        var plugin = response.Plugins.Should().ContainSingle().Subject;
+        plugin.Status.Should().Be(PluginStatus.Suspended);
+        plugin.RejectionReason.Should().Be(PluginRejectionReason.Unspecified);
+        plugin.UiModule.Should().BeEmpty("the interface of a suspended plugin is never shown");
+        plugin.DisabledForRecovery.Should().BeFalse();
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_StartWithoutTheInstalledPlugins_TellsWhichOnesAreDisabledForRecovery()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddManifest("fixture-clock", ViewManifest("fixture-clock"));
+        using var user = new UserPluginFolder();
+        user.Installed.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        user.WriteRequestsFile("""{ "requests": [], "recovery": "rec-5e1f" }""");
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+
+        response.Plugins.Select(plugin => (plugin.Id, plugin.Origin, plugin.Status, plugin.DisabledForRecovery)).Should().Equal(
+            ("fixture-clock", PluginOrigin.Shipped, PluginStatus.Loaded, false),
+            ("fixture-view", PluginOrigin.Installed, PluginStatus.Disabled, true));
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_PluginTheUserDisabled_IsNotDisabledForRecovery()
+    {
+        using var plugins = new PluginFolder();
+        using var user = new UserPluginFolder();
+        user.Installed.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        user.WriteRequests(UserPluginFolder.Request("r1", "disable", "fixture-view", "installed"));
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+
+        var plugin = response.Plugins.Should().ContainSingle().Subject;
+        plugin.Status.Should().Be(PluginStatus.Disabled);
+        plugin.DisabledForRecovery.Should().BeFalse();
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_PluginDisabledForRecoveryThenEnabledAgain_IsLoadedWithoutTheMention()
+    {
+        using var plugins = new PluginFolder();
+        using var user = new UserPluginFolder();
+        user.Installed.AddManifest("fixture-view", ViewManifest("fixture-view"));
+        user.WriteRequestsFile($$"""{ "requests": [{{UserPluginFolder.Request("r1", "enable", "fixture-view", "installed")}}], "recovery": "rec-5e1f" }""");
+        using var factory = new LocalServiceFactory(shippedPluginsDirectory: plugins.Path, userPluginsDirectory: user.Path);
+
+        var response = await CreateClient(factory).ListPluginsAsync(new ListPluginsRequest(), AuthorizedHeaders);
+
+        var plugin = response.Plugins.Should().ContainSingle().Subject;
+        plugin.Status.Should().Be(PluginStatus.Loaded);
+        plugin.DisabledForRecovery.Should().BeFalse();
+    }
+
+    [TestMethod]
     public async Task ListPlugins_InstalledPluginWithTheIdOfAShippedOne_IsRejectedAsDuplicateOfShipped()
     {
         using var plugins = new PluginFolder();

@@ -39,3 +39,7 @@ plugins-dialog-enable = Enable
 plugins-dialog-enable-detail = It will load at startup and act in Voyager again.
 plugins-dialog-choose-package = Add a plugin package
 plugins-dialog-package-files = Voyager plugin packages
+plugins-dialog-reenable-question = Enable the plugin “{ $id }” (version { $version }) again?
+plugins-dialog-suspicion = This plugin is suspected of having crashed Voyager. It is a suspicion, not a certainty: another plugin, or a power cut, may have caused it.
+plugins-dialog-reenable-detail = It will load at the next start. If it crashes Voyager again, it will be suspended again.
+plugins-dialog-reenable = Enable again

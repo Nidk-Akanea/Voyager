@@ -48,6 +48,8 @@
   </Folder>
   <Folder Name="/tests/plugin-fixtures/">
     <Project Path="tests/plugin-fixtures/BadLabel/BadLabel.csproj" />
+    <Project Path="tests/plugin-fixtures/CrashesOnCall/CrashesOnCall.csproj" />
+    <Project Path="tests/plugin-fixtures/CrashesOnLoad/CrashesOnLoad.csproj" />
     <Project Path="tests/plugin-fixtures/Good/Good.csproj" />
     <Project Path="tests/plugin-fixtures/InvalidContainer/InvalidContainer.csproj" />
     <Project Path="tests/plugin-fixtures/ManyFacts/ManyFacts.csproj" />

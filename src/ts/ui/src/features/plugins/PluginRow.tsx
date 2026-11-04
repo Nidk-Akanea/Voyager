@@ -53,6 +53,7 @@ const STATUS_BADGES: Readonly<Partial<Record<PluginStatus, BadgeText>>> = {
   [PluginStatus.LOADED]: { color: 'success', messageId: 'plugin-management-state-loaded' },
   [PluginStatus.REJECTED]: { color: 'warning', messageId: 'plugin-management-state-rejected' },
   [PluginStatus.DISABLED]: { color: 'subtle', messageId: 'plugin-management-state-disabled' },
+  [PluginStatus.SUSPENDED]: { color: 'danger', messageId: 'plugin-management-state-suspended' },
 };
 
 const ORIGIN_MESSAGES: Readonly<Partial<Record<PluginOrigin, string>>> = {
@@ -156,6 +157,22 @@ export function PluginRow({ plugin, pending, busy, onAction }: PluginRowProps) {
       </Button>
     );
 
+  // Enable or disable, whichever changes what the plugin will be.
+  const switchActions = () => {
+    // A suspended plugin waits for the user to decide: enable it again, or disable it for good.
+    if (plugin.status === PluginStatus.SUSPENDED && pending === undefined) {
+      return (
+        <>
+          {action('enable', 'plugin-management-reenable')}
+          {action('disable', 'plugin-management-disable-for-good')}
+        </>
+      );
+    }
+    return willBeDisabled(plugin, pending)
+      ? action('enable', 'plugin-management-enable')
+      : action('disable', 'plugin-management-disable');
+  };
+
   return (
     <Card>
       <CardHeader
@@ -180,6 +197,15 @@ export function PluginRow({ plugin, pending, busy, onAction }: PluginRowProps) {
         {failedAction !== undefined && <Badge color="danger">{l10n.getString('plugin-management-state-failed')}</Badge>}
       </div>
       {plugin.status === PluginStatus.REJECTED && <RejectionDetails plugin={plugin} />}
+      {/* What changes when a plugin is not loaded: what it brings is no longer there (spec, rule 5 of the crashes). */}
+      {plugin.status === PluginStatus.SUSPENDED && <Body1>{l10n.getString('plugin-management-suspended')}</Body1>}
+      {plugin.status === PluginStatus.DISABLED && (
+        <Body1>
+          {l10n.getString(
+            plugin.disabledForRecovery ? 'plugin-management-disabled-for-recovery' : 'plugin-management-disabled',
+          )}
+        </Body1>
+      )}
       {pending !== undefined && <Body1>{pendingText(pending, l10n)}</Body1>}
       {failedAction !== undefined && (
         <Body1>
@@ -191,9 +217,7 @@ export function PluginRow({ plugin, pending, busy, onAction }: PluginRowProps) {
       )}
       <PluginDetails plugin={plugin} />
       <CardFooter>
-        {willBeDisabled(plugin, pending)
-          ? action('enable', 'plugin-management-enable')
-          : action('disable', 'plugin-management-disable')}
+        {switchActions()}
         {/* A shipped plugin can be disabled, never uninstalled; an uninstallation that waits is only cancelled. */}
         {installed && pending?.action !== 'uninstall' && action('uninstall', 'plugin-management-uninstall')}
         {pending !== undefined && action('cancel-request', 'plugin-management-cancel-request')}

@@ -47,3 +47,6 @@ export const LIST_PLUGIN_REQUESTS_CHANNEL = 'voyager:plugins:list-requests';
 
 /** Restarts the local service to apply the requests (RestartResult). */
 export const RESTART_FOR_PLUGINS_CHANNEL = 'voyager:plugins:restart';
+
+/** Starts the local service again without the installed plugins, after it failed (RecoveryResult). */
+export const START_WITHOUT_INSTALLED_PLUGINS_CHANNEL = 'voyager:start-without-installed-plugins';

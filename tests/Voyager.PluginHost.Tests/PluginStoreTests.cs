@@ -407,7 +407,7 @@ public sealed partial class PluginStoreTests
         user.WriteRequestsFile(content);
         var store = Store(shipped, user);
 
-        var apply = store.ApplyRequests;
+        var apply = () => store.ApplyRequests();
 
         apply.Should().NotThrow();
         store.DisabledPlugins.Should().BeEquivalentTo([_shippedView]);
@@ -423,7 +423,7 @@ public sealed partial class PluginStoreTests
         user.WriteRequestsFile($$"""{ "requests": [{{UserPluginFolder.Request("r1", "disable", VIEW_ID, "shipped")}}] }{{padding}}""");
         var store = Store(shipped, user);
 
-        var apply = store.ApplyRequests;
+        var apply = () => store.ApplyRequests();
 
         apply.Should().NotThrow();
         store.DisabledPlugins.Should().BeEmpty();
@@ -441,7 +441,7 @@ public sealed partial class PluginStoreTests
         user.WriteStateFile(content);
         var store = Store(shipped, user);
 
-        var apply = store.ApplyRequests;
+        var apply = () => store.ApplyRequests();
 
         apply.Should().NotThrow();
         store.DisabledPlugins.Should().BeEmpty();
@@ -638,7 +638,7 @@ public sealed partial class PluginStoreTests
         File.SetAttributes(user.StateFile, FileAttributes.ReadOnly);
         var store = Store(shipped, user);
 
-        var apply = store.ApplyRequests;
+        var apply = () => store.ApplyRequests();
 
         apply.Should().NotThrow();
         Directory.EnumerateFiles(user.Path, "*.tmp").Should().BeEmpty();

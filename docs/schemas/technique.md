@@ -300,6 +300,13 @@ sequenceDiagram
   par le pont du processus principal, la boîte de dépôt et les demandes en attente ; chaque geste passe par le
   pont, qui demande la confirmation quand il le faut. La page « À propos » ne montre que les plugins chargés ou
   écartés.
+- **Plantages** (ADR-0016, décision 6) : pendant qu'il tourne, le service note dans `plugins/activity.json`
+  (`PluginActivity`) le plugin en cours de chargement et ceux en cours d'appel ; un arrêt normal efface ce fichier.
+  Trouvé au démarrage suivant, il désigne le plugin en chargement, ou le seul en cours d'appel : ce plugin est
+  **suspendu** (non chargé) jusqu'à ce que l'utilisateur le désactive pour de bon ou le réactive, avec une
+  confirmation renforcée. Quand le service n'arrive plus à démarrer, l'écran d'échec propose de **démarrer sans les
+  plugins installés** : le processus principal écrit une demande `recovery` dans `requests.json`, et le service
+  désactive alors tous les plugins installés (les livrés restent chargés).
 - Au démarrage, `PluginStore` applique d'abord les **demandes** que le processus principal a écrites
   (`requests.json` : installer, activer, désactiver, désinstaller) et écrit l'**état** (`state.json`) : le
   processus principal est le seul à écrire les demandes, le service le seul à écrire l'état (ADR-0016,

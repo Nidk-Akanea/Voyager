@@ -27,6 +27,7 @@ function fakeBridge(initial: LocalServiceState) {
       };
     },
     retryLocalService: vi.fn(() => Promise.resolve()),
+    startWithoutInstalledPlugins: vi.fn(() => Promise.resolve({ outcome: 'restarting' as const })),
   };
   return {
     bridge,
@@ -88,6 +89,79 @@ describe('LocalServiceGate', () => {
     expect(await screen.findByText('Démarrage de Voyager…')).toBeTruthy();
   });
 
+  it('offers to start without the installed plugins when the service failed', async () => {
+    const { bridge, push } = fakeBridge({ status: 'failed' });
+    renderGate(bridge);
+
+    expect(await screen.findByText(/Si un plugin installé empêche Voyager de démarrer/)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Démarrer sans les plugins installés' }));
+    expect(bridge.startWithoutInstalledPlugins).toHaveBeenCalledOnce();
+
+    push({ status: 'starting' });
+    expect(await screen.findByText('Démarrage de Voyager…')).toBeTruthy();
+  });
+
+  it('says so when the start without the installed plugins could not be prepared', async () => {
+    const { bridge } = fakeBridge({ status: 'failed' });
+    vi.mocked(bridge.startWithoutInstalledPlugins).mockResolvedValueOnce({ outcome: 'failed' });
+    renderGate(bridge);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Démarrer sans les plugins installés' }));
+
+    expect(
+      await screen.findByText(
+        'Voyager n’a pas pu préparer le démarrage sans les plugins installés. Le détail est dans le journal de Voyager.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('forgets a message about an earlier failure once the service starts again', async () => {
+    const { bridge, push } = fakeBridge({ status: 'failed' });
+    vi.mocked(bridge.startWithoutInstalledPlugins).mockResolvedValueOnce({ outcome: 'failed' });
+    renderGate(bridge);
+    await userEvent.click(await screen.findByRole('button', { name: 'Démarrer sans les plugins installés' }));
+    await screen.findByText(/Voyager n’a pas pu préparer le démarrage/);
+
+    push({ status: 'starting' });
+    push({ status: 'failed' });
+
+    expect(await screen.findByRole('button', { name: 'Démarrer sans les plugins installés' })).toBeTruthy();
+    expect(screen.queryByText(/Voyager n’a pas pu préparer le démarrage/)).toBeNull();
+  });
+
+  it('asks only once while the start without the installed plugins is on its way', async () => {
+    const { bridge } = fakeBridge({ status: 'failed' });
+    vi.mocked(bridge.startWithoutInstalledPlugins).mockReturnValueOnce(new Promise(() => undefined));
+    renderGate(bridge);
+
+    const button = await screen.findByRole<HTMLButtonElement>('button', {
+      name: 'Démarrer sans les plugins installés',
+    });
+    await userEvent.click(button);
+
+    expect(button.disabled).toBe(true);
+    expect(bridge.startWithoutInstalledPlugins).toHaveBeenCalledOnce();
+  });
+
+  it('says nothing changed when the service had not failed after all', async () => {
+    const { bridge } = fakeBridge({ status: 'failed' });
+    vi.mocked(bridge.startWithoutInstalledPlugins).mockResolvedValueOnce({ outcome: 'not-failed' });
+    renderGate(bridge);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Démarrer sans les plugins installés' }));
+
+    expect(await screen.findByText('Le service de Voyager n’est pas arrêté : rien n’a été changé.')).toBeTruthy();
+  });
+
+  it('offers to start without the installed plugins only once the service failed', async () => {
+    const { bridge } = fakeBridge({ status: 'restarting' });
+    renderGate(bridge);
+
+    await screen.findByText('Le service local de Voyager s’est arrêté, redémarrage…');
+
+    expect(screen.queryByRole('button', { name: 'Démarrer sans les plugins installés' })).toBeNull();
+  });
+
   it('stops listening once removed from the page', () => {
     const { bridge, isListening } = fakeBridge({ status: 'starting' });
     const { unmount } = renderGate(bridge);
@@ -130,6 +204,7 @@ describe('LocalServiceGate', () => {
         return () => undefined;
       },
       retryLocalService: () => Promise.resolve(),
+      startWithoutInstalledPlugins: () => Promise.resolve({ outcome: 'restarting' as const }),
     };
     renderGate(bridge);
 

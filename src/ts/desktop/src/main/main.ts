@@ -38,6 +38,7 @@ import {
   OPEN_INBOX_CHANNEL,
   RESTART_FOR_PLUGINS_CHANNEL,
   RETRY_LOCAL_SERVICE_CHANNEL,
+  START_WITHOUT_INSTALLED_PLUGINS_CHANNEL,
   STARTUP_STATE_CHANGED_CHANNEL,
   UNINSTALL_PLUGIN_CHANNEL,
 } from '../shared/ipc';
@@ -535,6 +536,10 @@ function start(): void {
     restartService: () =>
       localService === undefined ? Promise.resolve({ outcome: 'failed' }) : restartToApplyRequests(localService),
     isServiceReady: () => localService?.state().status === 'ready',
+    isServiceFailed: () => localService?.state().status === 'failed',
+    retryService: () => {
+      localService?.retry();
+    },
     locale: dialogLocale,
     log: {
       info: (message) => {
@@ -566,6 +571,8 @@ function start(): void {
   handlePlugins(CANCEL_PLUGIN_REQUEST_CHANNEL, (target) => plugins.cancelRequest(target as PluginTarget));
   handlePlugins(LIST_PLUGIN_REQUESTS_CHANNEL, () => plugins.listRequests());
   handlePlugins(RESTART_FOR_PLUGINS_CHANNEL, () => plugins.restart());
+  // Only from the screen of a service that failed, which is not running and so reads no request meanwhile.
+  handlePlugins(START_WITHOUT_INSTALLED_PLUGINS_CHANNEL, () => plugins.startWithoutInstalledPlugins());
 
   lockDownWebContents(isUserInterface);
   app.on('window-all-closed', () => {

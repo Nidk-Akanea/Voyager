@@ -153,6 +153,24 @@ describe('installConfirmation', () => {
 describe('uninstallConfirmation and enableConfirmation', () => {
   const plugin = { id: 'tool', version: '1.2.0', verification: 'unverified' } as const;
 
+  it('recalls the suspicion before enabling a suspended plugin again, waits for "I understand", and defaults to "Cancel"', () => {
+    const box = enableConfirmation(plugin, 'fr', true);
+
+    expect(box.message).toBe('Réactiver le plugin « tool » (version 1.2.0) ?');
+    expect(box.detail).toContain('Ce plugin est soupçonné d’avoir fait planter Voyager.');
+    expect(box.detail).toContain('C’est un soupçon, pas une certitude');
+    expect(box.buttons).toEqual(['Annuler', 'Réactiver']);
+    expect(box.defaultId).toBe(0);
+    expect(box.requiresCheckbox).toBe(true);
+    expect(box.checkboxLabel).toBe('Je comprends');
+  });
+
+  it('recalls the suspicion in English too', () => {
+    expect(enableConfirmation(plugin, 'en', true).detail).toContain(
+      'This plugin is suspected of having crashed Voyager.',
+    );
+  });
+
   it('asks to uninstall, says trip data is not touched, and defaults to "Cancel"', () => {
     const box = uninstallConfirmation(plugin, 'fr');
 
