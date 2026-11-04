@@ -17,7 +17,7 @@ L'essentiel :
 - TypeScript strict ; pas de `any` (utilise `unknown`) ; pas de `!` sans commentaire ; exports nommés ;
   `import type`.
 - Composants fonctionnels ; un composant par fichier, en PascalCase ; hooks `useXxx`.
-- Données du service local via TanStack Query au-dessus du client Connect-ES généré ; jamais d'appel
+- Données via TanStack Query au-dessus du client Connect-ES généré ; jamais d'appel
   gRPC direct dans un composant.
 - Fluent UI React d'abord ; composant maison seulement sans équivalent.
 - **Aucun texte en dur** : tout passe par Fluent (`@fluent/react`, fichiers

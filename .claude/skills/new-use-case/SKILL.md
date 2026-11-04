@@ -20,8 +20,8 @@ Domaine et opération demandés : $ARGUMENTS
    - documentation XML sur les types publics.
 4. Crée les ports manquants dans le domaine (`I<Nom>Repository`…), sans implémentation : elle
    viendra dans un adaptateur.
-5. Enregistre le cas d'usage **dans les hôtes qui l'utilisent** (`Voyager.LocalService`,
-   `Voyager.GroupServer`), dans leur extension d'injection du domaine
+5. Enregistre le cas d'usage **dans le serveur du groupe** (`Voyager.GroupServer`, ADR-0018), dans son
+   extension d'injection du domaine
    (`<Domaine>ServiceCollectionExtensions.cs`, créée si besoin). **Jamais dans `Voyager.Core`** :
    le cœur ne dépend pas de `Microsoft.Extensions` (ADR-0005, 0006), et un test d'architecture le
    vérifie.
