@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using NodaTime;
 
@@ -37,7 +38,32 @@ internal sealed class GroupServerFactory(
     IPAddress? remoteAddress = null)
     : WebApplicationFactory<Program>
 {
+    #region Fields
+
+    private readonly StartupFailureLog _failureLog = new();
+
+    #endregion Fields
+
     #region Public Methods
+
+    /// <summary>
+    /// Starts the server, which must refuse to start, and returns why: the exception the server logged before stopping, or
+    /// else the one the host threw (see <see cref="StartupFailureLog"/>).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The server started.</exception>
+    public Exception StartupFailure()
+    {
+        try
+        {
+            _ = Server;
+        }
+        catch (Exception thrown)
+        {
+            return _failureLog.Failure ?? thrown;
+        }
+
+        throw new InvalidOperationException("The server started, though it was expected to refuse.");
+    }
 
     /// <summary>The headers in which the desktop app names itself and gives its version on a gRPC call.</summary>
     public static Metadata AppVersionHeader(string version) => new()
@@ -76,6 +102,8 @@ internal sealed class GroupServerFactory(
         builder.UseSetting("Voyager:DevelopmentIdentity", developmentIdentity ? "true" : "false");
         builder.UseSetting("Voyager:ShippedPluginsDirectory", shippedPluginsDirectory ?? string.Empty);
         builder.UseSetting("Voyager:MinimumAppVersion", minimumAppVersion ?? string.Empty);
+
+        builder.ConfigureLogging(logging => logging.AddProvider(_failureLog));
 
         builder.ConfigureTestServices(services =>
         {
