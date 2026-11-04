@@ -49,6 +49,8 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
     Claude et les termes du glossaire liés au service local et à la gestion des plugins sur le poste
   - [ ] Code : faire porter les services et les plugins par le serveur du groupe, relier l'interface au
     serveur, retirer le service local, `Voyager.Persistence.Sqlite` et `Voyager.Sync`
+    : [plateforme-bascule-client-serveur](specs/plateforme-bascule-client-serveur.md) (validée), en
+    trois lots
 - [x] ADR : les plugins sur le serveur (installation par l'administrateur, activation par groupe, mises à
   jour, données propres à un plugin, isolation, plugin qui plante : Q47 et Q51), après l'ADR-0018 ; il
   remplace l'ADR-0016 pour ces points
