@@ -340,20 +340,29 @@ flowchart LR
     Page["Page de l'interface<br/>voyager://app/index.html<br/>(CSP : script-src 'self' + empreinte de l'import map)"]
     Map["Import map en ligne<br/>react, react-dom, Fluent UI, @fluent/react,<br/>@voyager/plugin-sdk → shared/*.js"]
     Shared["shared/*.js<br/>entrées de la même construction que la page :<br/>une seule copie de React"]
-    Module["plugins/&lt;origine&gt;/&lt;id&gt;/ui/index.js<br/>import() d'un module du plugin"]
-    Texts["plugins/&lt;origine&gt;/&lt;id&gt;/i18n/&lt;langue&gt;/messages.ftl"]
+    Module["plugins/&lt;origine&gt;/&lt;id&gt;/&lt;version&gt;/ui/index.js<br/>import() d'un module du plugin"]
+    Texts["plugins/&lt;origine&gt;/&lt;id&gt;/&lt;version&gt;/i18n/&lt;langue&gt;/messages.ftl"]
     Page --> Map --> Shared
     Page -->|"import()"| Module
     Module -->|"imports nus, résolus par la carte"| Shared
     Page -->|"fetch"| Texts
 ```
 
-- Le processus principal sert `plugins/<origine>/<id>/ui/*.js` et `plugins/<origine>/<id>/i18n/<langue>/messages.ftl`
-  (l'origine est `shipped` ou `installed` ; jamais le manifeste ni les assemblies) depuis le dossier que lui donne
-  la liste des plugins **chargés** du service :
-  un plugin écarté ou désactivé n'est pas servi, et un fichier doit rester dans le dossier de son plugin une
-  fois les liens suivis. Il calcule aussi l'empreinte de l'import map de `index.html` pour la CSP. En
-  développement, Vite sert les plugins construits puis installés sous `artifacts/`.
+- Le processus principal sert `plugins/<origine>/<id>/<version>/ui/*.js` et
+  `plugins/<origine>/<id>/<version>/i18n/<langue>/messages.ftl` (l'origine est `shipped` ou `installed` ; jamais le
+  manifeste ni les assemblies), dans la version que le serveur a chargée (ADR-0020, décision 8) :
+  - le serveur publie, pour chaque plugin **en service**, la liste de ses fichiers d'interface avec leur empreinte
+    SHA-256 (`interface_files` de `ListPlugins`) et envoie un fichier à la demande (`GetInterfaceFile`, que la
+    page ne peut pas appeler) ;
+  - le processus principal sert la copie livrée avec l'application si sa version et ses empreintes sont les
+    mêmes, sinon il télécharge chaque fichier, vérifie sa taille et son empreinte, et le range dans
+    `%LOCALAPPDATA%\Voyager\servers\<serveur>\plugins\<id>\<version>` ; les versions qui ne servent plus sont
+    nettoyées ;
+  - un plugin écarté ou désactivé n'est pas servi, et un fichier doit rester dans le dossier de son plugin une
+    fois les liens suivis.
+
+  Il calcule aussi l'empreinte de l'import map de `index.html` pour la CSP. En développement aussi, la page lit
+  les fichiers des plugins par `voyager://app` : le protocole les sert alors à l'origine de Vite, sous CORS.
 - Le module d'un plugin exporte `register(registry)` ; l'interface refuse ce que le manifeste n'annonce pas.
   Un module qui ne charge pas, ou un panneau qui plante, met ce plugin « en erreur » sans toucher au reste.
 - Les messages d'un plugin commencent par son identifiant ; ils rejoignent ceux de la page sans jamais en

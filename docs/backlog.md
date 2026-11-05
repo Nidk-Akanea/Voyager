@@ -52,7 +52,14 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   - [ ] Code : faire porter les services et les plugins par le serveur du groupe, relier l'interface au
     serveur, retirer le service local, `Voyager.Persistence.Sqlite` et `Voyager.Sync`
     : [plateforme-bascule-client-serveur](specs/plateforme-bascule-client-serveur.md) (validée), en
-    trois lots
+    trois lots ; lots 1 et 2 faits, reste le lot 3, qui retire aussi l'état « démarrage du service » de
+    l'écran de démarrage et les ponts du preload vers la gestion des plugins, auxquels plus rien ne répond
+  - [ ] Signer les modules d'interface que l'application télécharge, et demander l'accord de l'utilisateur
+    pour un module non signé (ADR-0018, décision 5), avec l'installation de plugins sur le serveur :
+    depuis le lot 2c, seule l'empreinte donnée par le serveur lui-même est vérifiée
+  - [ ] Écarter, avec la raison, un module d'interface qui demande une version de contrat que l'application
+    ne sait pas faire tourner (spec de la bascule, cas limites) : aujourd'hui il échoue au chargement, et
+    le plugin s'affiche sans son panneau, sans raison précise
 - [x] ADR : les plugins sur le serveur (installation par l'administrateur, activation par groupe, mises à
   jour, données propres à un plugin, isolation, plugin qui plante : Q47 et Q51), après l'ADR-0018 ; il
   remplace l'ADR-0016 pour ces points

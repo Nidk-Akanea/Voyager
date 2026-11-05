@@ -54,10 +54,9 @@ var groupServer = builder.AddProject<Projects.Voyager_GroupServer>("group-server
     .WaitForCompletion(plugins);
 
 // The TypeScript packages must be installed beforehand (pnpm install at the repository root).
+// The page reads the files of the plugins through the protocol of the desktop app, which serves those the server loaded.
 var userInterface = builder.AddViteApp("ui", "../../ts/ui")
-    .WithPnpm(install: false)
-    .WithEnvironment("VOYAGER_PLUGINS_DIRECTORY", pluginsFolder)
-    .WithEnvironment("VOYAGER_USER_PLUGINS_DIRECTORY", userPluginsFolder);
+    .WithPnpm(install: false);
 
 var localService = builder.AddProject<Projects.Voyager_LocalService>("local-service")
     .WithHttpEndpoint()

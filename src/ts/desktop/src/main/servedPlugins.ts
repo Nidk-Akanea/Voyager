@@ -1,44 +1,17 @@
-// Which plugins the interface may read, and from which folder: the local service decides, from what it loaded
-// (ADR-0016, decision 1). The address of a file only names the origin and the plugin; the folder never comes from
-// the page.
-import { join } from 'node:path';
+// Which plugins the pages of a server view may read, and from which folder: the server decides which plugins and which
+// versions, and the app where their checked files are (interfaceModules.ts). The address of a file only names the
+// origin, the plugin and the version; the folder never comes from the page.
+import type { PluginFolderFinder, PluginOriginSegment } from './pluginFiles';
 
-import { PluginOrigin, PluginStatus, type Plugin } from '@voyager/grpc-client';
-
-import type { PluginFolderFinder, PluginOriginSegment, PluginRoots } from './pluginFiles';
-
-const ORIGIN_SEGMENTS: Readonly<Partial<Record<PluginOrigin, PluginOriginSegment>>> = {
-  [PluginOrigin.SHIPPED]: 'shipped',
-  [PluginOrigin.INSTALLED]: 'installed',
-};
-
-/** The folders of the plugins the interface may read, by `<origin>/<id>`, as the local service listed them. */
+/** The folders of the plugins the interface may read, by `<origin>/<id>/<version>`. */
 export type ServedPlugins = ReadonlyMap<string, string>;
 
-function key(origin: PluginOriginSegment, pluginId: string): string {
-  return `${origin}/${pluginId}`;
+/** The key of a plugin in {@link ServedPlugins}. */
+export function servedPluginKey(origin: PluginOriginSegment, pluginId: string, version: string): string {
+  return `${origin}/${pluginId}/${version}`;
 }
 
-/**
- * The folder of each plugin the local service loaded. A plugin set aside or disabled has none: its interface is never
- * served. Neither has a stray copy whose folder is not its identifier, nor a plugin of an origin this app does not know.
- * @param roots The folders of plugins the app gives the local service.
- */
-export function servedPluginFolders(
-  plugins: readonly Pick<Plugin, 'id' | 'folder' | 'origin' | 'status'>[],
-  roots: PluginRoots,
-): ServedPlugins {
-  const folders = new Map<string, string>();
-  for (const plugin of plugins) {
-    const origin = ORIGIN_SEGMENTS[plugin.origin];
-    if (plugin.status === PluginStatus.LOADED && plugin.folder === plugin.id && origin !== undefined) {
-      folders.set(key(origin, plugin.id), join(roots[origin], plugin.folder));
-    }
-  }
-  return folders;
-}
-
-/** Finds a plugin among those the local service loaded. */
+/** Finds a plugin among those the interface may read. */
 export function findServedPlugin(served: ServedPlugins): PluginFolderFinder {
-  return (origin, pluginId) => served.get(key(origin, pluginId));
+  return (origin, pluginId, version) => served.get(servedPluginKey(origin, pluginId, version));
 }

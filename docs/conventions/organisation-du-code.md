@@ -123,9 +123,10 @@ ui/src/
 ```
 
 À la racine de `ui`, `vite.plugins.ts` règle ce que la construction et le serveur de développement font pour
-les plugins : modules partagés, *import map*, fichiers des plugins en développement. Il réutilise la résolution
-sûre de chemins du processus principal d'Electron (`desktop/src/main/pluginFiles.ts`, du Node pur) : c'est la seule
-référence de `ui` vers `desktop`, pour qu'il n'y ait qu'un seul code qui décide quels fichiers d'un plugin sont lisibles.
+les plugins : modules partagés et *import map*. Les fichiers des plugins viennent toujours du protocole de
+l'application (`voyager://app/plugins/…`), en développement aussi : seul le processus principal d'Electron décide
+quels fichiers d'un plugin sont lisibles (`desktop/src/main/pluginFiles.ts`), et `ui` ne référence pas `desktop`.
+L'interface ne tourne donc que dans l'application de bureau, comme pour ses appels aux serveurs.
 
 Pour la preuve des plugins, `@voyager/plugin-sdk` fournit le registre, les types et `formatFactValue` ; les
 services de l'hôte et le client du service local viendront avec les premiers plugins qui en ont besoin.

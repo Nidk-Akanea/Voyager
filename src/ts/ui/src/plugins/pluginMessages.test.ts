@@ -8,7 +8,7 @@ import type { PluginRuntime } from './pluginRuntime';
 
 const FRENCH = 'diagnostics-clock-fact-now = Maintenant\ndiagnostics-clock-fact-uptime = Disponibilité';
 const ENGLISH = 'diagnostics-clock-fact-now = Now';
-const CLOCK = { id: 'diagnostics-clock', origin: PluginOrigin.SHIPPED };
+const CLOCK = { id: 'diagnostics-clock', origin: PluginOrigin.SHIPPED, version: '1.2.3' };
 
 function runtimeWith(files: Readonly<Record<string, string>>): PluginRuntime {
   return {
@@ -19,8 +19,8 @@ function runtimeWith(files: Readonly<Record<string, string>>): PluginRuntime {
 }
 
 const FILES = {
-  'voyager://app/plugins/shipped/diagnostics-clock/i18n/fr/messages.ftl': FRENCH,
-  'voyager://app/plugins/shipped/diagnostics-clock/i18n/en/messages.ftl': ENGLISH,
+  'voyager://app/plugins/shipped/diagnostics-clock/1.2.3/i18n/fr/messages.ftl': FRENCH,
+  'voyager://app/plugins/shipped/diagnostics-clock/1.2.3/i18n/en/messages.ftl': ENGLISH,
 };
 
 describe('findForeignMessageIds', () => {
@@ -53,9 +53,9 @@ describe('loadPluginMessages', () => {
 
   it('reads the translations of an installed plugin from its own folder', async () => {
     const messages = await loadPluginMessages(
-      { id: 'diagnostics-clock', origin: PluginOrigin.INSTALLED },
+      { id: 'diagnostics-clock', origin: PluginOrigin.INSTALLED, version: '1.2.3' },
       'fr',
-      runtimeWith({ 'voyager://app/plugins/installed/diagnostics-clock/i18n/fr/messages.ftl': FRENCH }),
+      runtimeWith({ 'voyager://app/plugins/installed/diagnostics-clock/1.2.3/i18n/fr/messages.ftl': FRENCH }),
     );
 
     expect(Object.keys(messages)).toEqual(['fr']);
@@ -65,7 +65,7 @@ describe('loadPluginMessages', () => {
     const messages = await loadPluginMessages(
       CLOCK,
       'en',
-      runtimeWith({ 'voyager://app/plugins/shipped/diagnostics-clock/i18n/fr/messages.ftl': FRENCH }),
+      runtimeWith({ 'voyager://app/plugins/shipped/diagnostics-clock/1.2.3/i18n/fr/messages.ftl': FRENCH }),
     );
 
     expect(Object.keys(messages)).toEqual(['fr']);
@@ -76,7 +76,7 @@ describe('loadPluginMessages', () => {
       CLOCK,
       'fr',
       runtimeWith({
-        'voyager://app/plugins/shipped/diagnostics-clock/i18n/fr/messages.ftl': `${FRENCH}\napp-title = Hijacked`,
+        'voyager://app/plugins/shipped/diagnostics-clock/1.2.3/i18n/fr/messages.ftl': `${FRENCH}\napp-title = Hijacked`,
       }),
     );
 

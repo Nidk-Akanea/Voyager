@@ -5,7 +5,9 @@
 - **Remplace** : en partie [ADR-0009](0009-installation-et-mises-a-jour-velopack.md) : la décision 2
   (« propose de l'installer au prochain lancement ») et la décision 5 (hébergement des mises à jour sur
   les *releases* GitHub seulement)
-- **À réviser** : depuis l'[ADR-0018](0018-client-serveur-et-copie-de-voyage.md) (acceptée), l'application ne démarre ni ne surveille plus de service local
+- **Révisée** : au lot 2c de la [bascule client-serveur](../specs/plateforme-bascule-client-serveur.md)
+  ([ADR-0018](0018-client-serveur-et-copie-de-voyage.md)) : l'écran de démarrage n'attend plus que la mise à
+  jour ; la connexion à chaque serveur se montre ensuite dans la fenêtre principale
 
 ## Contexte
 
@@ -32,10 +34,9 @@ pour l'instant, voir le backlog) : la façon dont elle voyage compte.
 
 **Option A — Automatique au démarrage.** Une petite fenêtre de démarrage cherche une mise à jour ; s'il
 y en a une, elle la télécharge avec une barre de progression, l'installe, et l'application redémarre
-seule dans la nouvelle version. Sinon, elle démarre le service local et ouvre la fenêtre principale.
+seule dans la nouvelle version. Sinon, elle ouvre la fenêtre principale.
 
-- Avantages : simple à comprendre et à tester ; personne ne reste sur une version périmée ; le service
-  local, qui verrouille ses fichiers, n'est pas démarré tant qu'une mise à jour est en route.
+- Avantages : simple à comprendre et à tester ; personne ne reste sur une version périmée.
 - Inconvénients : l'utilisateur ne peut pas la refuser ni la remettre à plus tard ; un démarrage plus
   long quand il y a une mise à jour, et jusqu'à 8 secondes de plus quand le serveur de mises à jour ne
   répond pas (hors-ligne).
@@ -81,16 +82,19 @@ source reste GitHub. Le serveur doit être en `https`, ou en `http` vers la mach
 
 1. Au lancement, l'application installée ouvre une fenêtre de démarrage (la même interface, page
    `?screen=startup`, donc traduite en français et en anglais comme le reste). Elle montre : recherche de
-   mise à jour, téléchargement avec progression, installation, démarrage.
+   mise à jour, téléchargement avec progression, installation.
 2. La recherche s'arrête après 8 secondes. Le téléchargement n'a pas de limite de durée, mais il est
    abandonné quand sa progression reste immobile 60 secondes. Une erreur, hors-ligne ou sans release,
    est journalisée (sans l'adresse du serveur) et l'application s'ouvre normalement.
 3. Une mise à jour trouvée est téléchargée, remise au programme de mise à jour de Velopack, et
-   l'application quitte pour qu'il l'installe et la relance. Le service local n'a pas encore été démarré.
+   l'application quitte pour qu'il l'installe et la relance.
 4. La source est celle du `package.json` si elle est valide (`https`, ou `http` vers la machine, sans
    identifiant ni paramètre dans l'adresse), sinon les *releases* GitHub.
 5. En développement, la fenêtre de démarrage n'apparaît pas (rien à attendre) ; la variable
    `VOYAGER_SHOW_STARTUP_SCREEN` la fait apparaître pour la regarder. L'application installée l'ignore.
+6. Sans mise à jour en route, la fenêtre principale s'ouvre aussitôt : elle n'attend aucun serveur. Chaque
+   serveur montre l'état de sa connexion dans sa propre vue (connecté, injoignable, application trop
+   ancienne), et un serveur injoignable n'empêche pas d'ouvrir l'application.
 
 ## Conséquences
 

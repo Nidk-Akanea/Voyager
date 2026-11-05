@@ -26,8 +26,9 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   l'application lui parle par son processus principal (`voyager://app/api/<serveur>/…`, services permis
   seulement), connaît ses serveurs par Aspire ou par `%LOCALAPPDATA%\Voyager\servers.json`, et montre
   l'état de la connexion (lot 2a) ; chaque serveur a sa vue, dans sa propre session Electron, avec un sélecteur
-  quand il y en a plusieurs (lot 2b). Restent les modules venus du serveur (2c) et le retrait du service local
-  (lot 3), qui tourne encore sans être appelé : n'y construis rien de nouveau.
+  quand il y en a plusieurs (lot 2b) ; les modules d'interface des plugins viennent du serveur, vérifiés par leur
+  empreinte et rangés par serveur et par version, et l'écran de démarrage n'attend plus que la mise à jour (lot 2c).
+  Reste le retrait du service local (lot 3), qui tourne encore sans être appelé : n'y construis rien de nouveau.
 - **Ce qui est construit** : le squelette (solution .NET, tests d'architecture, pnpm, ESLint, Prettier,
   Buf, CI, Aspire), une tranche « À propos » de bout en bout, le paquet installable (`tools/release.ps1`,
   Velopack, écran de démarrage), la preuve des plugins (SDK, `Voyager.PluginHost`, deux plugins de
@@ -37,7 +38,7 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   la bascule (« À propos » par le serveur, retrait du service local), puis la première brique du cœur, le
   voyage et ses voyageurs (spec repassée en brouillon, à revoir). Chaque étape se fait **sur demande**.
 - **Décisions prises** : ADR 0002 à 0013 et 0015 à 0018 ([index](docs/adr/README.md)) ; l'ADR-0014 est
-  proposée et à réviser.
+  proposée, révisée au lot 2c de la bascule.
 
 ## Langues
 
@@ -153,7 +154,7 @@ ou la branche, pas tes conclusions.
 | Construire l'interface et l'application de bureau                                                                                                                                                        | `pnpm build`                                                                                                                                                |
 | Contrats `.proto` (et régénérer le client TypeScript)                                                                                                                                                    | `pnpm proto:lint`, `pnpm proto:breaking`, `pnpm proto:generate`                                                                                             |
 | Lancer tout en développement (Aspire : PostgreSQL + PostGIS, serveur du groupe avec l'identité de développement, service local, interface Vite, fenêtre Electron, tableau de bord)                       | `pnpm install` une fois, puis F5 sur `Voyager.AppHost` ou `dotnet run --project src/dotnet/Voyager.AppHost` ; tableau de bord sur `https://localhost:17180` |
-| Construire l'image du serveur du groupe (avec la partie .NET des plugins livrés, dans `/app/plugins`)                                                                                                    | `docker build -f deploy/GroupServer.Dockerfile .`                                                                                                           |
+| Construire l'image du serveur du groupe (avec les plugins livrés et leurs modules d'interface, dans `/app/plugins`)                                                                                      | `docker build -f deploy/GroupServer.Dockerfile .`                                                                                                           |
 | Construire les plugins modifiés (dans `artifacts/plugins/`, lancé par Aspire avant le serveur du groupe et le service local ; `-Force` pour tout refaire, `-SkipInterface` sans les modules d'interface) | `pwsh tools/build-plugins.ps1`                                                                                                                              |
 | Fabriquer le paquet d'un plugin construit (`artifacts/packages/<id>-<version>.voyagerplugin`, avec son empreinte SHA-256)                                                                                | `pwsh tools/pack-plugin.ps1 -Id <id>`                                                                                                                       |
 | Construire le paquet installable (Windows : service publié, application, Velopack ; résultat dans `artifacts/`)                                                                                          | `pwsh tools/release.ps1` (`-Docker` ajoute l'image du serveur du groupe)                                                                                    |

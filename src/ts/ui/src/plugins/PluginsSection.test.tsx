@@ -59,12 +59,12 @@ function sourceFacts(sourceId: string, facts: readonly unknown[], outcome = Fact
 }
 
 const MESSAGES: Readonly<Record<string, string>> = {
-  'plugins/shipped/diagnostics-runtime/i18n/fr/messages.ftl': 'diagnostics-runtime-fact-cpu = Processeurs',
-  'plugins/shipped/diagnostics-runtime/i18n/en/messages.ftl': 'diagnostics-runtime-fact-cpu = Processors',
-  'plugins/installed/diagnostics-runtime/i18n/fr/messages.ftl': 'diagnostics-runtime-fact-cpu = Processeurs',
-  'plugins/shipped/diagnostics-clock/i18n/fr/messages.ftl': 'diagnostics-clock-fact-now = Maintenant',
+  'plugins/shipped/diagnostics-runtime/1.2.3/i18n/fr/messages.ftl': 'diagnostics-runtime-fact-cpu = Processeurs',
+  'plugins/shipped/diagnostics-runtime/1.2.3/i18n/en/messages.ftl': 'diagnostics-runtime-fact-cpu = Processors',
+  'plugins/installed/diagnostics-runtime/1.2.3/i18n/fr/messages.ftl': 'diagnostics-runtime-fact-cpu = Processeurs',
+  'plugins/shipped/diagnostics-clock/1.2.3/i18n/fr/messages.ftl': 'diagnostics-clock-fact-now = Maintenant',
   // A plugin whose identifier is the start of another one's: its messages are not the other plugin's.
-  'plugins/shipped/diagnostics/i18n/fr/messages.ftl': 'diagnostics-clock-fact-now = Piraté',
+  'plugins/shipped/diagnostics/1.2.3/i18n/fr/messages.ftl': 'diagnostics-clock-fact-now = Piraté',
 };
 
 function createRuntime(modules: Readonly<Record<string, unknown>> = {}): PluginRuntime {
@@ -171,7 +171,7 @@ describe('PluginsSection', () => {
       plugins: [plugin('diagnostics-clock', { uiModule: 'index.js' })],
       facts: { 'diagnostics-clock': sourceFacts('diagnostics-clock', [textFact('diagnostics-clock-fact-now', 'now')]) },
       modules: {
-        'test://plugins/shipped/diagnostics-clock/ui/index.js': {
+        'test://plugins/shipped/diagnostics-clock/1.2.3/ui/index.js': {
           register: (registry: PluginRegistry) => {
             registry.addDiagnosticFactPanel(Panel);
           },
@@ -200,7 +200,7 @@ describe('PluginsSection', () => {
         'diagnostics-runtime': sourceFacts('diagnostics-runtime', [textFact('diagnostics-runtime-fact-cpu', '8')]),
       },
       modules: {
-        'test://plugins/shipped/diagnostics-clock/ui/index.js': {
+        'test://plugins/shipped/diagnostics-clock/1.2.3/ui/index.js': {
           register: (registry: PluginRegistry) => {
             registry.addDiagnosticFactPanel(Panel);
           },

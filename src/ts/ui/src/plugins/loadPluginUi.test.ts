@@ -10,6 +10,7 @@ import type { PluginRuntime } from './pluginRuntime';
 const PLUGIN: PluginToLoad = {
   id: 'diagnostics-clock',
   origin: PluginOrigin.SHIPPED,
+  version: '1.2.3',
   uiModule: 'index.js',
   provides: ['diagnostic-fact-source'],
 };
@@ -40,7 +41,7 @@ describe('loadPluginUi', () => {
 
     const ui = await loadPluginUi(PLUGIN, runtimeThatImports(importModule));
 
-    expect(importModule).toHaveBeenCalledWith('voyager://app/plugins/shipped/diagnostics-clock/ui/index.js');
+    expect(importModule).toHaveBeenCalledWith('voyager://app/plugins/shipped/diagnostics-clock/1.2.3/ui/index.js');
     expect(ui).toEqual({ status: 'ready', panel: PANEL });
   });
 

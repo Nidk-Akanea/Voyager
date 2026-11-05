@@ -1,5 +1,6 @@
-// What the app does between being launched and opening its window (ADR-0014): looks for an update,
-// which restarts the app into the new version, or starts the local service and opens the window.
+// What the app does between being launched and opening its window (ADR-0014): looks for an update, which restarts the
+// app into the new version, or else opens the window. The connection to each server shows in the window itself (spec of
+// the switch to client-server, rule 6).
 import type { StartupState } from '@voyager/grpc-client';
 
 import type { UpdateEvent, UpdateOutcome } from './updates';
@@ -8,8 +9,6 @@ import type { UpdateEvent, UpdateOutcome } from './updates';
 export interface StartupSteps {
   /** Looks for an update and, if there is one, hands it to the updater. */
   readonly updateApp: (report: (event: UpdateEvent) => void) => Promise<UpdateOutcome>;
-  /** Starts the local service; resolves once it is ready or has failed. */
-  readonly startLocalService: () => Promise<void>;
   /** Tells the startup screen where the app stands. */
   readonly report: (state: StartupState) => void;
   /** Opens the main window; the startup window stays until it is on screen. */
@@ -31,10 +30,7 @@ export function toStartupState(event: UpdateEvent): StartupState {
   }
 }
 
-/**
- * The local service starts only once no update is on its way: it would hold files of the folder the
- * updater is about to replace. A failed update, or none, does not stop the app from opening.
- */
+/** Waits for the update only: a failed update, or none, does not stop the app from opening. */
 export async function runStartup(steps: StartupSteps): Promise<StartupResult> {
   const outcome = await steps.updateApp((event) => {
     steps.report(toStartupState(event));
@@ -43,8 +39,6 @@ export async function runStartup(steps: StartupSteps): Promise<StartupResult> {
     return 'restarting-for-update';
   }
 
-  steps.report({ status: 'starting-service' });
-  await steps.startLocalService();
   steps.openMainWindow();
   return 'opened';
 }

@@ -15,10 +15,6 @@ function fakeSteps(outcome: UpdateOutcome, events: readonly UpdateEvent[] = []) 
       events.forEach(report);
       return Promise.resolve(outcome);
     },
-    startLocalService: () => {
-      calls.push('startLocalService');
-      return Promise.resolve();
-    },
     report: (state) => states.push(state),
     openMainWindow: vi.fn(() => calls.push('openMainWindow')),
   };
@@ -26,21 +22,21 @@ function fakeSteps(outcome: UpdateOutcome, events: readonly UpdateEvent[] = []) 
 }
 
 describe('runStartup', () => {
-  it('starts the service and opens the window when the app is up to date', async () => {
+  it('opens the window as soon as the app is up to date: the servers show in the window', async () => {
     const { steps, calls, states } = fakeSteps('up-to-date', [{ kind: 'checking' }]);
 
     const result = await runStartup(steps);
 
     expect(result).toBe('opened');
-    expect(calls).toEqual(['updateApp', 'startLocalService', 'openMainWindow']);
-    expect(states).toEqual([{ status: 'checking-updates' }, { status: 'starting-service' }]);
+    expect(calls).toEqual(['updateApp', 'openMainWindow']);
+    expect(states).toEqual([{ status: 'checking-updates' }]);
   });
 
   it('opens the app all the same when the update failed', async () => {
     const { steps, calls } = fakeSteps('failed');
 
     expect(await runStartup(steps)).toBe('opened');
-    expect(calls).toEqual(['updateApp', 'startLocalService', 'openMainWindow']);
+    expect(calls).toEqual(['updateApp', 'openMainWindow']);
   });
 
   it('starts nothing, and opens nothing, when an update is on its way', async () => {
@@ -60,12 +56,12 @@ describe('runStartup', () => {
   });
 });
 
-describe('runStartup when the service cannot be started', () => {
+describe('runStartup when the update cannot be looked for', () => {
   it('rejects, and opens nothing: the caller opens the window itself', async () => {
     const { steps } = fakeSteps('up-to-date');
-    const failing: StartupSteps = { ...steps, startLocalService: () => Promise.reject(new Error('no service')) };
+    const failing: StartupSteps = { ...steps, updateApp: () => Promise.reject(new Error('no updater')) };
 
-    await expect(runStartup(failing)).rejects.toThrow('no service');
+    await expect(runStartup(failing)).rejects.toThrow('no updater');
     expect(steps.openMainWindow).not.toHaveBeenCalled();
   });
 });

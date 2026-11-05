@@ -36,6 +36,7 @@ internal static class PluginStartup
             return new PluginLocations(shipped, UserDirectory: null);
         });
         services.AddSingleton<ServerDiagnosticFactSource>();
+        services.AddSingleton<InterfaceFileCatalog>();
         return services;
     }
 
@@ -48,6 +49,8 @@ internal static class PluginStartup
     {
         // Created now, so that the plugins are loaded once, at startup, and their failures are logged then.
         app.Services.GetRequiredService<PluginCatalog>();
+        // The files of their interfaces too, so that the first call of the desktop app does not wait for their fingerprints.
+        app.Services.GetRequiredService<InterfaceFileCatalog>();
 
         app.Services.GetRequiredService<ExtensionRegistry>()
             .AddDiagnosticFactSource(PluginCatalog.SERVICE_ID, app.Services.GetRequiredService<ServerDiagnosticFactSource>());
