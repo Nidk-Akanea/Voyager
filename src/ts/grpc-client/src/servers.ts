@@ -18,6 +18,14 @@ export interface RegisteredServer {
 }
 
 /**
+ * Another server the app knows, as a view sees it: its identifier only, for the selector; its address stays with the
+ * main process and the view of that server.
+ */
+export interface ServerChoice {
+  readonly id: string;
+}
+
+/**
  * The scheme, host and path of the internal protocol under which the main process forwards calls to a server. Must match
  * SERVER_API_PATH_PREFIX in src/ts/desktop/src/main/serverApi.ts.
  */

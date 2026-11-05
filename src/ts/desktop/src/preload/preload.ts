@@ -12,6 +12,7 @@ import type {
   PluginTarget,
   RecoveryResult,
   RegisteredServer,
+  ServerChoice,
   RestartResult,
   StartupState,
 } from '@voyager/grpc-client';
@@ -22,6 +23,7 @@ import {
   DISABLE_PLUGIN_CHANNEL,
   ENABLE_PLUGIN_CHANNEL,
   GET_APP_VERSION_CHANNEL,
+  GET_CURRENT_SERVER_CHANNEL,
   GET_LOCAL_SERVICE_STATE_CHANNEL,
   GET_SERVERS_CHANNEL,
   GET_STARTUP_STATE_CHANNEL,
@@ -32,6 +34,7 @@ import {
   OPEN_INBOX_CHANNEL,
   RESTART_FOR_PLUGINS_CHANNEL,
   RETRY_LOCAL_SERVICE_CHANNEL,
+  SELECT_SERVER_CHANNEL,
   START_WITHOUT_INSTALLED_PLUGINS_CHANNEL,
   STARTUP_STATE_CHANGED_CHANNEL,
   UNINSTALL_PLUGIN_CHANNEL,
@@ -56,8 +59,10 @@ const plugins: PluginManagementBridge = {
 
 // Same shape as VoyagerBridge in src/ts/ui/src/app/bridge.ts.
 contextBridge.exposeInMainWorld('voyager', {
-  getServers: () => ipcRenderer.invoke(GET_SERVERS_CHANNEL) as Promise<readonly RegisteredServer[]>,
+  getServers: () => ipcRenderer.invoke(GET_SERVERS_CHANNEL) as Promise<readonly ServerChoice[]>,
   getAppVersion: () => ipcRenderer.invoke(GET_APP_VERSION_CHANNEL) as Promise<string>,
+  getCurrentServer: () => ipcRenderer.invoke(GET_CURRENT_SERVER_CHANNEL) as Promise<RegisteredServer | undefined>,
+  selectServer: (serverId: string) => ipcRenderer.invoke(SELECT_SERVER_CHANNEL, serverId) as Promise<void>,
   getLocalServiceState: () => ipcRenderer.invoke(GET_LOCAL_SERVICE_STATE_CHANNEL) as Promise<LocalServiceState>,
   // The listener never sees the IPC event: it would give the page a handle on Electron's internals.
   onLocalServiceStateChange: (listener: (state: LocalServiceState) => void) => {

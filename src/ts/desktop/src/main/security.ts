@@ -1,6 +1,6 @@
 // Electron hardening (docs/conventions/typescript.md): windows only ever show the app's own pages,
 // open nothing else and get no device or browser permission.
-import { app, session } from 'electron';
+import { app, session, type Session } from 'electron';
 
 /** Applies to every window and frame the app will create. */
 export function lockDownWebContents(isAllowedPage: (url: string) => boolean): void {
@@ -22,10 +22,14 @@ export function lockDownWebContents(isAllowedPage: (url: string) => boolean): vo
   });
 }
 
-/** Camera, microphone, location, notifications…: Voyager needs none of them. */
-export function denyAllPermissions(): void {
-  session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => {
+/** Camera, microphone, location, notifications, downloads…: Voyager needs none of them, in any of its sessions. */
+export function denyAllPermissions(target: Session = session.defaultSession): void {
+  target.setPermissionRequestHandler((_contents, _permission, callback) => {
     callback(false);
   });
-  session.defaultSession.setPermissionCheckHandler(() => false);
+  target.setPermissionCheckHandler(() => false);
+  // Nor does it download anything: a page cannot make it save a file.
+  target.on('will-download', (event) => {
+    event.preventDefault();
+  });
 }

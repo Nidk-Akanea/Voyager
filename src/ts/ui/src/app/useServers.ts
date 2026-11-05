@@ -1,12 +1,16 @@
-// The group servers the desktop app knows, and its own version, as the main process tells them.
+// The group servers the desktop app knows, the one this view shows, and the app's own version, as the main process
+// tells them.
 import { useEffect, useState } from 'react';
 
-import type { RegisteredServer } from '@voyager/grpc-client';
+import type { RegisteredServer, ServerChoice } from '@voyager/grpc-client';
 
 import type { ServerBridge } from './bridge';
 
 export interface KnownServers {
-  readonly servers: readonly RegisteredServer[];
+  /** Every server the app knows, by identifier only (for the selector). */
+  readonly servers: readonly ServerChoice[];
+  /** The server of this view, with its address; undefined when the app knows none. */
+  readonly current?: RegisteredServer;
   /** The version of the app; undefined when the main process could not tell. */
   readonly appVersion?: string;
 }
@@ -16,10 +20,10 @@ export function useServers(bridge: ServerBridge): KnownServers | undefined {
   const [known, setKnown] = useState<KnownServers | undefined>();
   useEffect(() => {
     let cancelled = false;
-    Promise.all([bridge.getServers(), bridge.getAppVersion().catch(() => undefined)]).then(
-      ([servers, appVersion]) => {
+    Promise.all([bridge.getServers(), bridge.getCurrentServer(), bridge.getAppVersion().catch(() => undefined)]).then(
+      ([servers, current, appVersion]) => {
         if (!cancelled) {
-          setKnown({ servers, appVersion });
+          setKnown({ servers, current, appVersion });
         }
       },
       (error: unknown) => {
