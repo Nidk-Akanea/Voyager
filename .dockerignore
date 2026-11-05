@@ -9,6 +9,11 @@ node_modules/
 **/obj/
 **/node_modules/
 src/ts/
+# The plugin SDK: the interface modules of the shipped plugins are built in the image.
+!src/ts/plugin-sdk/
+# The exception above must not bring back the packages installed on the host.
+**/node_modules/
+**/dist/
 tests/
 *.md
 # Local configuration, secrets and data must never end up in the image.

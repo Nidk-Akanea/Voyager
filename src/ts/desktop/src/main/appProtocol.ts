@@ -4,7 +4,13 @@ import { pathToFileURL } from 'node:url';
 
 import { net, protocol, type Protocol } from 'electron';
 
-import { resolvePluginFile, resolveRealPluginFile, type PluginFile } from './pluginFiles';
+import {
+  pluginAddressOf,
+  resolvePluginFile,
+  resolveRealPluginFile,
+  type PluginAddress,
+  type PluginFile,
+} from './pluginFiles';
 import { findServedPlugin, type ServedPlugins } from './servedPlugins';
 import { SERVER_API_PATH_PREFIX } from './serverApi';
 import { resolveUserInterfaceFile } from './userInterfaceFiles';
@@ -37,22 +43,32 @@ export function isAppUrl(address: string): boolean {
   return url?.protocol === `${APP_SCHEME}:` && url.host === APP_HOST;
 }
 
+export interface UserInterfaceSource {
+  /** The folder of the built user interface. */
+  readonly directory: string;
+  /**
+   * The folder of each plugin whose files may be served, by origin, identifier and version, as the server last listed
+   * them; given the plugin a page asks for, so that a version not seen yet makes it ask the server again.
+   */
+  readonly servedPlugins: (wanted: PluginAddress) => Promise<ServedPlugins>;
+  readonly contentSecurityPolicy: string;
+  /** Answers the calls of the page under /api/ (serverApi.ts). */
+  readonly forwardToServer: (request: Request) => Promise<Response>;
+  /**
+   * The origins of pages, other than the app's own, that may read the files of the plugins: in development, the page
+   * comes from Vite and reads them through this protocol.
+   */
+  readonly allowedOrigins: readonly string[];
+}
+
 /**
- * Serves the files of `directory`, each with the given Content Security Policy, the interface modules and translations
- * of the plugins the server loaded (never their manifests or assemblies), and forwards the calls of the page to its
- * servers.
+ * Serves the files of the built user interface, each with the given Content Security Policy, the interface modules and
+ * translations of the plugins the server loaded (never their manifests or assemblies), and forwards the calls of the
+ * page to its server.
  * @param target The protocol of the session that serves the page: each server view has its own (serverViews.ts).
- * @param servedPlugins The folder of each plugin whose files may be served, by origin and identifier, as the server last
- * listed them.
- * @param forwardToServer Answers the calls of the page under /api/ (serverApi.ts).
  */
-export function serveUserInterface(
-  target: Pick<Protocol, 'handle'>,
-  directory: string,
-  servedPlugins: () => Promise<ServedPlugins>,
-  contentSecurityPolicy: string,
-  forwardToServer: (request: Request) => Promise<Response>,
-): void {
+export function serveUserInterface(target: Pick<Protocol, 'handle'>, source: UserInterfaceSource): void {
+  const { directory, servedPlugins, contentSecurityPolicy, forwardToServer, allowedOrigins } = source;
   target.handle(APP_SCHEME, async (request) => {
     if (!isAppUrl(request.url)) {
       return new Response(null, { status: NOT_FOUND });
@@ -65,7 +81,9 @@ export function serveUserInterface(
     let realPluginFile: string | undefined;
     // Under /plugins/ only what resolvePluginFile allows is served: the built interface never answers for that path.
     if (pathname.startsWith(PLUGINS_PATH_PREFIX)) {
-      pluginFile = resolvePluginFile(findServedPlugin(await servedPlugins()), pathname);
+      const address = pluginAddressOf(pathname);
+      pluginFile =
+        address === undefined ? undefined : resolvePluginFile(findServedPlugin(await servedPlugins(address)), pathname);
       realPluginFile = pluginFile === undefined ? undefined : await resolveRealPluginFile(pluginFile);
       if (realPluginFile === undefined) {
         return new Response(null, { status: NOT_FOUND });
@@ -81,6 +99,12 @@ export function serveUserInterface(
       headers.set('Content-Security-Policy', contentSecurityPolicy);
       if (pluginFile !== undefined) {
         headers.set('Content-Type', pluginFile.contentType);
+        // A module script is read under CORS: a page of an allowed origin may read it, and no other.
+        const origin = request.headers.get('Origin');
+        if (origin !== null && allowedOrigins.includes(origin)) {
+          headers.set('Access-Control-Allow-Origin', origin);
+          headers.set('Vary', 'Origin');
+        }
       }
       return new Response(response.body, { status: response.status, headers });
     } catch {

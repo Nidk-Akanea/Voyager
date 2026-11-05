@@ -12,29 +12,37 @@ export interface PluginRuntime {
   readonly importModule: (url: string) => Promise<unknown>;
   /** Reads a text file at an address; undefined when there is none. */
   readonly fetchText: (url: string) => Promise<string | undefined>;
-  /** The address of a path of the protocol of the page, for example `plugins/shipped/diagnostics-clock/ui/index.js`. */
+  /** The address of a path of the app's protocol, for example `plugins/shipped/diagnostics-clock/1.2.0/ui/index.js`. */
   readonly resolve: (path: string) => string;
 }
 
 /**
  * What tells the files of a plugin apart from those of another: a shipped plugin and an installed one may share an
- * identifier, so the address of a file names the origin too (ADR-0016, decision 1).
+ * identifier, so the address of a file names the origin too (ADR-0016, decision 1); and the page uses the files of the
+ * version the server loaded, so it names the version (ADR-0020, decision 8).
  */
 export interface PluginAddress {
   readonly id: string;
   readonly origin: PluginOrigin;
+  readonly version: string;
 }
 
 const ORIGIN_SEGMENTS: Readonly<Partial<Record<PluginOrigin, string>>> = {
   [PluginOrigin.SHIPPED]: 'shipped',
   [PluginOrigin.INSTALLED]: 'installed',
 };
-// An origin this page does not know gets an address that serves nothing, never the files of another plugin.
-const UNKNOWN_ORIGIN_SEGMENT = 'unknown';
+// An origin or a version this page does not know gets an address that serves nothing, never the files of another plugin.
+const UNKNOWN_SEGMENT = 'unknown';
+// A semantic version, as the builds of Voyager give them: nothing else may become a segment of an address.
+const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+// The files of the plugins come from the app's protocol, which serves those the server loaded, even in development where
+// Vite serves the page (src/ts/desktop/src/main/interfaceModules.ts).
+const APP_BASE_URL = 'voyager://app/';
 
-/** Where the files of a plugin are, relative to the page: `plugins/<origin>/<id>`. */
+/** Where the files of a version of a plugin are, under the app's protocol: `plugins/<origin>/<id>/<version>`. */
 function pluginFolderPath(plugin: PluginAddress): string {
-  return `plugins/${ORIGIN_SEGMENTS[plugin.origin] ?? UNKNOWN_ORIGIN_SEGMENT}/${plugin.id}`;
+  const version = VERSION.test(plugin.version) ? plugin.version : UNKNOWN_SEGMENT;
+  return `plugins/${ORIGIN_SEGMENTS[plugin.origin] ?? UNKNOWN_SEGMENT}/${plugin.id}/${version}`;
 }
 
 /** Where the interface module of a plugin is, relative to the page. */
@@ -66,12 +74,12 @@ export function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promi
   });
 }
 
-/** The real thing: dynamic import, fetch, and addresses relative to the page. */
+/** The real thing: dynamic import, fetch, and addresses of the app's protocol. */
 export const browserPluginRuntime: PluginRuntime = {
   importModule: (url) => import(/* @vite-ignore */ url) as Promise<unknown>,
   fetchText: async (url) => {
     const response = await fetch(url, { signal: AbortSignal.timeout(PLUGIN_LOAD_TIMEOUT_MS) });
     return response.ok ? await response.text() : undefined;
   },
-  resolve: (path) => new URL(path, document.baseURI).toString(),
+  resolve: (path) => new URL(path, APP_BASE_URL).toString(),
 };

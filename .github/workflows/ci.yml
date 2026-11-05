@@ -35,11 +35,13 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build --file deploy/GroupServer.Dockerfile --tag voyager-group-server:ci .
       # The shipped plugins are in the fixed folder the server reads them from (ADR-0020, decision 3), and it loads them.
+      # The interface module of the plugin that has one is there too: the server publishes it to the desktop app.
       - name: The image holds and loads the shipped plugins
         run: |
           for plugin in diagnostics-clock/Voyager.Plugins.DiagnosticsClock diagnostics-runtime/Voyager.Plugins.DiagnosticsRuntime; do
             docker run --rm --entrypoint test voyager-group-server:ci -f "/app/plugins/${plugin}.dll"
           done
+          docker run --rm --entrypoint test voyager-group-server:ci -f /app/plugins/diagnostics-clock/ui/index.js
           docker run --detach --name plugins-check voyager-group-server:ci
           sleep 10
           docker logs plugins-check > plugins.log 2>&1

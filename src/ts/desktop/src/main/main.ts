@@ -1,71 +1,53 @@
-// Main process of the desktop app: looks for an update while a small startup window is shown (ADR-0014),
-// keeps the local service running until the switch to client-server is over, opens the main window on the user
-// interface, and forwards the calls of the page to its group servers (ADR-0018, ADR-0019).
+// Main process of the desktop app: looks for an update while a small startup window is shown (ADR-0014), opens the
+// main window on the user interface, forwards the calls of the page to its group servers (ADR-0018, ADR-0019), and
+// serves the interface modules of their plugins (ADR-0020, decision 8). The local service still runs, called by nothing,
+// until lot 3 of the switch to client-server removes it.
 import { existsSync, readFileSync } from 'node:fs';
+import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import {
   app,
   BaseWindow,
   BrowserWindow,
-  dialog,
   ipcMain,
   Menu,
   net,
   protocol,
   session,
-  shell,
   WebContentsView,
   type IpcMainInvokeEvent,
-  type MessageBoxOptions,
-  type OpenDialogOptions,
 } from 'electron';
 import { GithubSource, HttpSource, UpdateManager, VelopackApp } from 'velopack';
 
 import {
   Code,
   ConnectError,
-  createLocalServiceClients,
   createServerClientsAt,
-  PluginOrigin,
-  type LocalServiceConnection,
-  type PluginTarget,
   type RegisteredServer,
   type ServerChoice,
-  type RestartResult,
   type StartupState,
 } from '@voyager/grpc-client';
 
 import {
-  ADD_PACKAGE_CHANNEL,
-  CANCEL_PLUGIN_REQUEST_CHANNEL,
-  DISABLE_PLUGIN_CHANNEL,
-  ENABLE_PLUGIN_CHANNEL,
   GET_APP_VERSION_CHANNEL,
   GET_CURRENT_SERVER_CHANNEL,
   GET_SERVERS_CHANNEL,
   GET_STARTUP_STATE_CHANNEL,
-  INSTALL_PLUGIN_CHANNEL,
-  LIST_INBOX_CHANNEL,
-  LIST_PLUGIN_REQUESTS_CHANNEL,
-  OPEN_INBOX_CHANNEL,
-  RESTART_FOR_PLUGINS_CHANNEL,
   SELECT_SERVER_CHANNEL,
-  START_WITHOUT_INSTALLED_PLUGINS_CHANNEL,
   STARTUP_STATE_CHANGED_CHANNEL,
-  UNINSTALL_PLUGIN_CHANNEL,
 } from '../shared/ipc';
 import { APP_ENTRY_URL, isAppUrl, registerAppScheme, serveUserInterface } from './appProtocol';
+import { boundedFetch } from './boundedFetch';
 import { buildContentSecurityPolicy, findImportMapSource } from './contentSecurityPolicy';
 import { describeError } from './describeError';
+import { MAXIMUM_FILE_BYTES, prepareInterfaceModules } from './interfaceModules';
 import { launchLocalService, attachToRunningLocalService, type LocalService } from './localService';
 import { superviseLocalService, type LocalServiceSupervisor } from './localServiceSupervisor';
 import { configureLogging, desktopLog } from './logging';
-import { packageFileDialog, pickDialogLocale, type ConfirmationBox } from './plugins/confirmations';
-import { PACKAGE_EXTENSION } from './plugins/inbox';
-import { createPluginManagement, type PluginManagementFolders } from './plugins/pluginManagement';
 import { denyAllPermissions, lockDownWebContents } from './security';
-import { servedPluginFolders, type ServedPlugins } from './servedPlugins';
+import type { ServedPlugins } from './servedPlugins';
+import { createServedPluginsReader, type ServedPluginsReader } from './servedPluginsReader';
 import { handleServerApiRequest, type CallingApp } from './serverApi';
 import { readRegisteredServers, ServerSettingsError, type ServerEntry } from './serverRegistry';
 import { serverPartition, ServerViews, type ServerView } from './serverViews';
@@ -159,62 +141,23 @@ function userPluginsDirectory(): string {
     : (developmentSetting('VOYAGER_USER_PLUGINS_DIRECTORY') ?? repositoryArtifacts('user-plugins'));
 }
 
-// How long the main process waits for the list of plugins: the files of the plugins wait for it.
-const LIST_PLUGINS_TIMEOUT_MS = 10_000;
-// How long after a failed reading of the list of plugins the next file of a plugin asks the server again.
-const SERVED_PLUGINS_RETRY_MS = 5_000;
-// How long the examination of a package may take: no size limit, so a package of data may be large (spec).
-const EXAMINE_PACKAGE_TIMEOUT_MS = 10 * 60_000;
-
-/** The files the main process uses in the plugins folder of the user's data (ADR-0016, decisions 3 and 4). */
-function pluginManagementFolders(): PluginManagementFolders {
-  const folder = userPluginsDirectory();
-  return {
-    inbox: join(folder, 'inbox'),
-    staging: join(folder, 'staging'),
-    requestsFile: join(folder, 'requests.json'),
-    stateFile: join(folder, 'state.json'),
-  };
-}
-
-/** The options of Electron's message box for a confirmation: nothing but what the box says. */
-function messageBoxOptions(box: ConfirmationBox): MessageBoxOptions {
-  return {
-    type: box.type,
-    title: box.title,
-    message: box.message,
-    detail: box.detail,
-    buttons: [...box.buttons],
-    defaultId: box.defaultId,
-    cancelId: box.cancelId,
-    noLink: box.noLink,
-    ...(box.checkboxLabel === undefined ? {} : { checkboxLabel: box.checkboxLabel, checkboxChecked: false }),
-  };
-}
-
 /**
- * Restarts the local service so that it applies the requests of the user, and resolves once the new service is ready
- * or has failed: until then it may be reading the requests, and none may change.
+ * The data of each group server on this machine, one folder per identifier: `<id>/plugins` holds the interface modules
+ * downloaded from it (ADR-0018, decision 5). In development, under artifacts.
  */
-async function restartToApplyRequests(supervisor: LocalServiceSupervisor): Promise<RestartResult> {
-  let stopListening = (): void => undefined;
-  const settled = new Promise<void>((resolve) => {
-    stopListening = supervisor.onChange((state) => {
-      if (state.status === 'ready' || state.status === 'failed') {
-        resolve();
-      }
-    });
-  });
-  try {
-    if (!(await supervisor.restart())) {
-      return { outcome: 'restart-elsewhere' };
-    }
-    await settled;
-    return { outcome: 'restarting' };
-  } finally {
-    stopListening();
-  }
+function serversDataDirectory(): string {
+  return app.isPackaged
+    ? join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'Voyager', 'servers')
+    : repositoryArtifacts('servers');
 }
+
+// How long the main process waits for the list of plugins, and for each file of an interface: the page waits for them.
+const LIST_PLUGINS_TIMEOUT_MS = 10_000;
+const INTERFACE_FILE_TIMEOUT_MS = 30_000;
+// How long after a reading of the list of plugins the file of a plugin version not served yet asks the server again.
+const SERVED_PLUGINS_RETRY_MS = 5_000;
+// The largest answer the main process reads from a server: a file of an interface, with room for the gRPC envelope.
+const MAXIMUM_RESPONSE_BYTES = MAXIMUM_FILE_BYTES + 64 * 1024;
 
 /** Who calls the servers: the desktop app and its version (docs/conventions/grpc.md). */
 function callingApp(): CallingApp {
@@ -245,58 +188,88 @@ function registeredServers(): readonly ServerEntry[] {
 }
 
 /**
- * The folder of each plugin the server loaded, whose interface module the app ships (the modules come from the server
- * with lot 2c of the switch); undefined when it cannot tell, and nothing is served then.
+ * Lists the plugins of a server and makes their interfaces ready: from the app's own copy when it is the same, else
+ * downloaded from the server and checked (interfaceModules.ts). Undefined when the server could not tell.
  */
-async function listServedPlugins(server: ServerEntry): Promise<ServedPlugins | undefined> {
+async function readServedPlugins(server: ServerEntry): Promise<ServedPlugins | undefined> {
   const { name, version } = callingApp();
-  try {
-    const { plugins } = await createServerClientsAt(
-      server.url,
-      { 'x-voyager-app': name, 'x-voyager-app-version': version },
+  const { pluginHost } = createServerClientsAt(
+    server.url,
+    { 'x-voyager-app': name, 'x-voyager-app-version': version },
+    // A server that sends more than a file may weigh cannot fill the memory of the app.
+    boundedFetch(
       (input, init) => net.fetch(input instanceof Request ? input : input.toString(), init),
-    ).pluginHost.listPlugins({}, { timeoutMs: LIST_PLUGINS_TIMEOUT_MS });
-    // Only the shipped plugins, whose modules the app has: a plugin installed on the server has none here, and the
-    // folders of the management on this machine never serve it (the modules come from the server with lot 2c).
-    const shipped = plugins.filter((plugin) => plugin.origin === PluginOrigin.SHIPPED);
-    return servedPluginFolders(shipped, {
-      shipped: shippedPluginsDirectory(),
-      installed: join(userPluginsDirectory(), 'installed'),
-    });
+      MAXIMUM_RESPONSE_BYTES,
+    ),
+  );
+  let plugins;
+  try {
+    ({ plugins } = await pluginHost.listPlugins({}, { timeoutMs: LIST_PLUGINS_TIMEOUT_MS }));
   } catch (error) {
     // The code of the error, never its message, which may name the address of the server.
     desktopLog.error(
       `The list of plugins of the server ${server.id} could not be read (${Code[ConnectError.from(error).code]}): ` +
-        'no plugin interface is served until it can be.',
+        'the plugin interfaces already served stay so, the others wait for a new reading.',
     );
     return undefined;
   }
+  return prepareInterfaceModules(plugins, {
+    shippedDirectory: shippedPluginsDirectory(),
+    cacheDirectory: join(serversDataDirectory(), server.id, 'plugins'),
+    download: async (plugin, path) =>
+      (
+        await pluginHost.getInterfaceFile(
+          { pluginId: plugin.id, version: plugin.version, path },
+          { timeoutMs: INTERFACE_FILE_TIMEOUT_MS },
+        )
+      ).content,
+    log: {
+      info: (message) => {
+        desktopLog.info(`Server ${server.id}: ${message}`);
+      },
+      warn: (message) => {
+        desktopLog.warn(`Server ${server.id}: ${message}`);
+      },
+    },
+  });
 }
 
-/**
- * Reads, for the view of a server, the folders of the plugins whose interface it may serve: once, then again at the next
- * file only when the reading failed, never more than once at a time, and not sooner than a few seconds after the last
- * try. A plugin enabled on the server shows its interface at the next start of the app, until lot 2c.
- */
-function servedPluginsReader(server: ServerEntry | undefined): () => Promise<ServedPlugins> {
-  let servedPlugins: Promise<ServedPlugins | undefined> | undefined;
-  let lastFailure = 0;
-  return async () => {
-    if (server === undefined) {
-      return new Map<string, string>();
-    }
-    if (servedPlugins === undefined && Date.now() - lastFailure >= SERVED_PLUGINS_RETRY_MS) {
-      const reading = listServedPlugins(server);
-      servedPlugins = reading;
-      void reading.then((served) => {
-        if (served === undefined) {
-          lastFailure = Date.now();
-          servedPlugins = undefined;
-        }
-      });
-    }
-    return (await servedPlugins) ?? new Map<string, string>();
-  };
+/** Where the interface of each plugin of a server is, for the view of that server (servedPluginsReader.ts). */
+function servedPluginsReader(server: ServerEntry | undefined): ServedPluginsReader {
+  return createServedPluginsReader({
+    read: async () => {
+      if (server === undefined) {
+        return new Map<string, string>();
+      }
+      try {
+        return await readServedPlugins(server);
+      } catch (error) {
+        // The code of the error only: its message names the folder, and so the user's account. The next page that asks
+        // for a plugin not served yet tries again.
+        desktopLog.error(
+          `The plugin interfaces of the server ${server.id} could not be made ready (${fileErrorCode(error)}).`,
+        );
+        return undefined;
+      }
+    },
+    retryAfterMs: SERVED_PLUGINS_RETRY_MS,
+  });
+}
+
+/** The code of a file error, such as EBUSY, without its message, which names the file. */
+function fileErrorCode(error: unknown): string {
+  const code = (error as { readonly code?: unknown } | null)?.code;
+  return typeof code === 'string' ? code : 'unknown error';
+}
+
+/** Removes the folders of the servers the app no longer knows, with the interface modules downloaded from them. */
+async function removeOtherServersData(servers: readonly ServerEntry[]): Promise<void> {
+  const known = new Set(servers.map((server) => server.id));
+  const directory = serversDataDirectory();
+  const entries = await readdir(directory).catch(() => []);
+  for (const entry of entries.filter((name) => !known.has(name))) {
+    await rm(join(directory, entry), { recursive: true, force: true });
+  }
 }
 
 /** The policy of the user interface: it allows the page's import map, which the plugins' modules rely on, by its hash. */
@@ -523,7 +496,7 @@ async function updateInstalledApp(report: (event: UpdateEvent) => void): Promise
 
 function start(): void {
   let startupState: StartupState = { status: 'checking-updates' };
-  // Only created once no update is on its way: see runStartup.
+  // Only started once the window is open: see runStartup.
   let localService: LocalServiceSupervisor | undefined;
   let startupWindow: BrowserWindow | undefined;
   let mainWindow: BaseWindow | undefined;
@@ -531,18 +504,16 @@ function start(): void {
   const servers = registeredServers();
   // The views of the main window, one per server; undefined until it opens.
   let views: ServerViews | undefined;
-  // The local service still runs until lot 3 of the switch, for the management of plugins on this machine, which the
-  // window no longer shows nor calls.
-  let serviceConnection: LocalServiceConnection | undefined;
   // Set as soon as the app starts to quit: a startup still going on must then start nothing.
   let quitting = false;
   app.on('before-quit', () => {
     quitting = true;
   });
 
-  const beginLocalService = (): Promise<void> => {
+  // The local service still runs until lot 3 of the switch removes it: nothing calls it any more.
+  const beginLocalService = (): void => {
     if (quitting) {
-      return Promise.resolve();
+      return;
     }
     const supervisor = superviseLocalService({
       launch: startLocalService,
@@ -554,13 +525,6 @@ function start(): void {
       },
     });
     localService = supervisor;
-    // The window no longer talks to the local service: its address and token stay in this process.
-    supervisor.onChange((state) => {
-      if (state.status === 'ready') {
-        serviceConnection = state.connection;
-      }
-    });
-    return supervisor.whenSettled();
   };
 
   // Quitting waits for the local service to stop, so that it never writes to a database left behind.
@@ -577,16 +541,15 @@ function start(): void {
   });
 
   /**
-   * Only the Voyager user interface may ask. `view`: only a view of the main window; `first-view`: only the view of the
-   * first server, the one that managed plugins on this machine before the views (until lot 3 removes that management).
+   * Only the Voyager user interface may ask. `view`: only a view of the main window. Managing plugins on this machine is
+   * answered by no one: the plugins run on the server (ADR-0020), and a module downloaded from a server must reach
+   * nothing but its server.
    */
-  const checkCaller = (event: IpcMainInvokeEvent, scope: 'any' | 'view' | 'first-view' = 'any'): void => {
+  const checkCaller = (event: IpcMainInvokeEvent, scope: 'any' | 'view' = 'any'): void => {
     if (!isUserInterface(event.senderFrame?.url ?? '')) {
       throw new Error('Only the Voyager user interface can ask the desktop app for this.');
     }
-    const fromView = views?.owns(event.sender.id) === true;
-    const fromFirstView = fromView && views?.serverOf(event.sender.id)?.id === servers.at(0)?.id;
-    if ((scope === 'view' && !fromView) || (scope === 'first-view' && !fromFirstView)) {
+    if (scope === 'view' && views?.owns(event.sender.id) !== true) {
       throw new Error('Only the main window of the Voyager user interface can ask the desktop app for this.');
     }
   };
@@ -621,88 +584,6 @@ function start(): void {
     }
   });
 
-  // The dialogs belong to the main window, so that the page waits for the answer.
-  const parentWindow = (): BaseWindow | undefined =>
-    mainWindow !== undefined && !mainWindow.isDestroyed() ? mainWindow : undefined;
-  const dialogLocale = () => pickDialogLocale(app.getPreferredSystemLanguages());
-  const pluginHost = () => {
-    if (serviceConnection === undefined) {
-      throw new Error('The local service is not ready.');
-    }
-    return createLocalServiceClients(serviceConnection).pluginHost;
-  };
-  const plugins = createPluginManagement({
-    folders: pluginManagementFolders(),
-    listPlugins: async () => (await pluginHost().listPlugins({}, { timeoutMs: LIST_PLUGINS_TIMEOUT_MS })).plugins,
-    examinePackage: (stagedName) =>
-      pluginHost().examinePackage({ stagedName }, { timeoutMs: EXAMINE_PACKAGE_TIMEOUT_MS }),
-    showDialog: async (box) => {
-      const parent = parentWindow();
-      const options = messageBoxOptions(box);
-      const answer =
-        parent === undefined ? await dialog.showMessageBox(options) : await dialog.showMessageBox(parent, options);
-      return { response: answer.response, checkboxChecked: answer.checkboxChecked };
-    },
-    chooseFile: async () => {
-      const { title, filterName } = packageFileDialog(dialogLocale());
-      const options: OpenDialogOptions = {
-        title,
-        properties: ['openFile'],
-        filters: [{ name: filterName, extensions: [PACKAGE_EXTENSION.slice(1)] }],
-      };
-      const parent = parentWindow();
-      const result =
-        parent === undefined ? await dialog.showOpenDialog(options) : await dialog.showOpenDialog(parent, options);
-      return result.canceled ? undefined : result.filePaths[0];
-    },
-    openFolder: async (folder) => {
-      // An empty text when the folder opened, else what went wrong, which names the folder.
-      if ((await shell.openPath(folder)) !== '') {
-        throw new Error('The file explorer could not open the folder.');
-      }
-    },
-    restartService: () =>
-      localService === undefined ? Promise.resolve({ outcome: 'failed' }) : restartToApplyRequests(localService),
-    isServiceReady: () => localService?.state().status === 'ready',
-    isServiceFailed: () => localService?.state().status === 'failed',
-    retryService: () => {
-      localService?.retry();
-    },
-    locale: dialogLocale,
-    log: {
-      info: (message) => {
-        desktopLog.info(message);
-      },
-      warn: (message) => {
-        desktopLog.warn(message);
-      },
-      error: (message) => {
-        desktopLog.error(message);
-      },
-    },
-  });
-  // Only the view of the first server manages plugins on this machine (no longer shown, removed by lot 3); what the page
-  // sends is checked by the plugin management itself.
-  const handlePlugins = (channel: string, handler: (argument: unknown) => Promise<unknown>): void => {
-    ipcMain.handle(channel, (event, argument: unknown) => {
-      checkCaller(event, 'first-view');
-      return handler(argument);
-    });
-  };
-  handlePlugins(LIST_INBOX_CHANNEL, () => plugins.listInbox());
-  handlePlugins(ADD_PACKAGE_CHANNEL, () => plugins.addPackage());
-  handlePlugins(OPEN_INBOX_CHANNEL, () => plugins.openInbox());
-  // The casts only name what the page should send: each value is checked before use.
-  handlePlugins(INSTALL_PLUGIN_CHANNEL, (name) => plugins.install(name as string));
-  handlePlugins(UNINSTALL_PLUGIN_CHANNEL, (target) => plugins.uninstall(target as PluginTarget));
-  handlePlugins(ENABLE_PLUGIN_CHANNEL, (target) => plugins.enable(target as PluginTarget));
-  handlePlugins(DISABLE_PLUGIN_CHANNEL, (target) => plugins.disable(target as PluginTarget));
-  handlePlugins(CANCEL_PLUGIN_REQUEST_CHANNEL, (target) => plugins.cancelRequest(target as PluginTarget));
-  handlePlugins(LIST_PLUGIN_REQUESTS_CHANNEL, () => plugins.listRequests());
-  handlePlugins(RESTART_FOR_PLUGINS_CHANNEL, () => plugins.restart());
-  // Only from the screen of a service that failed, which is not running and so reads no request meanwhile.
-  handlePlugins(START_WITHOUT_INSTALLED_PLUGINS_CHANNEL, () => plugins.startWithoutInstalledPlugins());
-
   lockDownWebContents(isUserInterface);
   app.on('window-all-closed', () => {
     app.quit();
@@ -713,21 +594,33 @@ function start(): void {
     const developmentOrigin =
       DEV_USER_INTERFACE_URL === undefined ? undefined : URL.parse(DEV_USER_INTERFACE_URL)?.origin;
     const policy = contentSecurityPolicy();
+    const allowedOrigins = developmentOrigin === undefined ? [] : [developmentOrigin];
     const serveFor = (target: Pick<typeof protocol, 'handle'>, server: ServerEntry | undefined): void => {
-      serveUserInterface(target, userInterfaceDirectory(), servedPluginsReader(server), policy, (request) =>
-        handleServerApiRequest(request, {
-          // The session of a view forwards to its own server only: a module of another server cannot reach it.
-          servers: () => (server === undefined ? [] : [server]),
-          app: callingApp(),
-          allowedOrigins: developmentOrigin === undefined ? [] : [developmentOrigin],
-          fetch: (url, init) => net.fetch(url, init),
-          log: {
-            warn: (message) => {
-              desktopLog.warn(message);
+      const plugins = servedPluginsReader(server);
+      // Read as the view opens: the page finds its plugins ready instead of waiting for their download.
+      if (server !== undefined) {
+        plugins.refresh();
+      }
+      serveUserInterface(target, {
+        directory: userInterfaceDirectory(),
+        // The session of a view serves the plugins of its own server only.
+        servedPlugins: plugins.find,
+        contentSecurityPolicy: policy,
+        allowedOrigins,
+        forwardToServer: (request) =>
+          handleServerApiRequest(request, {
+            // The session of a view forwards to its own server only: a module of another server cannot reach it.
+            servers: () => (server === undefined ? [] : [server]),
+            app: callingApp(),
+            allowedOrigins,
+            fetch: (url, init) => net.fetch(url, init),
+            log: {
+              warn: (message) => {
+                desktopLog.warn(message);
+              },
             },
-          },
-        }),
-      );
+          }),
+      });
     };
     // The default session shows the startup window: it calls no server.
     denyAllPermissions();
@@ -736,6 +629,13 @@ function start(): void {
       const serverSession = session.fromPartition(serverPartition(server?.id));
       denyAllPermissions(serverSession);
       serveFor(serverSession.protocol, server);
+    }
+    if (servers.length > 0) {
+      void removeOtherServersData(servers).catch((error: unknown) => {
+        desktopLog.warn(
+          `The data of the servers the app no longer knows could not be removed (${fileErrorCode(error)}).`,
+        );
+      });
     }
 
     // Opening Voyager again brings back the window already open.
@@ -780,7 +680,6 @@ function start(): void {
     try {
       const result = await runStartup({
         updateApp: updateInstalledApp,
-        startLocalService: beginLocalService,
         report: (state) => {
           startupState = state;
           sendToWindow(startupWindow, STARTUP_STATE_CHANGED_CHANNEL, state);
@@ -791,9 +690,11 @@ function start(): void {
         desktopLog.info('The app quits so that the update can be installed.');
         // The updater waits for this app to exit, installs the new version and starts it.
         app.quit();
+      } else {
+        beginLocalService();
       }
     } catch (error: unknown) {
-      // The window still opens: its own screens say what is wrong with the local service.
+      // The window still opens: its own screens say what is wrong with each server.
       desktopLog.error('The app could not start normally:', describeError(error));
       if (mainWindow === undefined) {
         openMainWindow();

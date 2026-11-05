@@ -20,7 +20,7 @@
 
     The result is what the packaged app ships in resources/plugins, and what the development environment (Aspire)
     and `pnpm start` give the local service, the group server and the user interface in development; the image of the
-    group server builds its .NET part only (-SkipInterface).
+    group server builds its .NET part here (-SkipInterface) and its interface modules in a Node.js stage of its own.
 
 .PARAMETER PluginVersions
     The version of each plugin, as id=version pairs separated by commas, such as
@@ -41,8 +41,9 @@
     Builds every plugin again, even those that did not change.
 
 .PARAMETER SkipInterface
-    Builds the .NET part and the translations only, without the interface modules (no pnpm): what the image of the
-    group server needs, built where Node.js is not installed. The manifest still names the module.
+    Builds the .NET part and the translations only, without the interface modules (no pnpm): what the .NET stage of
+    the image of the group server needs, where Node.js is not installed; another stage of the image builds the modules.
+    The manifest still names the module.
 
 .EXAMPLE
     pwsh tools/build-plugins.ps1

@@ -76,6 +76,20 @@ la première brique du cœur sur la bonne architecture.
    décision 8) : le processus principal les télécharge, vérifie leur empreinte, les range sur le poste par
    (serveur, plugin, version) et les sert par `voyager://app`. Les modules livrés avec l'application servent de
    cache quand leur version est la même.
+   - Le serveur publie, pour chaque plugin en service, la liste des fichiers de son interface (le module, ce
+     qu'il importe sous `ui`, ses traductions) avec l'empreinte SHA-256 et la taille de chacun, et envoie un
+     fichier à la demande. Son image Docker construit ces modules.
+   - L'adresse d'un fichier nomme la version : `voyager://app/plugins/<origine>/<id>/<version>/…`. La page la lit
+     par le protocole de l'application, en développement aussi. Un fichier d'une version que le processus
+     principal ne sert pas encore lui fait relire la liste du serveur (au plus toutes les cinq secondes).
+   - Les modules téléchargés vont dans `%LOCALAPPDATA%\Voyager\servers\<serveur>\plugins\<id>\<version>`
+     (sous `artifacts/servers` en développement). Un fichier dont l'empreinte ou la taille diffère de la liste,
+     ou une liste qui nomme un fichier interdit, écarte le module : le plugin s'affiche sans son panneau.
+   - La vérification ne repose que sur l'empreinte donnée par le même serveur : la **signature** des modules et
+     l'accord de l'utilisateur pour un module non signé (ADR-0018, décision 5) viendront avec l'installation de
+     plugins sur le serveur. D'ici là, une vue n'atteint que son serveur : la gestion des plugins sur le poste ne
+     répond plus à aucune vue. De même, tant que l'activation par groupe n'existe pas, l'application télécharge
+     les modules de tous les plugins en service, et pas seulement ceux activés pour un de ses groupes.
 5. **État de la connexion**, par serveur : à la place de l'écran « le service local démarre » et de sa barrière,
    l'application montre l'état de la connexion au serveur affiché : connecté, en cours de connexion, injoignable
    (avec la raison lisible et « Réessayer »), ou application trop ancienne. Quand le serveur revient, elle se

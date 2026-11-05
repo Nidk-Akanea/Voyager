@@ -1,17 +1,9 @@
-// Vite plugins of the user interface that make plugins possible (ADR-0015): the modules the page shares with them,
-// the import map that tells their modules where those are, and, in development, the files of the plugins.
-import { readFile } from 'node:fs/promises';
-import type { ServerResponse } from 'node:http';
+// Vite plugins of the user interface that make plugins possible (ADR-0015): the modules the page shares with them, and
+// the import map that tells their modules where those are. The files of the plugins come from the app's protocol, in
+// development too: the main process serves the version the server loaded (src/ts/desktop/src/main/interfaceModules.ts).
 import { resolve } from 'node:path';
 
 import type { Plugin } from 'vite';
-
-import {
-  findInRoots,
-  resolvePluginFile,
-  resolveRealPluginFile,
-  type PluginRoots,
-} from '../desktop/src/main/pluginFiles';
 
 /** What a plugin may import, and the module of this package that provides it to the page and to the plugins alike. */
 export const SHARED_MODULES: Readonly<Record<string, string>> = {
@@ -25,7 +17,6 @@ export const SHARED_MODULES: Readonly<Record<string, string>> = {
 };
 
 const SHARED_FOLDER = 'shared';
-const PLUGINS_PATH_PREFIX = '/plugins/';
 
 /** Name of the built file of a shared module, under the `shared` folder: `src/sharedModules/react.ts` becomes `shared/react`. */
 function sharedEntryName(source: string): string {
@@ -90,50 +81,6 @@ export function sharedModules(): Plugin {
           injectTo: 'head-prepend',
         },
       ],
-    },
-  };
-}
-
-function answerNotFound(response: ServerResponse): void {
-  response.statusCode = 404;
-  response.end();
-}
-
-/**
- * In development, serves the interface modules and translations of the plugins that were built or installed, like the
- * app does. Unlike the app, it does not ask the service which ones are loaded: the page only asks for those.
- * @param pluginRoots The folder of the plugins of each origin (`artifacts/plugins`, `artifacts/user-plugins/installed`).
- */
-export function servePluginFiles(pluginRoots: PluginRoots): Plugin {
-  const findPluginFolder = findInRoots(pluginRoots);
-  return {
-    name: 'voyager-serve-plugin-files',
-    configureServer: (server) => {
-      server.middlewares.use((request, response, next) => {
-        const path = URL.parse(request.url ?? '', 'http://localhost')?.pathname;
-        if (!path?.startsWith(PLUGINS_PATH_PREFIX)) {
-          next();
-          return;
-        }
-        const file = resolvePluginFile(findPluginFolder, path);
-        if (file === undefined) {
-          answerNotFound(response);
-          return;
-        }
-        resolveRealPluginFile(file)
-          .then(async (realFile) => {
-            if (realFile === undefined) {
-              answerNotFound(response);
-              return;
-            }
-            const content = await readFile(realFile);
-            response.setHeader('Content-Type', file.contentType);
-            response.end(content);
-          })
-          .catch(() => {
-            answerNotFound(response);
-          });
-      });
     },
   };
 }

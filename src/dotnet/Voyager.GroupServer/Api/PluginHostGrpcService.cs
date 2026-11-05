@@ -1,3 +1,4 @@
+using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 
 using Grpc.Core;
@@ -24,19 +25,34 @@ using WireVerification = Voyager.Contracts.PluginHost.V1.PluginVerification;
 namespace Voyager.GroupServer.Api;
 
 /// <summary>
-/// Tells the user interface which plugins the server runs and what their diagnostic sources report
-/// (proto/voyager/pluginhost/v1/pluginhost.proto). Only reads: the server has no installed plugins yet, so examining
-/// a package is not served (the base class answers "unimplemented"), and the fields of the user's requests stay empty.
+/// Tells the user interface which plugins the server runs and what their diagnostic sources report, and sends the desktop
+/// app the files of their interfaces (proto/voyager/pluginhost/v1/pluginhost.proto). Only reads: the server has no
+/// installed plugins yet, so examining a package is not served (the base class answers "unimplemented"), and the fields
+/// of the user's requests stay empty.
 /// Managing plugins on the server comes with its own spec (ADR-0020).
 /// </summary>
 /// <param name="catalog">The plugins found at startup.</param>
 /// <param name="collector">Asks the sources of diagnostic facts, with a time limit for each.</param>
-public sealed class PluginHostGrpcService(PluginCatalog catalog, DiagnosticFactCollector collector)
+/// <param name="interfaceFiles">The files of the interfaces of the plugins in use.</param>
+/// <param name="logger">Says which interface file the disk refused to give.</param>
+public sealed class PluginHostGrpcService(
+    PluginCatalog catalog,
+    DiagnosticFactCollector collector,
+    InterfaceFileCatalog interfaceFiles,
+    ILogger<PluginHostGrpcService> logger)
     : PluginHostService.PluginHostServiceBase
 {
     #region Private Methods
 
-    private static Plugin ToMessage(PluginState state)
+    private static InterfaceFile ToMessage(InterfaceFileEntry file) => new()
+    {
+        Path = file.Path,
+        Sha256 = file.Sha256,
+        // Never negative: it is the length of a file.
+        Size = (ulong)file.Size,
+    };
+
+    private Plugin ToMessage(PluginState state)
     {
         var message = new Plugin
         {
@@ -54,6 +70,11 @@ public sealed class PluginHostGrpcService(PluginCatalog catalog, DiagnosticFactC
 
         message.Provides.AddRange(state.Provides);
         message.Contracts.AddRange(state.Contracts.Select(ToMessage));
+        if (state.Status == HostStatus.Loaded)
+        {
+            message.InterfaceFiles.AddRange(interfaceFiles.FilesOf(state.Id).Select(ToMessage));
+        }
+
         return message;
     }
 
@@ -179,6 +200,31 @@ public sealed class PluginHostGrpcService(PluginCatalog catalog, DiagnosticFactC
         var response = new GetDiagnosticFactsResponse();
         response.Sources.AddRange(results.Select(ToMessage));
         return response;
+    }
+
+    /// <inheritdoc />
+    public override async Task<GetInterfaceFileResponse> GetInterfaceFile(
+        GetInterfaceFileRequest request,
+        ServerCallContext context)
+    {
+        byte[]? content;
+        try
+        {
+            content = await interfaceFiles.ReadAsync(request.PluginId, request.Version, request.Path, context.CancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Only a file the catalog lists is read, so the plugin is one in use. The message of the exception names a
+            // folder of the server: it stays in the server's log, and the caller learns only that the disk refused.
+            InterfaceFileLog.FileUnreadable(logger, request.PluginId, request.Version, exception);
+            throw new RpcException(
+                new Status(StatusCode.Unavailable, $"An interface file of plugin {request.PluginId} could not be read."));
+        }
+
+        return content is null
+            ? throw new RpcException(new Status(StatusCode.NotFound, "No plugin in use has this interface file."))
+            // The array is not used again: no copy is needed.
+            : new GetInterfaceFileResponse { Content = UnsafeByteOperations.UnsafeWrap(content) };
     }
 
     /// <inheritdoc />

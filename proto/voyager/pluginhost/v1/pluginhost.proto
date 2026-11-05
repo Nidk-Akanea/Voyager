@@ -21,6 +21,36 @@ service PluginHostService {
   // of the package runs. INVALID_ARGUMENT when the name is not that of a prepared package, NOT_FOUND when there is no
   // such package, FAILED_PRECONDITION when plugins cannot be managed, UNAVAILABLE when the disk refused to read or write.
   rpc ExaminePackage(ExaminePackageRequest) returns (ExaminePackageResponse);
+  // Sends one file of the interface part of a plugin in use, as ListPlugins lists it in interface_files: the desktop app
+  // downloads it, checks its fingerprint and serves it to its pages (ADR-0020, decision 8). The pages never call it.
+  // NOT_FOUND when no plugin in use has this identifier and version, or when the file is not one of its listed files;
+  // UNAVAILABLE when the disk refused to read it.
+  rpc GetInterfaceFile(GetInterfaceFileRequest) returns (GetInterfaceFileResponse);
+}
+
+message GetInterfaceFileRequest {
+  // Identifier of the plugin.
+  string plugin_id = 1;
+  // Version of the plugin, as ListPlugins gives it: a file of another version is never sent in its place.
+  string version = 2;
+  // Path of the file, as interface_files lists it.
+  string path = 3;
+}
+
+message GetInterfaceFileResponse {
+  // The bytes of the file.
+  bytes content = 1;
+}
+
+// A file of the interface part of a plugin: its module, what the module imports, or its translations.
+message InterfaceFile {
+  // Path of the file relative to the folder of the plugin, with forward slashes: "ui/index.js",
+  // "i18n/fr/messages.ftl".
+  string path = 1;
+  // SHA-256 fingerprint of the file, in lower-case hexadecimal.
+  string sha256 = 2;
+  // Size of the file, in bytes.
+  uint64 size = 3;
 }
 
 // Request of PluginHostService.ExaminePackage.
@@ -149,6 +179,9 @@ message Plugin {
   // Whether a start without the installed plugins disabled it, rather than the user: the user enables them again one by
   // one to find the one that crashes Voyager.
   bool disabled_for_recovery = 19;
+  // The files of the interface part of a plugin in use, for the desktop app to download (ADR-0020, decision 8). Empty
+  // when the plugin is not in use, has no interface part, or when the service does not publish them.
+  repeated InterfaceFile interface_files = 20;
 }
 
 // Where a plugin comes from (ADR-0016).
