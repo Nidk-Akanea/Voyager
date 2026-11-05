@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using NodaTime;
 
@@ -60,6 +61,27 @@ internal sealed class LocalServiceFactory : WebApplicationFactory<Program>
     /// <summary>Path of the SQLite file used by this instance of the service.</summary>
     public string DatabasePath { get; }
 
+    private readonly StartupFailureLog _failureLog = new();
+
+    /// <summary>
+    /// Starts the service, which must refuse to start, and returns why: the exception the service logged before stopping,
+    /// or else the one the host threw (see <see cref="StartupFailureLog"/>).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The service started.</exception>
+    public Exception StartupFailure()
+    {
+        try
+        {
+            _ = Server;
+        }
+        catch (Exception thrown)
+        {
+            return _failureLog.Failure ?? thrown;
+        }
+
+        throw new InvalidOperationException("The service started, though it was expected to refuse.");
+    }
+
     /// <summary>Creates a gRPC channel that talks to the in-memory service.</summary>
     public GrpcChannel CreateChannel() =>
         GrpcChannel.ForAddress(Server.BaseAddress, new GrpcChannelOptions { HttpHandler = Server.CreateHandler() });
@@ -86,6 +108,8 @@ internal sealed class LocalServiceFactory : WebApplicationFactory<Program>
         {
             builder.UseSetting("Voyager:LocalToken", _localToken);
         }
+
+        builder.ConfigureLogging(logging => logging.AddProvider(_failureLog));
 
         if (_clock is not null)
         {

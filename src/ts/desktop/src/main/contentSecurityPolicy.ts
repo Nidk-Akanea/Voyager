@@ -22,8 +22,9 @@ export function buildContentSecurityPolicy(importMapSource: string | undefined):
     // Fluent UI (Griffel) inserts its styles while the page runs.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
-    // The page asks for the translations of the plugins from its own protocol; the rest goes to the local service.
-    "connect-src 'self' http://127.0.0.1:*",
+    // The page calls its own protocol only: the translations of the plugins, and its servers through the main process
+    // (ADR-0019, decision 4). No address outside the app.
+    "connect-src 'self'",
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",

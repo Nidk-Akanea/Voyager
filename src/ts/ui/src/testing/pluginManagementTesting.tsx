@@ -132,7 +132,7 @@ export function renderPage(options: {
   render(
     <ShellProviders locale={locale}>
       <AppProviders locale={locale} clients={clients} queryClient={queryClient} pluginRuntime={RUNTIME}>
-        {options.shell === true ? <AppShell pluginManagement={bridge} /> : <PluginsPage bridge={bridge} />}
+        {options.shell === true ? <AppShell /> : <PluginsPage bridge={bridge} />}
       </AppProviders>
     </ShellProviders>,
   );

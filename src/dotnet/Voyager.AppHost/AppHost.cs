@@ -45,7 +45,7 @@ var plugins = builder.AddExecutable(
 // The group server runs the plugins (ADR-0020) and serves the desktop app (ADR-0018). The development identity lets
 // it accept calls without signing in, on behalf of a development account and group: Aspire alone sets it, and the
 // server refuses it outside the Development environment (ADR-0019, decision 9).
-builder.AddProject<Projects.Voyager_GroupServer>("group-server")
+var groupServer = builder.AddProject<Projects.Voyager_GroupServer>("group-server")
     .WithHttpEndpoint(port: 5180)
     .WithReference(database)
     .WithEnvironment("Voyager__DevelopmentIdentity", "true")
@@ -73,12 +73,15 @@ var localService = builder.AddProject<Projects.Voyager_LocalService>("local-serv
 builder.AddJavaScriptApp("desktop", "../../ts/desktop", "dev")
     .WithPnpm(install: false)
     .WithEnvironment("VOYAGER_UI_URL", userInterface.GetEndpoint("http"))
+    // The group server the window shows: the main process forwards the calls of the page to it (ADR-0019, decision 4).
+    .WithEnvironment("VOYAGER_SERVER_URL", groupServer.GetEndpoint("http"))
     .WithEnvironment("VOYAGER_LOCAL_SERVICE_URL", localService.GetEndpoint("http"))
     .WithEnvironment("VOYAGER_LOCAL_TOKEN", localToken)
     // The same folders as the service: the main process reads the plugins from them and writes the requests there.
     .WithEnvironment("VOYAGER_PLUGINS_DIRECTORY", pluginsFolder)
     .WithEnvironment("VOYAGER_USER_PLUGINS_DIRECTORY", userPluginsFolder)
     .WaitFor(userInterface)
+    .WaitFor(groupServer)
     .WaitFor(localService);
 
 await builder.Build().RunAsync();

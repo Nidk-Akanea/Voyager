@@ -58,10 +58,8 @@ public sealed class GroupServerStartupTests
     {
         using var factory = new GroupServerFactory(environment: environment, developmentIdentity: true);
 
-        var start = () => factory.Server;
-
-        start.Should().Throw<OptionsValidationException>()
-            .WithMessage("*DevelopmentIdentity is only allowed in the Development environment*");
+        factory.StartupFailure().Should().BeOfType<OptionsValidationException>()
+            .Which.Message.Should().Contain("DevelopmentIdentity is only allowed in the Development environment");
     }
 
     [TestMethod]
@@ -70,10 +68,8 @@ public sealed class GroupServerStartupTests
         using var plugins = new PluginFolder();
         using var factory = new GroupServerFactory(environment: "Production", developmentIdentity: false, shippedPluginsDirectory: plugins.Path);
 
-        var start = () => factory.Server;
-
-        start.Should().Throw<OptionsValidationException>()
-            .WithMessage("*ShippedPluginsDirectory is only allowed in the Development environment*");
+        factory.StartupFailure().Should().BeOfType<OptionsValidationException>()
+            .Which.Message.Should().Contain("ShippedPluginsDirectory is only allowed in the Development environment");
     }
 
     [TestMethod]
@@ -108,9 +104,8 @@ public sealed class GroupServerStartupTests
     {
         using var factory = new GroupServerFactory(minimumAppVersion: minimum);
 
-        var start = () => factory.Server;
-
-        start.Should().Throw<OptionsValidationException>().WithMessage("*MinimumAppVersion must be a version*");
+        factory.StartupFailure().Should().BeOfType<OptionsValidationException>()
+            .Which.Message.Should().Contain("MinimumAppVersion must be a version");
     }
 
     [TestMethod]
@@ -130,9 +125,8 @@ public sealed class GroupServerStartupTests
     {
         using var factory = new GroupServerFactory(shippedPluginsDirectory: "plugins");
 
-        var start = () => factory.Server;
-
-        start.Should().Throw<OptionsValidationException>().WithMessage("*must be a full path*");
+        factory.StartupFailure().Should().BeOfType<OptionsValidationException>()
+            .Which.Message.Should().Contain("must be a full path");
     }
 
     #endregion Public Methods

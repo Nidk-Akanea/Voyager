@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 
 import './app/bridge';
 import { AppShell } from './app/AppShell';
-import { LocalServiceGate } from './app/LocalServiceGate';
+import { ServerGate } from './app/ServerGate';
 import { ShellProviders } from './app/ShellProviders';
 import { StartupScreen } from './app/StartupScreen';
 import { createLocalization, pickLocale } from './i18n/localization';
@@ -27,7 +27,7 @@ function start(): void {
   document.documentElement.lang = locale;
   document.title = localization.getString('app-title');
 
-  // Outside the desktop app (a plain browser), there is no local service to talk to.
+  // Outside the desktop app (a plain browser), there is no main process to reach the servers.
   if (window.voyager === undefined) {
     root.render(<p>{localization.getString('app-not-in-desktop')}</p>);
     return;
@@ -44,9 +44,9 @@ function start(): void {
 
   root.render(
     <ShellProviders locale={locale} prefersDarkTheme={prefersDarkTheme}>
-      <LocalServiceGate bridge={window.voyager} locale={locale}>
-        <AppShell pluginManagement={window.voyager.plugins} />
-      </LocalServiceGate>
+      <ServerGate bridge={window.voyager} locale={locale}>
+        <AppShell />
+      </ServerGate>
     </ShellProviders>,
   );
 }

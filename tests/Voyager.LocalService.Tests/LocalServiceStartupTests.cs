@@ -19,9 +19,7 @@ public sealed class LocalServiceStartupTests
     {
         using var factory = new LocalServiceFactory(localToken: null);
 
-        var start = () => factory.Server;
-
-        start.Should().Throw<OptionsValidationException>();
+        factory.StartupFailure().Should().BeOfType<OptionsValidationException>();
     }
 
     [TestMethod]
@@ -29,9 +27,7 @@ public sealed class LocalServiceStartupTests
     {
         using var factory = new LocalServiceFactory(localToken: "too-short");
 
-        var start = () => factory.Server;
-
-        start.Should().Throw<OptionsValidationException>();
+        factory.StartupFailure().Should().BeOfType<OptionsValidationException>();
     }
 
     [TestMethod]

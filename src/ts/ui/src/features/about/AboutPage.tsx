@@ -1,4 +1,4 @@
-// "About" screen: what the local service reports about itself. Display only, no computation.
+// "About" screen: what the server reports about itself, and its plugins. Display only, no computation.
 import { Button, makeStyles, MessageBar, MessageBarBody, Spinner, Title2, tokens } from '@fluentui/react-components';
 import { useLocalization } from '@fluent/react';
 
