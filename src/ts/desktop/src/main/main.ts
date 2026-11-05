@@ -10,7 +10,10 @@ import {
   dialog,
   ipcMain,
   net,
+  protocol,
+  session,
   shell,
+  WebContentsView,
   type IpcMainInvokeEvent,
   type MessageBoxOptions,
   type OpenDialogOptions,
@@ -36,6 +39,7 @@ import {
   DISABLE_PLUGIN_CHANNEL,
   ENABLE_PLUGIN_CHANNEL,
   GET_APP_VERSION_CHANNEL,
+  GET_CURRENT_SERVER_CHANNEL,
   GET_LOCAL_SERVICE_STATE_CHANNEL,
   GET_SERVERS_CHANNEL,
   GET_STARTUP_STATE_CHANNEL,
@@ -46,6 +50,7 @@ import {
   OPEN_INBOX_CHANNEL,
   RESTART_FOR_PLUGINS_CHANNEL,
   RETRY_LOCAL_SERVICE_CHANNEL,
+  SELECT_SERVER_CHANNEL,
   START_WITHOUT_INSTALLED_PLUGINS_CHANNEL,
   STARTUP_STATE_CHANGED_CHANNEL,
   UNINSTALL_PLUGIN_CHANNEL,
@@ -63,6 +68,7 @@ import { denyAllPermissions, lockDownWebContents } from './security';
 import { servedPluginFolders, type ServedPlugins } from './servedPlugins';
 import { handleServerApiRequest, type CallingApp } from './serverApi';
 import { readRegisteredServers, ServerSettingsError, type ServerEntry } from './serverRegistry';
+import { serverPartition, ServerViews, type ServerView } from './serverViews';
 import { runStartup } from './startup';
 import { chooseUpdateSource, hideAddress, UPDATE_SOURCE_SETTING } from './updateSource';
 import { updateApp, type UpdateEvent, type UpdateOutcome } from './updates';
@@ -267,6 +273,32 @@ async function listServedPlugins(server: ServerEntry): Promise<ServedPlugins | u
   }
 }
 
+/**
+ * Reads, for the view of a server, the folders of the plugins whose interface it may serve: once, then again at the next
+ * file only when the reading failed, never more than once at a time, and not sooner than a few seconds after the last
+ * try. A plugin enabled on the server shows its interface at the next start of the app, until lot 2c.
+ */
+function servedPluginsReader(server: ServerEntry | undefined): () => Promise<ServedPlugins> {
+  let servedPlugins: Promise<ServedPlugins | undefined> | undefined;
+  let lastFailure = 0;
+  return async () => {
+    if (server === undefined) {
+      return new Map<string, string>();
+    }
+    if (servedPlugins === undefined && Date.now() - lastFailure >= SERVED_PLUGINS_RETRY_MS) {
+      const reading = listServedPlugins(server);
+      servedPlugins = reading;
+      void reading.then((served) => {
+        if (served === undefined) {
+          lastFailure = Date.now();
+          servedPlugins = undefined;
+        }
+      });
+    }
+    return (await servedPlugins) ?? new Map<string, string>();
+  };
+}
+
 /** The policy of the user interface: it allows the page's import map, which the plugins' modules rely on, by its hash. */
 function contentSecurityPolicy(): string {
   // In development Vite serves the page, with no policy of ours: there is no built page to read.
@@ -326,23 +358,45 @@ function logLoadFailure(window: BrowserWindow, error: unknown): void {
   window.show();
 }
 
-/** The main window; `onShown` runs once it is on screen. */
-function createWindow(onShown: () => void): BrowserWindow {
+/**
+ * The main window, with one view per server, each in its own session (serverViews.ts); `onShown` runs once it is on
+ * screen.
+ */
+function createWindow(
+  servers: readonly ServerEntry[],
+  onShown: () => void,
+): { window: BrowserWindow; views: ServerViews } {
   const window = new BrowserWindow({
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
     show: false,
     webPreferences: WEB_PREFERENCES,
   });
-  window.once('ready-to-show', () => {
-    window.show();
-    onShown();
+  const views = new ServerViews({
+    host: {
+      addView: (view) => {
+        window.contentView.addChildView(view as WebContentsView);
+      },
+      contentSize: () => window.getContentBounds(),
+      onResize: (listener) => {
+        window.on('resize', listener);
+      },
+      onClosed: (listener) => {
+        window.once('closed', listener);
+      },
+    },
+    servers,
+    createView: (partition): ServerView => new WebContentsView({ webPreferences: { ...WEB_PREFERENCES, partition } }),
+    url: userInterfaceAddress(),
+    onFirstShown: () => {
+      window.show();
+      onShown();
+    },
+    onLoadFailure: (error) => {
+      logLoadFailure(window, error);
+    },
   });
-  window.loadURL(userInterfaceAddress()).catch((error: unknown) => {
-    logLoadFailure(window, error);
-    onShown();
-  });
-  return window;
+  return { window, views };
 }
 
 /** The small window shown while the app looks for an update and starts its service. */
@@ -453,30 +507,8 @@ function start(): void {
   let mainWindow: BrowserWindow | undefined;
   // The group servers the page may call (spec of the switch to client-server, "Les serveurs enregistrés").
   const servers = registeredServers();
-  // The plugins whose files the interface may read, as the first server listed them; asked again at the next file of a
-  // plugin when the list could not be read. One view per server comes with lot 2b of the switch.
-  const firstServer = servers.at(0);
-  // The list is read once; a failed reading is tried again at the next file, never more than once at a time, and not
-  // sooner than a few seconds after the last try. It is not read again while it holds: a plugin enabled on the server
-  // shows its interface at the next start of the app, until lot 2c.
-  let servedPlugins: Promise<ServedPlugins | undefined> | undefined;
-  let lastFailure = 0;
-  const currentServedPlugins = async (): Promise<ServedPlugins> => {
-    if (firstServer === undefined) {
-      return new Map<string, string>();
-    }
-    if (servedPlugins === undefined && Date.now() - lastFailure >= SERVED_PLUGINS_RETRY_MS) {
-      const reading = listServedPlugins(firstServer);
-      servedPlugins = reading;
-      void reading.then((served) => {
-        if (served === undefined) {
-          lastFailure = Date.now();
-          servedPlugins = undefined;
-        }
-      });
-    }
-    return (await servedPlugins) ?? new Map<string, string>();
-  };
+  // The views of the main window, one per server; undefined until it opens.
+  let views: ServerViews | undefined;
   // The local service still runs until lot 3 of the switch, for the management of plugins on this machine, which the
   // window no longer shows nor calls.
   let serviceConnection: LocalServiceConnection | undefined;
@@ -505,7 +537,7 @@ function start(): void {
       if (state.status === 'ready') {
         serviceConnection = state.connection;
       }
-      sendToWindow(mainWindow, LOCAL_SERVICE_STATE_CHANGED_CHANNEL, state);
+      views?.send(LOCAL_SERVICE_STATE_CHANGED_CHANNEL, state);
     });
     return supervisor.whenSettled();
   };
@@ -523,13 +555,12 @@ function start(): void {
     });
   });
 
-  /** Only the Voyager user interface may ask; the local service is the main window's business alone. */
+  /** Only the Voyager user interface may ask; the servers and the local service are the main window's business alone. */
   const checkCaller = (event: IpcMainInvokeEvent, mainWindowOnly = false): void => {
     if (!isUserInterface(event.senderFrame?.url ?? '')) {
       throw new Error('Only the Voyager user interface can ask the desktop app for this.');
     }
-    const fromMainWindow =
-      mainWindow !== undefined && !mainWindow.isDestroyed() && event.sender === mainWindow.webContents;
+    const fromMainWindow = views?.owns(event.sender.id) === true;
     if (mainWindowOnly && !fromMainWindow) {
       throw new Error('Only the main window of the Voyager user interface can ask the desktop app for this.');
     }
@@ -554,6 +585,18 @@ function start(): void {
   ipcMain.handle(GET_SERVERS_CHANNEL, (event): readonly RegisteredServer[] => {
     checkCaller(event, true);
     return servers.map((server) => ({ id: server.id, address: server.url }));
+  });
+  // Each view belongs to one server: the page learns which, and shows only that one.
+  ipcMain.handle(GET_CURRENT_SERVER_CHANNEL, (event): string | undefined => {
+    checkCaller(event, true);
+    return views?.serverOf(event.sender.id)?.id;
+  });
+  // The page names a server by its identifier; a server the app does not know is refused.
+  ipcMain.handle(SELECT_SERVER_CHANNEL, (event, serverId: unknown): void => {
+    checkCaller(event, true);
+    if (typeof serverId !== 'string' || views?.select(serverId) !== true) {
+      throw new Error('The app knows no such server.');
+    }
   });
 
   // The dialogs belong to the main window, so that the page waits for the answer.
@@ -643,23 +686,34 @@ function start(): void {
   });
 
   void app.whenReady().then(async () => {
-    denyAllPermissions();
     // In development the page comes from Vite: its origin may call the servers through the app's protocol too.
     const developmentOrigin =
       DEV_USER_INTERFACE_URL === undefined ? undefined : URL.parse(DEV_USER_INTERFACE_URL)?.origin;
-    serveUserInterface(userInterfaceDirectory(), currentServedPlugins, contentSecurityPolicy(), (request) =>
-      handleServerApiRequest(request, {
-        servers: () => servers,
-        app: callingApp(),
-        allowedOrigins: developmentOrigin === undefined ? [] : [developmentOrigin],
-        fetch: (url, init) => net.fetch(url, init),
-        log: {
-          warn: (message) => {
-            desktopLog.warn(message);
+    const policy = contentSecurityPolicy();
+    const serveFor = (target: Pick<typeof protocol, 'handle'>, server: ServerEntry | undefined): void => {
+      serveUserInterface(target, userInterfaceDirectory(), servedPluginsReader(server), policy, (request) =>
+        handleServerApiRequest(request, {
+          // The session of a view forwards to its own server only: a module of another server cannot reach it.
+          servers: () => (server === undefined ? [] : [server]),
+          app: callingApp(),
+          allowedOrigins: developmentOrigin === undefined ? [] : [developmentOrigin],
+          fetch: (url, init) => net.fetch(url, init),
+          log: {
+            warn: (message) => {
+              desktopLog.warn(message);
+            },
           },
-        },
-      }),
-    );
+        }),
+      );
+    };
+    // The default session shows the startup window: it calls no server.
+    denyAllPermissions();
+    serveFor(protocol, undefined);
+    for (const server of servers.length === 0 ? [undefined] : servers) {
+      const serverSession = session.fromPartition(serverPartition(server?.id));
+      denyAllPermissions(serverSession);
+      serveFor(serverSession.protocol, server);
+    }
 
     // Opening Voyager again brings back the window already open.
     app.on('second-instance', () => {
@@ -685,13 +739,15 @@ function start(): void {
         return;
       }
       // The startup window stays until the main one is on screen: never a moment without a window.
-      const main = createWindow(() => {
+      const main = createWindow(servers, () => {
         startupWindow?.close();
       });
-      main.once('closed', () => {
+      main.window.once('closed', () => {
         mainWindow = undefined;
+        views = undefined;
       });
-      mainWindow = main;
+      mainWindow = main.window;
+      views = main.views;
     };
 
     try {

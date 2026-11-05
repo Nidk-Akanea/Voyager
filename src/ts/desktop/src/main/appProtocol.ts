@@ -2,7 +2,7 @@
 // Security Policy, instead of file:// pages that could read any local file.
 import { pathToFileURL } from 'node:url';
 
-import { net, protocol } from 'electron';
+import { net, protocol, type Protocol } from 'electron';
 
 import { resolvePluginFile, resolveRealPluginFile, type PluginFile } from './pluginFiles';
 import { findServedPlugin, type ServedPlugins } from './servedPlugins';
@@ -41,17 +41,19 @@ export function isAppUrl(address: string): boolean {
  * Serves the files of `directory`, each with the given Content Security Policy, the interface modules and translations
  * of the plugins the server loaded (never their manifests or assemblies), and forwards the calls of the page to its
  * servers.
+ * @param target The protocol of the session that serves the page: each server view has its own (serverViews.ts).
  * @param servedPlugins The folder of each plugin whose files may be served, by origin and identifier, as the server last
  * listed them.
  * @param forwardToServer Answers the calls of the page under /api/ (serverApi.ts).
  */
 export function serveUserInterface(
+  target: Pick<Protocol, 'handle'>,
   directory: string,
   servedPlugins: () => Promise<ServedPlugins>,
   contentSecurityPolicy: string,
   forwardToServer: (request: Request) => Promise<Response>,
 ): void {
-  protocol.handle(APP_SCHEME, async (request) => {
+  target.handle(APP_SCHEME, async (request) => {
     if (!isAppUrl(request.url)) {
       return new Response(null, { status: NOT_FOUND });
     }

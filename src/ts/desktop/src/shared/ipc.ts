@@ -56,3 +56,9 @@ export const GET_SERVERS_CHANNEL = 'voyager:get-servers';
 
 /** Returns the version of the app, for the "About" screen; main window only. */
 export const GET_APP_VERSION_CHANNEL = 'voyager:get-app-version';
+
+/** Returns the identifier of the server of the view that asks (string, or undefined when the app knows none). */
+export const GET_CURRENT_SERVER_CHANNEL = 'voyager:get-current-server';
+
+/** Shows the view of another server, named by its identifier (spec of the switch to client-server, the selector). */
+export const SELECT_SERVER_CHANNEL = 'voyager:select-server';

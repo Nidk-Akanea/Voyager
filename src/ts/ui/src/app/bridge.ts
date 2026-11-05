@@ -13,6 +13,10 @@ export interface VoyagerBridge {
   readonly getServers: () => Promise<readonly RegisteredServer[]>;
   /** The version of the app, for the "About" screen. */
   readonly getAppVersion: () => Promise<string>;
+  /** The server of this view (each view of the window shows one server); undefined when the app knows none. */
+  readonly getCurrentServer: () => Promise<string | undefined>;
+  /** Shows the view of another server; refused for a server the app does not know. */
+  readonly selectServer: (serverId: string) => Promise<void>;
   /** Where the local service stands: starting, ready (with its address and secret), restarting or failed. */
   readonly getLocalServiceState: () => Promise<LocalServiceState>;
   /** Calls the listener at every change of the local service; returns the function that stops it. */
@@ -39,7 +43,7 @@ export type LocalServiceBridge = Pick<
 >;
 
 /** What the main screens need to reach the group servers. */
-export type ServerBridge = Pick<VoyagerBridge, 'getServers' | 'getAppVersion'>;
+export type ServerBridge = Pick<VoyagerBridge, 'getServers' | 'getAppVersion' | 'getCurrentServer' | 'selectServer'>;
 
 /** What the startup screen needs from the desktop app. */
 export type StartupBridge = Pick<VoyagerBridge, 'getStartupState' | 'onStartupStateChange'>;

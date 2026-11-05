@@ -16,3 +16,4 @@ app-server-unreachable = Le serveur ne répond pas. Voyager réessaie toutes les
 app-server-too-old = Cette version de Voyager est trop ancienne pour ce serveur : mettez Voyager à jour.
 app-server-not-signed-in = Le serveur demande de vous connecter, ce que Voyager ne sait pas encore faire.
 app-server-failed = Le serveur a refusé la demande ou a rencontré une erreur.
+app-server-selector = Serveur

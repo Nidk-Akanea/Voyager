@@ -25,8 +25,9 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   « À propos », charge les plugins livrés et accepte l'identité de développement sous Aspire (lot 1) ;
   l'application lui parle par son processus principal (`voyager://app/api/<serveur>/…`, services permis
   seulement), connaît ses serveurs par Aspire ou par `%LOCALAPPDATA%\Voyager\servers.json`, et montre
-  l'état de la connexion (lot 2a). Restent la vue par serveur (2b), les modules venus du serveur (2c) et le
-  retrait du service local (lot 3), qui tourne encore sans être appelé : n'y construis rien de nouveau.
+  l'état de la connexion (lot 2a) ; chaque serveur a sa vue, dans sa propre session Electron, avec un sélecteur
+  quand il y en a plusieurs (lot 2b). Restent les modules venus du serveur (2c) et le retrait du service local
+  (lot 3), qui tourne encore sans être appelé : n'y construis rien de nouveau.
 - **Ce qui est construit** : le squelette (solution .NET, tests d'architecture, pnpm, ESLint, Prettier,
   Buf, CI, Aspire), une tranche « À propos » de bout en bout, le paquet installable (`tools/release.ps1`,
   Velopack, écran de démarrage), la preuve des plugins (SDK, `Voyager.PluginHost`, deux plugins de

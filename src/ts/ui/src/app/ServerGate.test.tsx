@@ -44,7 +44,13 @@ function fakeClients(...answers: (() => Promise<unknown>)[]): VoyagerClients {
 }
 
 function bridgeWith(servers: readonly RegisteredServer[]): ServerBridge {
-  return { getServers: () => Promise.resolve(servers), getAppVersion: () => Promise.resolve('0.4.0') };
+  return {
+    getServers: () => Promise.resolve(servers),
+    getAppVersion: () => Promise.resolve('0.4.0'),
+    // The view of the first server, as the main process gives it.
+    getCurrentServer: () => Promise.resolve(servers[0]?.id),
+    selectServer: vi.fn(() => Promise.resolve()),
+  };
 }
 
 /** What the screens see once the server answers: the server they show. */
@@ -157,5 +163,29 @@ describe('ServerGate', () => {
     renderGate([SERVER], fakeClients(failure(Code.FailedPrecondition, 'SOMETHING_ELSE')));
 
     expect(await screen.findByText(/Le serveur a refusé la demande/)).toBeTruthy();
+  });
+
+  it('shows no selector with one server, and offers the others when there are several', async () => {
+    const other: RegisteredServer = { id: 'friends', address: 'https://friends.example.org' };
+    const bridge = bridgeWith([SERVER, other]);
+    render(
+      <ShellProviders locale="fr">
+        <ServerGate bridge={bridge} locale="fr" createClients={() => fakeClients(answers)}>
+          <Screens />
+        </ServerGate>
+      </ShellProviders>,
+    );
+
+    const selector = await screen.findByRole('combobox', { name: 'Serveur' });
+    await userEvent.selectOptions(selector, 'friends');
+
+    expect(bridge.selectServer).toHaveBeenCalledWith('friends');
+  });
+
+  it('shows no selector when the app knows one server', async () => {
+    renderGate([SERVER], fakeClients(answers));
+
+    expect(await screen.findByText('Screens of http://localhost:5180')).toBeTruthy();
+    expect(screen.queryByRole('combobox', { name: 'Serveur' })).toBeNull();
   });
 });

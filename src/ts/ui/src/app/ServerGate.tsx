@@ -10,6 +10,7 @@ import type { Locale } from '../i18n/localization';
 import { AppProviders } from './AppProviders';
 import type { ServerBridge } from './bridge';
 import { ServerConnection } from './ServerConnection';
+import { ServerSelector } from './ServerSelector';
 import { useServers } from './useServers';
 
 const useStyles = makeStyles({
@@ -32,12 +33,15 @@ export interface ServerGateProps {
   readonly children: ReactNode;
 }
 
-/** Shows the first server the app knows (one view per server comes with lot 2b), or says that none is configured. */
+/**
+ * Shows the server of this view (each server has its own view in the window), with the selector when the app knows
+ * several; or says that none is configured.
+ */
 export function ServerGate({ bridge, locale, createClients = createServerClients, children }: ServerGateProps) {
   const styles = useStyles();
   const { l10n } = useLocalization();
   const known = useServers(bridge);
-  const server = known?.servers.at(0);
+  const server = known?.current;
   const clients = useMemo(() => (server === undefined ? undefined : createClients(server.id)), [server, createClients]);
 
   if (known === undefined) {
@@ -60,6 +64,7 @@ export function ServerGate({ bridge, locale, createClients = createServerClients
   // Another server starts from a new cache: nothing of one shows on the other.
   return (
     <AppProviders key={server.id} locale={locale} server={server} appVersion={known.appVersion} clients={clients}>
+      <ServerSelector servers={known.servers} current={server} bridge={bridge} />
       <ServerConnection>{children}</ServerConnection>
     </AppProviders>
   );
