@@ -22,10 +22,14 @@ export function lockDownWebContents(isAllowedPage: (url: string) => boolean): vo
   });
 }
 
-/** Camera, microphone, location, notifications…: Voyager needs none of them, in any of its sessions. */
+/** Camera, microphone, location, notifications, downloads…: Voyager needs none of them, in any of its sessions. */
 export function denyAllPermissions(target: Session = session.defaultSession): void {
   target.setPermissionRequestHandler((_contents, _permission, callback) => {
     callback(false);
   });
   target.setPermissionCheckHandler(() => false);
+  // Nor does it download anything: a page cannot make it save a file.
+  target.on('will-download', (event) => {
+    event.preventDefault();
+  });
 }

@@ -16,6 +16,8 @@ export interface ServerView {
     loadURL(url: string): Promise<void>;
     once(event: 'did-finish-load', listener: () => void): unknown;
     focus(): void;
+    reload(): void;
+    toggleDevTools(): void;
     send(channel: string, payload: unknown): void;
     isDestroyed(): boolean;
     close(): void;
@@ -43,7 +45,8 @@ export interface ServerViewsOptions {
   readonly url: string;
   /** Called once, when the first view shown has loaded its page (or failed to). */
   readonly onFirstShown: () => void;
-  readonly onLoadFailure: (error: unknown) => void;
+  /** A view could not load its page; `serverId` is undefined for the view of no server. */
+  readonly onLoadFailure: (serverId: string | undefined, error: unknown) => void;
 }
 
 /** The views of the main window, one per server, and which one is shown. */
@@ -75,7 +78,7 @@ export class ServerViews {
         view.webContents.once('did-finish-load', firstShown);
       }
       view.webContents.loadURL(options.url).catch((error: unknown) => {
-        options.onLoadFailure(error);
+        options.onLoadFailure(server?.id, error);
         if (isFirst) {
           firstShown();
         }
@@ -120,6 +123,24 @@ export class ServerViews {
     this.#layout();
     view.webContents.focus();
     return true;
+  }
+
+  /** Gives the keyboard to the view shown: the window has no page of its own. */
+  public focusSelected(): void {
+    const view = this.#views.get(this.#selected);
+    if (view !== undefined && !view.webContents.isDestroyed()) {
+      view.webContents.focus();
+    }
+  }
+
+  /** Reloads the page of the view shown (development). */
+  public reloadSelected(): void {
+    this.#views.get(this.#selected)?.webContents.reload();
+  }
+
+  /** Opens or closes the developer tools of the view shown (development). */
+  public toggleDeveloperToolsOfSelected(): void {
+    this.#views.get(this.#selected)?.webContents.toggleDevTools();
   }
 
   /** Sends a message to every view still there. */

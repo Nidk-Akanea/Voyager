@@ -5,16 +5,17 @@ import type {
   PluginManagementBridge,
   RecoveryResult,
   RegisteredServer,
+  ServerChoice,
   StartupState,
 } from '@voyager/grpc-client';
 
 export interface VoyagerBridge {
-  /** The group servers the app knows, by identifier and address; the page calls them through the main process. */
-  readonly getServers: () => Promise<readonly RegisteredServer[]>;
+  /** The identifiers of the group servers the app knows, for the selector; the page calls them through the main process. */
+  readonly getServers: () => Promise<readonly ServerChoice[]>;
   /** The version of the app, for the "About" screen. */
   readonly getAppVersion: () => Promise<string>;
-  /** The server of this view (each view of the window shows one server); undefined when the app knows none. */
-  readonly getCurrentServer: () => Promise<string | undefined>;
+  /** The server of this view, with its address (each view of the window shows one server); undefined when none. */
+  readonly getCurrentServer: () => Promise<RegisteredServer | undefined>;
   /** Shows the view of another server; refused for a server the app does not know. */
   readonly selectServer: (serverId: string) => Promise<void>;
   /** Where the local service stands: starting, ready (with its address and secret), restarting or failed. */

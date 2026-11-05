@@ -45,10 +45,10 @@ function fakeClients(...answers: (() => Promise<unknown>)[]): VoyagerClients {
 
 function bridgeWith(servers: readonly RegisteredServer[]): ServerBridge {
   return {
-    getServers: () => Promise.resolve(servers),
+    getServers: () => Promise.resolve(servers.map((server) => ({ id: server.id }))),
     getAppVersion: () => Promise.resolve('0.4.0'),
     // The view of the first server, as the main process gives it.
-    getCurrentServer: () => Promise.resolve(servers[0]?.id),
+    getCurrentServer: () => Promise.resolve(servers[0]),
     selectServer: vi.fn(() => Promise.resolve()),
   };
 }
@@ -176,8 +176,8 @@ describe('ServerGate', () => {
       </ShellProviders>,
     );
 
-    const selector = await screen.findByRole('combobox', { name: 'Serveur' });
-    await userEvent.selectOptions(selector, 'friends');
+    await userEvent.click(await screen.findByRole('combobox', { name: 'Serveur' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'friends' }));
 
     expect(bridge.selectServer).toHaveBeenCalledWith('friends');
   });

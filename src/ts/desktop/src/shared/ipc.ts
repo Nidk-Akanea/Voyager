@@ -51,14 +51,14 @@ export const RESTART_FOR_PLUGINS_CHANNEL = 'voyager:plugins:restart';
 /** Starts the local service again without the installed plugins, after it failed (RecoveryResult). */
 export const START_WITHOUT_INSTALLED_PLUGINS_CHANNEL = 'voyager:start-without-installed-plugins';
 
-/** Returns the group servers the app knows, by identifier and address (RegisteredServer[]); main window only. */
+/** Returns the identifiers of the group servers the app knows (ServerChoice[]), for the selector; views only. */
 export const GET_SERVERS_CHANNEL = 'voyager:get-servers';
 
 /** Returns the version of the app, for the "About" screen; main window only. */
 export const GET_APP_VERSION_CHANNEL = 'voyager:get-app-version';
 
-/** Returns the identifier of the server of the view that asks (string, or undefined when the app knows none). */
+/** Returns the server of the view that asks, with its address (RegisteredServer, or undefined for none). */
 export const GET_CURRENT_SERVER_CHANNEL = 'voyager:get-current-server';
 
-/** Shows the view of another server, named by its identifier (spec of the switch to client-server, the selector). */
+/** Shows the view of another server, named by its identifier; only the view shown may ask (the selector). */
 export const SELECT_SERVER_CHANNEL = 'voyager:select-server';

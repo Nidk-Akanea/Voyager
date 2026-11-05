@@ -18,6 +18,8 @@ function fakeView(id: number) {
         onLoaded = listener;
       }),
       focus: vi.fn(),
+      reload: vi.fn(),
+      toggleDevTools: vi.fn(),
       send: vi.fn(),
       isDestroyed: () => false,
       close: vi.fn(),
@@ -137,5 +139,20 @@ describe('ServerViews', () => {
     ]);
     close();
     expect(views.every((view) => vi.mocked(view.webContents.close).mock.calls.length === 1)).toBe(true);
+  });
+
+  it('gives the keyboard, the reload and the developer tools to the view shown', () => {
+    const { views, serverViews } = setUp();
+    serverViews.select('friends');
+    vi.mocked(views[1]?.webContents.focus ?? vi.fn()).mockClear();
+
+    serverViews.focusSelected();
+    serverViews.reloadSelected();
+    serverViews.toggleDeveloperToolsOfSelected();
+
+    expect(views[1]?.webContents.focus).toHaveBeenCalledOnce();
+    expect(views[1]?.webContents.reload).toHaveBeenCalledOnce();
+    expect(views[1]?.webContents.toggleDevTools).toHaveBeenCalledOnce();
+    expect(views[0]?.webContents.reload).not.toHaveBeenCalled();
   });
 });

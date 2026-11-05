@@ -1,10 +1,11 @@
 // Goes from one group server to another when the app knows several (spec of the switch to client-server, "Les serveurs
-// enregistrés"). Each server has its own view in the window: choosing one asks the main process to show it. Drawn only
-// when there is a choice to make.
-import { Field, makeStyles, Select, tokens } from '@fluentui/react-components';
+// enregistrés"). Each server has its own view in the window: choosing one asks the main process to show it. A drop-down
+// list changes server only once an option is chosen (a click or Enter), never while the arrows go through the list.
+// Drawn only when there is a choice to make; the other servers are named by their identifier.
+import { Dropdown, Field, makeStyles, Option, tokens } from '@fluentui/react-components';
 import { useLocalization } from '@fluent/react';
 
-import type { RegisteredServer } from '@voyager/grpc-client';
+import type { RegisteredServer, ServerChoice } from '@voyager/grpc-client';
 
 import type { ServerBridge } from './bridge';
 
@@ -17,7 +18,7 @@ const useStyles = makeStyles({
 });
 
 export interface ServerSelectorProps {
-  readonly servers: readonly RegisteredServer[];
+  readonly servers: readonly ServerChoice[];
   /** The server of this view. */
   readonly current: RegisteredServer;
   readonly bridge: Pick<ServerBridge, 'selectServer'>;
@@ -33,20 +34,24 @@ export function ServerSelector({ servers, current, bridge }: ServerSelectorProps
 
   return (
     <Field className={styles.selector} label={l10n.getString('app-server-selector')}>
-      <Select
+      <Dropdown
         value={current.id}
-        onChange={(_event, data) => {
-          bridge.selectServer(data.value).catch((error: unknown) => {
+        selectedOptions={[current.id]}
+        onOptionSelect={(_event, data) => {
+          if (data.optionValue === undefined || data.optionValue === current.id) {
+            return;
+          }
+          bridge.selectServer(data.optionValue).catch((error: unknown) => {
             console.error('The server could not be shown:', error instanceof Error ? error.message : error);
           });
         }}
       >
         {servers.map((server) => (
-          <option key={server.id} value={server.id}>
-            {server.address}
-          </option>
+          <Option key={server.id} value={server.id}>
+            {server.id}
+          </Option>
         ))}
-      </Select>
+      </Dropdown>
     </Field>
   );
 }
