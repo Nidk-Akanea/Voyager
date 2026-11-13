@@ -1,8 +1,8 @@
-// What the "About" page and the "Plugins" screen say alike about a plugin: why it was set aside, and the contracts it
-// uses. The service sends values; the page only picks the messages of plugins.ftl that say them.
+// What the "About" page says about a plugin: why it was set aside, and the contracts it uses. The server sends values;
+// the page only picks the messages of plugins.ftl that say them.
 import { ContractUseState, PluginRejectionReason, type ContractUse, type Plugin } from '@voyager/grpc-client';
 
-// Said of a reason or a state this version of the page does not know (a newer service).
+// Said of a reason or a state this version of the page does not know (a newer server).
 const MESSAGE_REASON_UNKNOWN = 'plugins-reason-unknown';
 
 const REJECTION_MESSAGES: Readonly<Partial<Record<PluginRejectionReason, string>>> = {
@@ -30,7 +30,7 @@ export function unsupportedContractMessageId(state: ContractUseState): string {
   return UNSUPPORTED_CONTRACT_MESSAGES[state] ?? MESSAGE_REASON_UNKNOWN;
 }
 
-/** The contracts of a plugin that are in one of the given states, in the order the service sent them. */
+/** The contracts of a plugin that are in one of the given states, in the order the server sent them. */
 export function contractsIn(
   plugin: Pick<Plugin, 'contracts'>,
   states: readonly ContractUseState[],

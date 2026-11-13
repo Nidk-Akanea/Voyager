@@ -13,7 +13,7 @@ import {
   PluginOrigin,
   PluginRejectionReason,
   PluginStatus,
-  type LocalServiceClients,
+  type VoyagerClients,
 } from '@voyager/grpc-client';
 import type { DiagnosticFactPanelProps, PluginRegistry } from '@voyager/plugin-sdk';
 
@@ -95,7 +95,7 @@ function renderSection(options: {
       listPlugins: vi.fn(options.listPlugins ?? (() => Promise.resolve({ plugins }))),
       getDiagnosticFacts,
     },
-  } as unknown as LocalServiceClients;
+  } as unknown as VoyagerClients;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ShellProviders locale={locale}>
@@ -466,7 +466,7 @@ describe('PluginsSection, what a plugin must not be able to do', () => {
     expect(screen.getByText('En erreur')).toBeTruthy();
   });
 
-  it('says that the reason is not known when the service gives one this version does not know', async () => {
+  it('says that the reason is not known when the server gives one this version does not know', async () => {
     renderSection({
       plugins: [plugin('broken', { status: PluginStatus.REJECTED, rejectionReason: 99, provides: [] })],
     });

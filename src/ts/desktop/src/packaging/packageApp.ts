@@ -1,9 +1,9 @@
 // Builds the app folder that Velopack packs into an installer (ADR-0009, tools/release.ps1):
-// the compiled main process and preload script in an asar archive, the user interface and the
-// published local service next to it, and the Electron fuses burnt into the executable.
+// the compiled main process and preload script in an asar archive, the user interface and the interface modules of
+// the shipped plugins next to it, and the Electron fuses burnt into the executable.
 //
 // Compiled by `pnpm build` (vite.packaging.config.ts) and run by tools/release.ps1.
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -101,6 +101,24 @@ async function stageApp(
   }
 }
 
+// What the app keeps of a built plugin: its manifest, its interface module and its translations. The .NET part runs on
+// the group server only (ADR-0018); the app uses this copy instead of a download when a server runs the same version.
+const INTERFACE_ENTRIES = ['plugin.json', 'ui', 'i18n'];
+
+/** Copies the interface of each built plugin, without its .NET part. */
+async function copyInterfaceModules(plugins: string, destination: string): Promise<void> {
+  await mkdir(destination, { recursive: true });
+  for (const plugin of await readdir(plugins, { withFileTypes: true })) {
+    if (!plugin.isDirectory()) {
+      continue;
+    }
+    const entries = new Set(await readdir(join(plugins, plugin.name)));
+    for (const entry of INTERFACE_ENTRIES.filter((name) => entries.has(name))) {
+      await cp(join(plugins, plugin.name, entry), join(destination, plugin.name, entry), { recursive: true });
+    }
+  }
+}
+
 /** The version of Electron installed in the workspace: the one the app is packed with. */
 async function installedElectronVersion(packageRoot: string): Promise<string> {
   const manifestPath = createRequire(join(packageRoot, 'package.json')).resolve('electron/package.json');
@@ -121,23 +139,16 @@ async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {
       version: { type: 'string' },
-      service: { type: 'string' },
       ui: { type: 'string' },
       plugins: { type: 'string' },
       out: { type: 'string' },
       'update-source': { type: 'string' },
     },
   });
-  const { version, service, ui, plugins, out } = values;
-  if (
-    version === undefined ||
-    service === undefined ||
-    ui === undefined ||
-    plugins === undefined ||
-    out === undefined
-  ) {
+  const { version, ui, plugins, out } = values;
+  if (version === undefined || ui === undefined || plugins === undefined || out === undefined) {
     throw new Error(
-      'Usage: packageApp --version <x.y.z> --service <folder> --ui <folder> --plugins <folder> --out <folder> [--update-source <https address>]',
+      'Usage: packageApp --version <x.y.z> --ui <folder> --plugins <folder> --out <folder> [--update-source <https address>]',
     );
   }
 
@@ -153,11 +164,10 @@ async function main(): Promise<void> {
 
   await stageApp(version, updateSource, packageRoot, stagingFolder);
 
-  // The app finds them in its resources folder: local-service/, ui/ and plugins/ (src/main/main.ts).
+  // The app finds them in its resources folder: ui/ and plugins/ (src/main/main.ts).
   await rm(extraFolder, { recursive: true, force: true });
-  await cp(resolve(service), join(extraFolder, 'local-service'), { recursive: true });
   await cp(resolve(ui), join(extraFolder, 'ui'), { recursive: true });
-  await cp(resolve(plugins), join(extraFolder, 'plugins'), { recursive: true });
+  await copyInterfaceModules(resolve(plugins), join(extraFolder, 'plugins'));
 
   const [appFolder] = await packager({
     dir: stagingFolder,
@@ -169,7 +179,7 @@ async function main(): Promise<void> {
     appVersion: version,
     electronVersion: await installedElectronVersion(packageRoot),
     asar: { unpack: '*.node' },
-    extraResource: [join(extraFolder, 'local-service'), join(extraFolder, 'ui'), join(extraFolder, 'plugins')],
+    extraResource: [join(extraFolder, 'ui'), join(extraFolder, 'plugins')],
     overwrite: true,
     quiet: true,
   });

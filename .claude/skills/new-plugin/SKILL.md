@@ -7,9 +7,9 @@ description: Crée le squelette d'un nouveau plugin de Voyager dans plugins/<id>
 
 Plugin demandé (identifiant, ce qu'il apporte, avec ou sans écran) : $ARGUMENTS
 
-Un plugin est un dossier de `plugins/` : une partie .NET chargée par le service local, et en option une
+Un plugin est un dossier de `plugins/` : une partie .NET chargée par le serveur du groupe, et en option une
 partie d'interface (un module React) chargée par la page. Lis d'abord l'
-[ADR-0015](../../../docs/adr/0015-mecanisme-de-plugins-decouverte-chargement-et-preuve.md), la section
+[ADR-0015](../../../docs/adr/0015-mecanisme-de-plugins.md), l'[ADR-0020](../../../docs/adr/0020-plugins-sur-le-serveur.md), la section
 « Les plugins » de l'[organisation du code](../../../docs/conventions/organisation-du-code.md) et la spec
 [preuve des plugins](../../../docs/specs/plateforme-preuve-des-plugins.md).
 
@@ -96,8 +96,8 @@ Règles que les tests et le lint font respecter (ne les contourne pas) :
 2. Avec écran : `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`.
 3. `pwsh tools/build-plugins.ps1 -Version 0.0.0-dev -Configuration Debug` construit le plugin dans
    `artifacts/plugins/<id>/` (manifeste avec sa version, assembly sans les assemblies partagées, `ui/`, `i18n/`).
-   Si Windows refuse de remplacer une DLL, un service local tourne encore : arrête-le.
-4. Lance l'application (`Voyager.AppHost`) ou le service et la page : le plugin doit apparaître dans la page
+   Si Windows refuse de remplacer une DLL, un serveur du groupe tourne encore : arrête-le.
+4. Lance l'application (`Voyager.AppHost`) : le serveur du groupe charge le plugin, qui doit apparaître dans la page
    « À propos » avec son état « chargé » et ses faits.
 5. `dotnet format Voyager.slnx` et `npx markdownlint-cli2` si de la documentation a changé.
 6. Applique la [definition of done](../../rules/definition-of-done.md) : relecteurs `architecture-reviewer`

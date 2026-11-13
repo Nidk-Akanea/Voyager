@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!-- Plugin authors read this API: XML documentation is mandatory here. -->
     <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
-    <!-- The file version of this assembly is the version of the SDK that the service reports (SdkInfo): GitVersion
+    <!-- The file version of this assembly is the version of the SDK that the server reports (SdkInfo): GitVersion
          gives it the one of the SDK (GitVersion.yml next to this file). A build that gives its own version to
          everything (-p:Version, with GitVersion disabled: the packaging) passes -p:SdkVersion too, which wins here
          thanks to TreatAsLocalProperty. -->

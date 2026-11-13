@@ -38,6 +38,10 @@ RUN dotnet publish src/dotnet/Voyager.GroupServer/Voyager.GroupServer.csproj \
     -p:DisableGitVersionTask=true \
     -p:Version=${VERSION} \
     -p:SdkVersion=${SDK_VERSION}
+# The server reports the file version of its SDK (SdkInfo): check that it is the SDK's own, not the server's.
+RUN pwsh -NoProfile -Command '$expected = ($env:SDK_VERSION -replace "-.*$", "") + ".0"; \
+    $actual = (Get-Item -LiteralPath /app/Voyager.Sdk.dll).VersionInfo.FileVersion; \
+    if ($actual -ne $expected) { throw "The SDK in the server has version $actual, expected ${expected}: the version it reports would be wrong." }'
 # The shipped plugins run in the server (ADR-0020): they go to /app/plugins, the fixed folder the server reads them from,
 # with their .NET part and translations built here, and their interface modules built by the Node.js stage above.
 COPY plugins/ plugins/

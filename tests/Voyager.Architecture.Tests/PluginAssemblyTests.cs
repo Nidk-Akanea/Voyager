@@ -38,11 +38,11 @@ public sealed class PluginAssemblyTests
         violations.Should().BeEmpty("a plugin only depends on Voyager.Sdk, shared types, NodaTime, two Microsoft abstractions and the platform");
     }
 
-    // A rule that cannot fail proves nothing: the SQLite adapter references the persistence layer, which a plugin must not.
+    // A rule that cannot fail proves nothing: the PostgreSQL adapter references the persistence layer, which a plugin must not.
     [TestMethod]
     public void FindViolations_AssemblyThatReferencesInfrastructure_ReportsIt()
     {
-        var violations = FindViolations(typeof(Voyager.Persistence.Sqlite.SqlitePersistenceExtensions).Assembly).ToList();
+        var violations = FindViolations(typeof(Voyager.Persistence.PostgreSql.PostgreSqlPersistenceExtensions).Assembly).ToList();
 
         violations.Should().Contain(violation => violation.Contains("Voyager.Persistence", StringComparison.Ordinal));
     }

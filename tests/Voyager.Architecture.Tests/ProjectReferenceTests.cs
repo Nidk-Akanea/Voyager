@@ -14,8 +14,8 @@ public sealed class ProjectReferenceTests
     private const string PLUGIN_PREFIX = "Voyager.Plugins.";
     private const string DEVELOPMENT_ORCHESTRATOR = "Voyager.AppHost";
 
-    // Hosts assemble everything, so they are the only projects without restrictions.
-    private static readonly HashSet<string> _hosts = ["Voyager.LocalService", "Voyager.GroupServer"];
+    // The host assembles everything, so it is the only project without restrictions.
+    private static readonly HashSet<string> _hosts = ["Voyager.GroupServer"];
 
     private static readonly Dictionary<string, string[]> _allowedReferences = new()
     {
@@ -23,13 +23,11 @@ public sealed class ProjectReferenceTests
         ["Voyager.Sdk"] = ["Voyager.Core"],
         ["Voyager.Contracts"] = [],
         ["Voyager.Persistence"] = ["Voyager.Core"],
-        ["Voyager.Persistence.Sqlite"] = ["Voyager.Persistence"],
         ["Voyager.Persistence.PostgreSql"] = ["Voyager.Persistence"],
-        ["Voyager.Sync"] = ["Voyager.Core", "Voyager.Contracts"],
         ["Voyager.PluginHost"] = ["Voyager.Sdk"],
         ["Voyager.ServiceDefaults"] = [],
         // The Aspire AppHost only orchestrates the hosts, in development (ADR-0011).
-        [DEVELOPMENT_ORCHESTRATOR] = ["Voyager.LocalService", "Voyager.GroupServer"],
+        [DEVELOPMENT_ORCHESTRATOR] = ["Voyager.GroupServer"],
     };
 
     [TestMethod]

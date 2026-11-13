@@ -32,25 +32,19 @@
     <Project Path="src/dotnet/Voyager.Contracts/Voyager.Contracts.csproj" />
     <Project Path="src/dotnet/Voyager.Core/Voyager.Core.csproj" />
     <Project Path="src/dotnet/Voyager.GroupServer/Voyager.GroupServer.csproj" />
-    <Project Path="src/dotnet/Voyager.LocalService/Voyager.LocalService.csproj" />
     <Project Path="src/dotnet/Voyager.Persistence.PostgreSql/Voyager.Persistence.PostgreSql.csproj" />
-    <Project Path="src/dotnet/Voyager.Persistence.Sqlite/Voyager.Persistence.Sqlite.csproj" />
     <Project Path="src/dotnet/Voyager.Persistence/Voyager.Persistence.csproj" />
     <Project Path="src/dotnet/Voyager.PluginHost/Voyager.PluginHost.csproj" />
     <Project Path="src/dotnet/Voyager.Sdk/Voyager.Sdk.csproj" />
     <Project Path="src/dotnet/Voyager.ServiceDefaults/Voyager.ServiceDefaults.csproj" />
-    <Project Path="src/dotnet/Voyager.Sync/Voyager.Sync.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Voyager.Architecture.Tests/Voyager.Architecture.Tests.csproj" />
     <Project Path="tests/Voyager.GroupServer.Tests/Voyager.GroupServer.Tests.csproj" />
-    <Project Path="tests/Voyager.LocalService.Tests/Voyager.LocalService.Tests.csproj" />
     <Project Path="tests/Voyager.PluginHost.Tests/Voyager.PluginHost.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/plugin-fixtures/">
     <Project Path="tests/plugin-fixtures/BadLabel/BadLabel.csproj" />
-    <Project Path="tests/plugin-fixtures/CrashesOnCall/CrashesOnCall.csproj" />
-    <Project Path="tests/plugin-fixtures/CrashesOnLoad/CrashesOnLoad.csproj" />
     <Project Path="tests/plugin-fixtures/Good/Good.csproj" />
     <Project Path="tests/plugin-fixtures/InvalidContainer/InvalidContainer.csproj" />
     <Project Path="tests/plugin-fixtures/ManyFacts/ManyFacts.csproj" />

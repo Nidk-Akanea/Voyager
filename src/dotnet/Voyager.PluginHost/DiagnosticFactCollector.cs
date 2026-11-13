@@ -27,7 +27,6 @@ public sealed class DiagnosticFactCollector
 
     private static readonly Instant _latestInstant = Instant.FromDateTimeOffset(DateTimeOffset.MaxValue);
 
-    private readonly PluginActivity? _activity;
     private readonly ConcurrentDictionary<IDiagnosticFactSource, Lazy<FactCall>> _inFlight = new();
     private readonly ILogger<DiagnosticFactCollector> _logger;
     private readonly PluginHostOptions _options;
@@ -43,17 +42,11 @@ public sealed class DiagnosticFactCollector
     /// <param name="registry">Where the sources are registered.</param>
     /// <param name="options">The time and size limits.</param>
     /// <param name="logger">Where failures are written.</param>
-    /// <param name="activity">Where the calls to the plugins are traced, so that a crash during one designates it.</param>
-    public DiagnosticFactCollector(
-        ExtensionRegistry registry,
-        PluginHostOptions options,
-        ILogger<DiagnosticFactCollector> logger,
-        PluginActivity? activity = null)
+    public DiagnosticFactCollector(ExtensionRegistry registry, PluginHostOptions options, ILogger<DiagnosticFactCollector> logger)
     {
         _registry = registry;
         _options = options;
         _logger = logger;
-        _activity = activity;
     }
 
     #endregion Public Constructors
@@ -118,7 +111,7 @@ public sealed class DiagnosticFactCollector
         CancellationToken cancellationToken)
     {
         var id = registration.OwnerId;
-        var call = _inFlight.GetOrAdd(registration.Source, source => new Lazy<FactCall>(() => StartCall(id, source))).Value;
+        var call = _inFlight.GetOrAdd(registration.Source, source => new Lazy<FactCall>(() => StartCall(source))).Value;
 
         // A call that already outlived its time limit is still running: do not wait for it again.
         if (call.IsOverdue)
@@ -136,10 +129,6 @@ public sealed class DiagnosticFactCollector
         catch (TimeoutException) when (!call.Task.IsCompleted)
         {
             call.MarkOverdue();
-
-            // A call past its time limit is reported as such, not as a crash (spec, rule 1 of the crashes): a stuck
-            // source would otherwise be suspected of any later crash, and hide the plugin that caused it.
-            call.EndTrace();
             SignalTimeout(call.Cancellation);
             PluginHostLog.FactSourceTimedOut(_logger, id, _options.FactTimeout.TotalMilliseconds);
             return WithoutFacts(id, DiagnosticFactOutcome.TimedOut);
@@ -157,15 +146,12 @@ public sealed class DiagnosticFactCollector
         }
     }
 
-    private FactCall StartCall(string ownerId, IDiagnosticFactSource source)
+    private FactCall StartCall(IDiagnosticFactSource source)
     {
         var cancellation = new CancellationTokenSource();
 
-        // Traced until the call ends or outlives its time limit: the plugin may crash the service meanwhile.
-        var traced = _activity?.BeginCall(ownerId) ?? false;
-
         // On the thread pool, so that a source that blocks before returning a task cannot hold the caller. The list is
-        // copied there, while the call is traced: it may be the plugin's own type, whose code runs as it is read.
+        // copied there too: it may be the plugin's own type, whose code runs as it is read.
         var task = Task.Run(
             async () =>
             {
@@ -175,7 +161,7 @@ public sealed class DiagnosticFactCollector
                 return facts is null ? facts! : [.. facts];
             },
             CancellationToken.None);
-        var call = new FactCall(task, cancellation, traced ? () => _activity?.EndCall(ownerId) : null);
+        var call = new FactCall(task, cancellation);
 
         // Once the call ends, whatever the way, the source can be asked again. The failure of a call nobody
         // waits for any more is observed here, so that it never goes unobserved.
@@ -185,7 +171,6 @@ public sealed class DiagnosticFactCollector
                 _ = finished.Exception;
                 _inFlight.TryRemove(source, out _);
                 cancellation.Dispose();
-                call.EndTrace();
             },
             CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously,
@@ -245,11 +230,10 @@ public sealed class DiagnosticFactCollector
     #region Classes
 
     // One running call to a source, shared by everyone who asks while it runs.
-    private sealed class FactCall(Task<IReadOnlyList<DiagnosticFact>> task, CancellationTokenSource cancellation, Action? endTrace)
+    private sealed class FactCall(Task<IReadOnlyList<DiagnosticFact>> task, CancellationTokenSource cancellation)
     {
         #region Fields
 
-        private Action? _endTrace = endTrace;
         private volatile bool _overdue;
 
         #endregion Fields
@@ -266,9 +250,6 @@ public sealed class DiagnosticFactCollector
         #endregion Properties
 
         #region Public Methods
-
-        // Ends the trace of the call once, whichever comes first: its end, or its time limit.
-        public void EndTrace() => Interlocked.Exchange(ref _endTrace, null)?.Invoke();
 
         public void MarkOverdue() => _overdue = true;
 

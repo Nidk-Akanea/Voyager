@@ -1,5 +1,4 @@
-// The plugins section of the "About" page: which plugins are in use or set aside, and what each one provides. The
-// plugins the user disabled are not shown here: the "Plugins" screen manages them.
+// The plugins section of the "About" page: which plugins are in use or set aside, and what each one provides.
 import {
   Body1,
   Button,
@@ -25,12 +24,12 @@ const useStyles = makeStyles({
   },
 });
 
-/** The plugins found at startup, except the disabled ones, one card each, with the loading and error states of the list. */
+/** The plugins found at startup, in use or set aside, one card each, with the loading and error states of the list. */
 export function PluginsSection() {
   const styles = useStyles();
   const { l10n } = useLocalization();
   const list = usePluginList();
-  // Only the plugins loaded or set aside: the disabled and the suspended ones are on the "Plugins" screen.
+  // Only the plugins loaded or set aside: disabling and suspending a plugin come with its management on the server.
   const plugins = (list.data?.plugins ?? []).filter(
     (plugin) => plugin.status === PluginStatus.LOADED || plugin.status === PluginStatus.REJECTED,
   );

@@ -1,7 +1,6 @@
 // Main process of the desktop app: looks for an update while a small startup window is shown (ADR-0014), opens the
 // main window on the user interface, forwards the calls of the page to its group servers (ADR-0018, ADR-0019), and
-// serves the interface modules of their plugins (ADR-0020, decision 8). The local service still runs, called by nothing,
-// until lot 3 of the switch to client-server removes it.
+// serves the interface modules of their plugins (ADR-0020, decision 8).
 import { existsSync, readFileSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -42,8 +41,6 @@ import { boundedFetch } from './boundedFetch';
 import { buildContentSecurityPolicy, findImportMapSource } from './contentSecurityPolicy';
 import { describeError } from './describeError';
 import { MAXIMUM_FILE_BYTES, prepareInterfaceModules } from './interfaceModules';
-import { launchLocalService, attachToRunningLocalService, type LocalService } from './localService';
-import { superviseLocalService, type LocalServiceSupervisor } from './localServiceSupervisor';
 import { configureLogging, desktopLog } from './logging';
 import { denyAllPermissions, lockDownWebContents } from './security';
 import type { ServedPlugins } from './servedPlugins';
@@ -61,39 +58,18 @@ const STARTUP_WINDOW_WIDTH = 460;
 const STARTUP_WINDOW_HEIGHT = 300;
 // Read by the user interface (src/ts/ui/src/main.tsx) to draw the startup screen in this window.
 const STARTUP_SCREEN_QUERY = '?screen=startup';
-const EXECUTABLE_NAME = process.platform === 'win32' ? 'Voyager.LocalService.exe' : 'Voyager.LocalService';
 // Updates come from the releases of the repository, unless the package was built for another server
 // (ADR-0014).
 const RELEASES_REPOSITORY_URL = 'https://github.com/Nidk-Akanea/Voyager';
 
-/** The folder of the log files, for the app and its local service: next to the local database. */
+/** The folder of the log files of the app, in its data folder. */
 function logDirectory(): string {
   return join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'Voyager', 'logs');
 }
 
-// The installed app always runs its service in Production, isolated from the machine's settings:
-// development ones (logs sent to Seq or to a dashboard, health endpoints) never apply to it.
-function packagedServiceEnvironment(): Record<string, string> {
-  return {
-    DOTNET_ENVIRONMENT: 'Production',
-    ASPNETCORE_ENVIRONMENT: 'Production',
-    Voyager__LogDirectory: logDirectory(),
-    ...pluginsEnvironment(),
-  };
-}
-
-// Given by the app and never read from the machine once packaged: loading assemblies from a folder the user can
-// choose is a risk that ADR-0015 declines.
-function pluginsEnvironment(): Record<string, string> {
-  return {
-    Voyager__ShippedPluginsDirectory: shippedPluginsDirectory(),
-    Voyager__UserPluginsDirectory: userPluginsDirectory(),
-  };
-}
-
 /**
  * A setting Aspire passes in development. Ignored once packaged, so that nothing in a user's
- * environment can point the app at another page or another service.
+ * environment can point the app at another page or another server.
  */
 function developmentSetting(name: string): string | undefined {
   const value = app.isPackaged ? undefined : process.env[name];
@@ -121,24 +97,14 @@ function repositoryArtifacts(folder: string): string {
 }
 
 /**
- * The plugins shipped with the app, or built next to this package in the repository (pwsh tools/build-plugins.ps1).
- * Never read from the machine's environment once packaged.
+ * The interface modules of the plugins shipped with the app, or built next to this package in the repository
+ * (pwsh tools/build-plugins.ps1): the copy used instead of a download when a server runs the same version. Never read
+ * from the machine's environment once packaged.
  */
 function shippedPluginsDirectory(): string {
   return app.isPackaged
     ? join(process.resourcesPath, 'plugins')
     : (developmentSetting('VOYAGER_PLUGINS_DIRECTORY') ?? repositoryArtifacts('plugins'));
-}
-
-/**
- * The plugins folder of the user's data (ADR-0016): installed plugins, requests and state, next to the local
- * database. In development, under artifacts, never the folder of the installed app, which the developer would
- * otherwise share with it.
- */
-function userPluginsDirectory(): string {
-  return app.isPackaged
-    ? join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'Voyager', 'plugins')
-    : (developmentSetting('VOYAGER_USER_PLUGINS_DIRECTORY') ?? repositoryArtifacts('user-plugins'));
 }
 
 /**
@@ -293,24 +259,6 @@ function contentSecurityPolicy(): string {
   }
 }
 
-/** The service Aspire started in development, or else the executable shipped with the app. */
-function startLocalService(): LocalService {
-  const url = developmentSetting('VOYAGER_LOCAL_SERVICE_URL');
-  const token = developmentSetting('VOYAGER_LOCAL_TOKEN');
-  if (url !== undefined && token !== undefined) {
-    return attachToRunningLocalService({ url, token });
-  }
-  return launchLocalService({
-    executable:
-      developmentSetting('VOYAGER_LOCAL_SERVICE_PATH') ?? join(process.resourcesPath, 'local-service', EXECUTABLE_NAME),
-    onOutput: (line) => {
-      desktopLog.warn('[local service]', line);
-    },
-    environment: app.isPackaged ? packagedServiceEnvironment() : pluginsEnvironment(),
-    isolated: app.isPackaged,
-  });
-}
-
 const WEB_PREFERENCES = {
   preload: join(import.meta.dirname, 'preload.cjs'),
   contextIsolation: true,
@@ -394,7 +342,7 @@ function setDevelopmentMenu(selectedView: () => ServerViews | undefined): void {
   );
 }
 
-/** The small window shown while the app looks for an update and starts its service. */
+/** The small window shown while the app looks for an update. */
 function createStartupWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: STARTUP_WINDOW_WIDTH,
@@ -496,8 +444,6 @@ async function updateInstalledApp(report: (event: UpdateEvent) => void): Promise
 
 function start(): void {
   let startupState: StartupState = { status: 'checking-updates' };
-  // Only started once the window is open: see runStartup.
-  let localService: LocalServiceSupervisor | undefined;
   let startupWindow: BrowserWindow | undefined;
   let mainWindow: BaseWindow | undefined;
   // The group servers the page may call (spec of the switch to client-server, "Les serveurs enregistrés").
@@ -510,40 +456,9 @@ function start(): void {
     quitting = true;
   });
 
-  // The local service still runs until lot 3 of the switch removes it: nothing calls it any more.
-  const beginLocalService = (): void => {
-    if (quitting) {
-      return;
-    }
-    const supervisor = superviseLocalService({
-      launch: startLocalService,
-      report: (message) => {
-        desktopLog.error(message);
-      },
-      inform: (message) => {
-        desktopLog.info(message);
-      },
-    });
-    localService = supervisor;
-  };
-
-  // Quitting waits for the local service to stop, so that it never writes to a database left behind.
-  let localServiceStopped = false;
-  app.on('will-quit', (event) => {
-    if (localServiceStopped || localService === undefined) {
-      return;
-    }
-    event.preventDefault();
-    void localService.stop().finally(() => {
-      localServiceStopped = true;
-      app.quit();
-    });
-  });
-
   /**
-   * Only the Voyager user interface may ask. `view`: only a view of the main window. Managing plugins on this machine is
-   * answered by no one: the plugins run on the server (ADR-0020), and a module downloaded from a server must reach
-   * nothing but its server.
+   * Only the Voyager user interface may ask. `view`: only a view of the main window. Nothing here reaches the files of
+   * this machine: a module downloaded from a server must reach nothing but its server (ADR-0020).
    */
   const checkCaller = (event: IpcMainInvokeEvent, scope: 'any' | 'view' = 'any'): void => {
     if (!isUserInterface(event.senderFrame?.url ?? '')) {
@@ -690,8 +605,6 @@ function start(): void {
         desktopLog.info('The app quits so that the update can be installed.');
         // The updater waits for this app to exit, installs the new version and starts it.
         app.quit();
-      } else {
-        beginLocalService();
       }
     } catch (error: unknown) {
       // The window still opens: its own screens say what is wrong with each server.
@@ -718,7 +631,7 @@ if (app.isPackaged) {
 registerAppScheme(!app.isPackaged);
 app.enableSandbox();
 
-// Two instances would share, and fight over, the same local database.
+// Two instances would fight over the same folders of downloaded interface modules, and over an update.
 if (app.requestSingleInstanceLock()) {
   start();
 } else {

@@ -2,39 +2,39 @@
 
 ## Outils
 
-| Partie          | Outils                                                                                                       |
-| --------------- | ------------------------------------------------------------------------------------------------------------ |
-| .NET            | **MSTest** (via `MSTest.Sdk`), lancé par Microsoft.Testing.Platform : `dotnet test --solution Voyager.slnx`  |
-| Assertions      | **AwesomeAssertions** (`result.Should().Be(…)`)                                                              |
-| Simulations     | NSubstitute                                                                                                  |
-| Heure           | `FakeClock` (`NodaTime.Testing`)                                                                             |
-| Base de données | SQLite en mémoire (un fichier temporaire quand le test porte sur le fichier) ; PostgreSQL via Testcontainers |
-| gRPC            | `WebApplicationFactory` (hôte ASP.NET Core en mémoire)                                                       |
-| Architecture    | NetArchTest : règles de dépendance des ADR 0002 et 0005                                                      |
-| TypeScript      | Vitest + Testing Library                                                                                     |
-| Bout en bout    | Playwright pour Electron (plus tard)                                                                         |
+| Partie          | Outils                                                                                                      |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| .NET            | **MSTest** (via `MSTest.Sdk`), lancé par Microsoft.Testing.Platform : `dotnet test --solution Voyager.slnx` |
+| Assertions      | **AwesomeAssertions** (`result.Should().Be(…)`)                                                             |
+| Simulations     | NSubstitute                                                                                                 |
+| Heure           | `FakeClock` (`NodaTime.Testing`)                                                                            |
+| Base de données | PostgreSQL + PostGIS via Testcontainers                                                                     |
+| gRPC            | `WebApplicationFactory` (hôte ASP.NET Core en mémoire)                                                      |
+| Architecture    | NetArchTest : règles de dépendance des ADR 0002 et 0005                                                     |
+| TypeScript      | Vitest + Testing Library                                                                                    |
+| Bout en bout    | Playwright pour Electron (plus tard)                                                                        |
 
 AwesomeAssertions est le fork maintenu et gratuit de FluentAssertions 7, avec la même syntaxe ;
 FluentAssertions 8 n'est gratuite qu'en usage non commercial ([ADR-0006](../adr/0006-dependances-principales.md)).
 
 ## Ce qu'on teste, et où
 
-| Niveau       | Cible                                                                                                    | Quantité                                  |
-| ------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| Unitaire     | `Voyager.Core` : calculs de coûts, bases de calcul, répartition, remboursements, faisabilité, vote       | **Beaucoup** : c'est le cœur de la valeur |
-| Intégration  | Adaptateurs : persistance (SQLite et PostgreSQL), synchronisation, services gRPC, chargement des plugins | Les chemins principaux et les cas limites |
-| Architecture | Règles de dépendance entre projets et domaines                                                           | Une règle par interdiction                |
-| Interface    | Composants qui ont de la logique d'affichage                                                             | Ciblé                                     |
-| Bout en bout | Parcours critiques (créer un voyage, comparer des devis, saisir une dépense hors-ligne)                  | Quelques-uns                              |
+| Niveau       | Cible                                                                                              | Quantité                                  |
+| ------------ | -------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Unitaire     | `Voyager.Core` : calculs de coûts, bases de calcul, répartition, remboursements, faisabilité, vote | **Beaucoup** : c'est le cœur de la valeur |
+| Intégration  | Adaptateurs : persistance (PostgreSQL), synchronisation, services gRPC, chargement des plugins     | Les chemins principaux et les cas limites |
+| Architecture | Règles de dépendance entre projets et domaines                                                     | Une règle par interdiction                |
+| Interface    | Composants qui ont de la logique d'affichage                                                       | Ciblé                                     |
+| Bout en bout | Parcours critiques (créer un voyage, comparer des devis, saisir une dépense hors-ligne)            | Quelques-uns                              |
 
 - **Pas d'objectif chiffré de couverture**, mais tout calcul de `Voyager.Core` est testé.
 - **Chaque bug corrigé arrive avec le test** qui l'aurait détecté.
 - **Chargement des plugins** : les cas d'échec (manifeste invalide, contrat non pris en charge, exception, conteneur
   invalide, source lente) se testent avec les plugins de `tests/plugin-fixtures/`, jamais avec un vrai
   plugin cassé ; un test d'architecture lit les assemblies compilées des plugins.
-- **Fichiers échangés entre TypeScript et .NET** : un exemple commun dans `tests/fixtures/` (par exemple
-  `plugin-requests.json`) est écrit à l'identique par le test TypeScript et relu par le test .NET : un format
-  qui change d'un côté fait échouer l'autre.
+- **Fichiers échangés entre TypeScript et .NET** : un exemple commun dans `tests/fixtures/` est écrit à
+  l'identique par le test TypeScript et relu par le test .NET : un format qui change d'un côté fait
+  échouer l'autre. Aucun fichier de ce genre n'existe aujourd'hui.
 - **Traductions** : un test vérifie que chaque message Fluent existe en français et en anglais, avec
   les mêmes variables (ADR-0008).
 - Les cas limites du métier sont testés explicitement : arrondis, plusieurs devises, changement de

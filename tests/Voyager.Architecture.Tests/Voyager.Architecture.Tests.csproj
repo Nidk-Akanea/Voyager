@@ -5,9 +5,7 @@
     <ProjectReference Include="..\..\src\dotnet\Voyager.Sdk\Voyager.Sdk.csproj" />
     <ProjectReference Include="..\..\src\dotnet\Voyager.Contracts\Voyager.Contracts.csproj" />
     <ProjectReference Include="..\..\src\dotnet\Voyager.Persistence\Voyager.Persistence.csproj" />
-    <ProjectReference Include="..\..\src\dotnet\Voyager.Persistence.Sqlite\Voyager.Persistence.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\dotnet\Voyager.Persistence.PostgreSql\Voyager.Persistence.PostgreSql.csproj" />
-    <ProjectReference Include="..\..\src\dotnet\Voyager.Sync\Voyager.Sync.csproj" />
     <ProjectReference Include="..\..\src\dotnet\Voyager.PluginHost\Voyager.PluginHost.csproj" />
     <!-- The plugins that ship: PluginAssemblyTests reads their compiled assemblies. -->
     <ProjectReference Include="..\..\plugins\diagnostics-clock\dotnet\Voyager.Plugins.DiagnosticsClock\Voyager.Plugins.DiagnosticsClock.csproj" />

@@ -47,12 +47,12 @@ public sealed partial class InterfaceFileCatalog
     /// Creates the catalog of the interface files of the plugins the server loaded.
     /// </summary>
     /// <param name="catalog">The plugins found at startup.</param>
-    /// <param name="store">Where the plugins are.</param>
+    /// <param name="locations">Where the plugins are.</param>
     /// <param name="logger">Says which plugin publishes no interface, and why.</param>
-    public InterfaceFileCatalog(PluginCatalog catalog, PluginStore store, ILogger<InterfaceFileCatalog> logger)
+    public InterfaceFileCatalog(PluginCatalog catalog, PluginLocations locations, ILogger<InterfaceFileCatalog> logger)
     {
         _logger = logger;
-        _published = ReadAll(catalog, store.Locations);
+        _published = ReadAll(catalog, locations);
     }
 
     #endregion Public Constructors

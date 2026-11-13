@@ -135,6 +135,73 @@ public sealed class AboutServicesTests
     }
 
     [TestMethod]
+    public async Task GetDiagnosticFacts_WithASourceId_ReturnsOnlyThatSource()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin("fixture-good", "Good");
+        using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path);
+
+        var response = await factory.CreatePluginHostClient()
+            .GetDiagnosticFactsAsync(new GetDiagnosticFactsRequest { SourceId = "fixture-good" });
+
+        response.Sources.Should().ContainSingle().Which.SourceId.Should().Be("fixture-good");
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_LoadedPlugin_ReturnsItsContractsWithTheirRoleAndState()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin("fixture-good", "Good");
+        using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path);
+
+        var response = await factory.CreatePluginHostClient().ListPluginsAsync(new ListPluginsRequest());
+
+        response.Plugins.Should().ContainSingle().Which.Contracts.Select(use => (use.Contract, use.Version, use.Role, use.State)).Should().Equal(
+            ("diagnostic-fact-source", 1u, ContractRole.Provided, ContractUseState.Supported),
+            ("plugin", 1u, ContractRole.Required, ContractUseState.Supported));
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_PluginWrittenForAnUnknownContractVersion_IsRejectedAsContractNotSupported()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin(
+            "fixture-good",
+            "Good",
+            PluginFolder.Manifest("fixture-good", "Voyager.PluginFixtures.Good.dll", provides: """{ "contract": "diagnostic-fact-source", "version": 2 }"""));
+        using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path);
+
+        var response = await factory.CreatePluginHostClient().ListPluginsAsync(new ListPluginsRequest());
+
+        var plugin = response.Plugins.Should().ContainSingle().Subject;
+        plugin.Status.Should().Be(PluginStatus.Rejected);
+        plugin.RejectionReason.Should().Be(PluginRejectionReason.ContractNotSupported);
+        plugin.Contracts.Select(use => (use.Contract, use.Version, use.Role, use.State)).Should().Equal(
+            ("diagnostic-fact-source", 2u, ContractRole.Provided, ContractUseState.Unknown),
+            ("plugin", 1u, ContractRole.Required, ContractUseState.Supported));
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_ShippedPlugins_TellWhichPartsTheyBringAndWhoVouchesForThem()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin(
+            "fixture-good",
+            "Good",
+            PluginFolder.Manifest("fixture-good", "Voyager.PluginFixtures.Good.dll", uiPart: ", \"ui\": { \"module\": \"index.js\" }"));
+        plugins.AddManifest(
+            "fixture-view",
+            PluginFolder.Manifest("fixture-view", assembly: null, provides: string.Empty, uiPart: ", \"ui\": { \"module\": \"index.js\" }"));
+        using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path);
+
+        var response = await factory.CreatePluginHostClient().ListPluginsAsync(new ListPluginsRequest());
+
+        response.Plugins.Select(plugin => (plugin.Id, plugin.HasDotnet, plugin.HasUi, plugin.UiModule, plugin.Verification)).Should().Equal(
+            ("fixture-good", true, true, "index.js", PluginVerification.GuaranteedByApplication),
+            ("fixture-view", false, true, "index.js", PluginVerification.GuaranteedByApplication));
+    }
+
+    [TestMethod]
     public async Task ExaminePackage_OnTheServer_IsNotServedYet()
     {
         using var factory = new GroupServerFactory();

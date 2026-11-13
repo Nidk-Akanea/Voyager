@@ -4,12 +4,11 @@
 
 .DESCRIPTION
     1. computes the version of the application with GitVersion (ADR-0007), unless -Version gives one;
-    2. publishes the local service, self-contained for win-x64, with the SDK it carries at its own version;
-    3. builds the plugins (tools/build-plugins.ps1, each at its own version), the user interface and the desktop
+    2. builds the plugins (tools/build-plugins.ps1, each at its own version), the user interface and the desktop
        app;
-    4. assembles the app folder (asar, local service, plugins, user interface, Electron fuses) and packs it with
-       Velopack (vpk) into an installer and update packages;
-    5. with -Docker, builds the image of the group server.
+    3. assembles the app folder (asar, user interface, interface modules of the shipped plugins, Electron fuses) and
+       packs it with Velopack (vpk) into an installer and update packages;
+    4. with -Docker, builds the image of the group server, which runs the plugins (ADR-0018).
 
     Everything lands in artifacts/ (ignored by git). Nothing is published anywhere: sending the packages
     to a GitHub release is a separate step, done by hand until the first release.
@@ -73,39 +72,18 @@ $channel = if ($Version -notmatch '-') { 'stable' } elseif ($Version -match '-be
 Write-Host "Version $Version, channel $channel"
 Write-Host $(if ($UpdateSource) { "Updates come from $UpdateSource" } else { 'Updates come from the GitHub releases' })
 
-$service = Join-Path $artifacts 'local-service'
-# The SDK inside the service has its own version, not the one of the app (ADR-0007). The plugins are no longer
-# judged by it but contract by contract (ADR-0017); it still tells which SDK an installed application runs.
-Invoke-Step 'Compute the version of the SDK (GitVersion)' {
-    $script:sdkVersion = (& (Join-Path $PSScriptRoot 'get-version.ps1') -Component sdk | Select-Object -Last 1).Trim()
-}
-Invoke-Step 'Publish the local service' {
-    Remove-Item -LiteralPath $service -Recurse -Force -ErrorAction SilentlyContinue
-    # ContinuousIntegrationBuild keeps the paths of this machine out of the debug files (.pdb).
-    # Self-contained: the user needs no .NET installed. Neither a single file nor trimming: EF Core and
-    # gRPC use reflection, and the SQLite native library sits next to the executable.
-    dotnet publish (Join-Path $root 'src/dotnet/Voyager.LocalService') `
-        --configuration Release --runtime win-x64 --self-contained `
-        -p:DisableGitVersionTask=true -p:ContinuousIntegrationBuild=true "-p:Version=$Version" "-p:SdkVersion=$sdkVersion" --output $service
-}
-# The service reports the file version of its SDK (SdkInfo): check that it is the SDK's own, not the app's.
-$sdkInPackage = (Get-Item -LiteralPath (Join-Path $service 'Voyager.Sdk.dll')).VersionInfo.FileVersion
-$sdkExpected = ($sdkVersion -replace '-.*$', '') + '.0'
-if ($sdkInPackage -ne $sdkExpected) {
-    throw "The SDK in the service has version $sdkInPackage, expected ${sdkExpected}: the version it reports would be wrong."
-}
-
 Invoke-Step 'Install the TypeScript dependencies' { pnpm install --frozen-lockfile }
 Invoke-Step 'Build the user interface and the desktop app' { pnpm build }
 
-# The plugins ship with the app, each at its own version, computed from its own history (ADR-0007).
+# The interface modules of the plugins ship with the app, each at its own version, computed from its own history
+# (ADR-0007): the app uses them instead of a download when a server runs the same version.
 Invoke-Step 'Build the plugins' { & (Join-Path $PSScriptRoot 'build-plugins.ps1') }
 
 Invoke-Step 'Assemble the app folder' {
     Push-Location -LiteralPath $desktop
     try {
-        $packageArguments = @('--version', $Version, '--service', $service,
-            '--ui', (Join-Path $root 'src/ts/ui/dist'), '--plugins', (Join-Path $artifacts 'plugins'), '--out', $artifacts)
+        $packageArguments = @('--version', $Version, '--ui', (Join-Path $root 'src/ts/ui/dist'),
+            '--plugins', (Join-Path $artifacts 'plugins'), '--out', $artifacts)
         if ($UpdateSource) {
             $packageArguments += @('--update-source', $UpdateSource)
         }
@@ -125,12 +103,17 @@ Invoke-Step 'Pack the installer and the update packages (Velopack)' {
     # the previous ones here instead, for the delta packages.
     Remove-Item -LiteralPath $release -Recurse -Force -ErrorAction SilentlyContinue
     # The pack id names the install folder (%LOCALAPPDATA%\VoyagerApp), which Velopack empties on
-    # uninstall: the database and the logs live next to it, in %LOCALAPPDATA%\Voyager, and stay.
+    # uninstall: the settings, the downloaded interface modules and the logs live next to it, in
+    # %LOCALAPPDATA%\Voyager, and stay.
     dotnet tool run vpk -- pack --packId VoyagerApp --packTitle Voyager --packVersion $Version `
         --packDir $appFolder --mainExe Voyager.exe --runtime win-x64 --channel $channel --outputDir $release
 }
 
 if ($Docker) {
+    # The SDK inside the server has its own version, not the one of the app (ADR-0007).
+    Invoke-Step 'Compute the version of the SDK (GitVersion)' {
+        $script:sdkVersion = (& (Join-Path $PSScriptRoot 'get-version.ps1') -Component sdk | Select-Object -Last 1).Trim()
+    }
     # GitVersion cannot run inside Docker: each plugin gets the version of its own history from here (ADR-0007).
     Invoke-Step 'Compute the versions of the shipped plugins (GitVersion)' {
         $script:pluginVersions = (Get-ChildItem -LiteralPath (Join-Path $root 'plugins') -Directory |

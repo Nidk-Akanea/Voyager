@@ -28,8 +28,8 @@ concernée dans `docs/specs/` si on te l'indique.
 - **Erreurs** : `Result` ignoré, exception avalée, `catch` trop large, message d'erreur trompeur.
 - **Asynchrone et concurrence** : `.Result`/`.Wait()`, `CancellationToken` non transmis, course entre
   modifications hors-ligne et synchronisation.
-- **Fuites mémoire et de ressources** — le service local et l'application Electron tournent des
-  heures, une fuite finit par se voir :
+- **Fuites mémoire et de ressources** — le serveur du groupe tourne des semaines et l'application
+  Electron des heures, une fuite finit par se voir :
   - .NET : `IDisposable` / `IAsyncDisposable` non libéré (`using` manquant) ; abonnement à un
     événement jamais retiré ; `HttpClient` créé à chaque appel au lieu de `IHttpClientFactory` ;
     `DbContext` gardé au-delà de sa portée ou injecté dans un singleton ; cache ou collection
@@ -38,7 +38,7 @@ concernée dans `docs/specs/` si on te l'indique.
   - React : `useEffect` sans fonction de nettoyage (abonnement, minuterie, écouteur) ; fermeture qui
     retient un gros objet ; requête non annulée au démontage ;
   - Electron : écouteurs IPC ou d'événements ajoutés à chaque ouverture de fenêtre sans être
-    retirés ; fenêtres ou vues web jamais détruites ; processus du service local laissé orphelin.
+    retirés ; fenêtres, vues de serveur ou vues web jamais détruites.
 - **Performance** :
   - données : requêtes N+1 (une requête par élément d'une liste) ; chargement de tables entières au
     lieu d'un filtre ; absence de pagination sur une liste qui peut grandir ; `AsNoTracking`

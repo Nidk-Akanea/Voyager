@@ -15,12 +15,13 @@
 
     A plugin is only built again when something it is made of changed since the last build: its own files, the SDKs
     it is written against, the shared build settings, or the version. Otherwise it is left as it is, which is also
-    what lets this run while the local service or the group server has its assemblies loaded. A plugin whose folder
+    what lets this run while the group server has its assemblies loaded. A plugin whose folder
     was deleted from plugins/ is removed from the output.
 
-    The result is what the packaged app ships in resources/plugins, and what the development environment (Aspire)
-    and `pnpm start` give the local service, the group server and the user interface in development; the image of the
-    group server builds its .NET part here (-SkipInterface) and its interface modules in a Node.js stage of its own.
+    The result is what the group server loads in development (Aspire), and where the desktop app finds the interface
+    modules of the shipped plugins, in development and in its package (resources/plugins, without the .NET part); the
+    image of the group server builds its .NET part here (-SkipInterface) and its interface modules in a Node.js stage
+    of its own.
 
 .PARAMETER PluginVersions
     The version of each plugin, as id=version pairs separated by commas, such as
@@ -132,7 +133,7 @@ function Get-Fingerprint {
     return [BitConverter]::ToString([Security.Cryptography.SHA256]::HashData($bytes)).Replace('-', '')
 }
 
-# Windows keeps the assemblies of a plugin locked while the local service or the group server that loaded them runs.
+# Windows keeps the assemblies of a plugin locked while the group server that loaded them runs.
 function Remove-PluginOutput {
     param([string] $Path)
     try {
@@ -142,7 +143,7 @@ function Remove-PluginOutput {
         # Nothing built yet: nothing to clean.
     }
     catch {
-        throw "A plugin could not be replaced ($Path): stop the local service, the group server (or Voyager) that uses it, then run this again. $($_.Exception.Message)"
+        throw "A plugin could not be replaced ($Path): stop the group server that uses it (or Aspire), then run this again. $($_.Exception.Message)"
     }
 }
 

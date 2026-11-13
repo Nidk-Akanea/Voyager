@@ -2,7 +2,7 @@
   "name": "@voyager/desktop",
   "version": "0.0.0",
   "private": true,
-  "description": "Electron application: main process, preload script, local service lifecycle, plugin management.",
+  "description": "Electron application: main process, preload script, group server views, plugin interface modules.",
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit -p . && vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts && vite build --config vite.packaging.config.ts",
@@ -17,7 +17,6 @@
   },
   "main": "dist/main.js",
   "dependencies": {
-    "@fluent/bundle": "^0.19.1",
     "@voyager/grpc-client": "workspace:*",
     "electron-log": "5.4.4",
     "velopack": "1.2.161"

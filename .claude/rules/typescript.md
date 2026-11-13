@@ -12,8 +12,8 @@ Référence complète : [conventions TypeScript et React](../../docs/conventions
 L'essentiel :
 
 - **Aucun calcul métier dans l'interface.** Montants (`google.type.Money`) et dates sont **formatés**,
-  jamais convertis en `number` ni additionnés. Si un écran a besoin d'un total, il vient du service
-  local.
+  jamais convertis en `number` ni additionnés. Si un écran a besoin d'un total, il vient du serveur
+  du groupe.
 - TypeScript strict ; pas de `any` (utilise `unknown`) ; pas de `!` sans commentaire ; exports nommés ;
   `import type`.
 - Composants fonctionnels ; un composant par fichier, en PascalCase ; hooks `useXxx`.

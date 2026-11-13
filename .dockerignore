@@ -26,4 +26,3 @@ tests/
 **/*.key
 **/*.db
 **/*.sqlite*
-!src/dotnet/Voyager.Persistence.Sqlite/

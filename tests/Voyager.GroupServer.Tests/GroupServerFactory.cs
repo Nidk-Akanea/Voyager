@@ -28,6 +28,8 @@ namespace Voyager.GroupServer.Tests;
 /// <param name="clock">The clock of the server, or null for the system clock.</param>
 /// <param name="connectionString">The connection string of the database, or null for none.</param>
 /// <param name="remoteAddress">The address every call seems to come from, or null for a call from inside the process.</param>
+/// <param name="seqServerUrl">The Seq server to write logs to, or null for none.</param>
+/// <param name="logDirectory">The folder for log files, or null for none.</param>
 internal sealed class GroupServerFactory(
     string? environment = null,
     bool developmentIdentity = true,
@@ -35,7 +37,9 @@ internal sealed class GroupServerFactory(
     string? minimumAppVersion = null,
     IClock? clock = null,
     string? connectionString = null,
-    IPAddress? remoteAddress = null)
+    IPAddress? remoteAddress = null,
+    string? seqServerUrl = null,
+    string? logDirectory = null)
     : WebApplicationFactory<Program>
 {
     #region Fields
@@ -97,8 +101,8 @@ internal sealed class GroupServerFactory(
 
         // Tests never use the machine's own settings, even ones set in its environment.
         builder.UseSetting("ConnectionStrings:voyager", connectionString ?? string.Empty);
-        builder.UseSetting("Seq:ServerUrl", string.Empty);
-        builder.UseSetting("Voyager:LogDirectory", string.Empty);
+        builder.UseSetting("Seq:ServerUrl", seqServerUrl ?? string.Empty);
+        builder.UseSetting("Voyager:LogDirectory", logDirectory ?? string.Empty);
         builder.UseSetting("Voyager:DevelopmentIdentity", developmentIdentity ? "true" : "false");
         builder.UseSetting("Voyager:ShippedPluginsDirectory", shippedPluginsDirectory ?? string.Empty);
         builder.UseSetting("Voyager:MinimumAppVersion", minimumAppVersion ?? string.Empty);
