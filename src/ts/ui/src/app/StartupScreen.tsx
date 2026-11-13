@@ -1,7 +1,6 @@
-// The screen of the small window shown while the app starts: looking for an update, downloading and
-// installing it (the app then restarts), and starting the local service. Plain on purpose: the design
-// of the app comes later. The desktop app opens it with ?screen=startup (src/ts/desktop/src/main/main.ts)
-// and src/main.tsx reads that.
+// The screen of the small window shown while the app starts: looking for an update, downloading and installing it (the
+// app then restarts). Plain on purpose: the design of the app comes later. The desktop app opens it with ?screen=startup
+// (src/ts/desktop/src/main/main.ts) and src/main.tsx reads that.
 import { makeStyles, ProgressBar, Spinner, Text, Title2, tokens } from '@fluentui/react-components';
 import { useLocalization } from '@fluent/react';
 
@@ -60,7 +59,5 @@ function Progress({ state }: { readonly state: StartupState }) {
       );
     case 'installing-update':
       return <Spinner label={l10n.getString('startup-installing-update', { version: state.version })} />;
-    case 'starting-service':
-      return <Spinner label={l10n.getString('app-starting')} />;
   }
 }

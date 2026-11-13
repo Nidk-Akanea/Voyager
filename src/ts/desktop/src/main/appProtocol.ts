@@ -20,7 +20,7 @@ const APP_HOST = 'app';
 const NOT_FOUND = 404;
 const PLUGINS_PATH_PREFIX = '/plugins/';
 
-/** Entry page of the user interface. Its origin is PACKAGED_UI_ORIGIN of the local service. */
+/** Entry page of the user interface, in the origin of the app (voyager://app). */
 export const APP_ENTRY_URL = `${APP_SCHEME}://${APP_HOST}/index.html`;
 
 /**

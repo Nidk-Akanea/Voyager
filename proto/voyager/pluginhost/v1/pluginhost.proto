@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "Voyager.Contracts.PluginHost.V1";
 
-// What the plugin host of the local service knows about the plugins, for the "About" screen and for the
+// What the plugin host of the group server knows about the plugins, for the "About" screen and for the
 // user interface, which loads the interface part of each plugin (ADR-0015).
 // The package voyager.plugins.<id>.v1 is reserved for the services of the plugins themselves.
 service PluginHostService {

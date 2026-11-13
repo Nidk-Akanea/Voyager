@@ -73,10 +73,10 @@ Le nommage est vérifié par la règle ESLint `@typescript-eslint/naming-convent
   `RunAsNode`, `NODE_OPTIONS` et `--inspect` désactivés, code chargé uniquement depuis l'archive asar
   contrôlée. Une nouvelle fuse d'Electron doit être décidée là avant que l'application se construise.
 - Les journaux de l'application passent par `electron-log` (`src/main/logging.ts`), jamais par
-  `console` ; le dossier personnel y est masqué (`~`), comme dans les journaux du service.
+  `console` ; le dossier personnel y est masqué (`~`), comme dans les journaux du serveur.
 - Le processus principal valide tout ce qui arrive de l'interface : chaque canal IPC vérifie que
-  l'expéditeur est la page de l'interface, et le processus principal ne pousse un message (adresse
-  et jeton du service local, par exemple) qu'à la fenêtre de l'interface.
+  l'expéditeur est la page de l'interface, et le processus principal ne pousse un message (l'état
+  du démarrage, par exemple) qu'aux pages de l'interface.
 - Un abonnement exposé par le `preload` renvoie la fonction qui le retire, et ne donne jamais à la
   page l'objet d'événement d'Electron.
 

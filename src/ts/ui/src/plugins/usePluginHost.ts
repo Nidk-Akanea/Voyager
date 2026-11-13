@@ -1,4 +1,4 @@
-// What the interface reads about plugins from the local service (proto/voyager/pluginhost/v1/pluginhost.proto), and
+// What the interface reads about plugins from the group server (proto/voyager/pluginhost/v1/pluginhost.proto), and
 // the loading of their interface parts and translations.
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { useQuery } from '@tanstack/react-query';
@@ -65,7 +65,7 @@ export function usePluginMessages(plugin: PluginAddress, locale: Locale, enabled
   });
 }
 
-/** The value of a fact of the service, in the shape the plugins' panels receive it in. */
+/** The value of a fact of the server, in the shape the plugins' panels receive it in. */
 function toFactValue(fact: Fact): FactValue {
   switch (fact.value.case) {
     case 'number':

@@ -1,15 +1,8 @@
 app-title = Voyager
 app-not-in-desktop = Voyager must be opened from its desktop application.
-app-local-service-failed = The Voyager local service stopped and could not restart.
-app-local-service-restarting = The Voyager local service stopped, restarting…
 app-retry = Try again
 app-starting = Starting Voyager…
 app-nav-about = About
-app-nav-plugins = Plugins
-app-start-without-plugins = Start without the installed plugins
-app-start-without-plugins-help = If an installed plugin keeps Voyager from starting, start without them: you will enable them again one by one from the “Plugins” screen.
-app-start-without-plugins-failed = Voyager could not prepare the start without the installed plugins. The details are in the Voyager log.
-app-start-without-plugins-not-failed = The Voyager service has not stopped: nothing was changed.
 app-no-server = No server is configured: Voyager does not know where to find your trips.
 app-server-connecting = Connecting to the server…
 app-server-unreachable = The server does not answer. Voyager tries again every few seconds.

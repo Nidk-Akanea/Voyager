@@ -46,20 +46,25 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   des points de dix autres ADR
   - [ ] Revoir les specs « Le voyage et ses voyageurs » et « Gestion des plugins » (repassées en
     brouillon), et la spec de la preuve des plugins
-  - [ ] Réviser l'ADR-0014 (il démarre et surveille le service local)
-  - [ ] Mettre à jour la vision, les schémas, les conventions, le `README.md`, `CLAUDE.md`, les outils de
+  - [x] Réviser l'ADR-0014 (il démarrait et surveillait le service local) : révisée au lot 2c de la bascule
+  - [x] Mettre à jour la vision, les schémas, les conventions, le `README.md`, `CLAUDE.md`, les outils de
     Claude et les termes du glossaire liés au service local et à la gestion des plugins sur le poste
-  - [ ] Code : faire porter les services et les plugins par le serveur du groupe, relier l'interface au
+    (lot 3 de la bascule)
+  - [x] Code : faire porter les services et les plugins par le serveur du groupe, relier l'interface au
     serveur, retirer le service local, `Voyager.Persistence.Sqlite` et `Voyager.Sync`
     : [plateforme-bascule-client-serveur](specs/plateforme-bascule-client-serveur.md) (validée), en
-    trois lots ; lots 1 et 2 faits, reste le lot 3, qui retire aussi l'état « démarrage du service » de
-    l'écran de démarrage et les ponts du preload vers la gestion des plugins, auxquels plus rien ne répond
+    trois lots, tous faits ; le lot 3 a aussi retiré l'état « démarrage du service » de l'écran de
+    démarrage, la gestion des plugins côté Electron et l'écran « Plugins »
   - [ ] Signer les modules d'interface que l'application télécharge, et demander l'accord de l'utilisateur
     pour un module non signé (ADR-0018, décision 5), avec l'installation de plugins sur le serveur :
     depuis le lot 2c, seule l'empreinte donnée par le serveur lui-même est vérifiée
   - [ ] Écarter, avec la raison, un module d'interface qui demande une version de contrat que l'application
     ne sait pas faire tourner (spec de la bascule, cas limites) : aujourd'hui il échoue au chargement, et
     le plugin s'affiche sans son panneau, sans raison précise
+  - [ ] Revoir `pluginhost.proto` avec la spec de la gestion des plugins sur le serveur : depuis le lot 3, le
+    serveur laisse toujours vides les champs de la gestion sur le poste (`pending_request`, `failed_request`,
+    `failed_request_reason`, `disabled_for_recovery`) et ne sert pas `ExaminePackage` ; les marquer dépréciés
+    ou les reprendre dans une nouvelle version du contrat
 - [x] ADR : les plugins sur le serveur (installation par l'administrateur, activation par groupe, mises à
   jour, données propres à un plugin, isolation, plugin qui plante : Q47 et Q51), après l'ADR-0018 ; il
   remplace l'ADR-0016 pour ces points
@@ -84,8 +89,9 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
 - [ ] Première release publiée : workflow CI qui lance `tools/release.ps1` à chaque tag, envoi du
   paquet sur la release GitHub (`vpk upload github`) et de l'image Docker (ADR-0009) ; première
   vérification de bout en bout de la mise à jour automatique, impossible tant qu'aucune release n'existe ;
-  essai d'installation, de désinstallation et de réinstallation avec `Setup.exe` : la base
-  (`%LOCALAPPDATA%\Voyager\voyager.db`) doit rester intacte ([ADR-0013](adr/0013-assemblage-du-paquet-de-l-application-de-bureau.md))
+  essai d'installation, de désinstallation et de réinstallation avec `Setup.exe` : les données du poste
+  (`%LOCALAPPDATA%\Voyager` : `servers.json`, modules d'interface téléchargés, journaux) doivent rester
+  intactes ([ADR-0013](adr/0013-assemblage-du-paquet-de-l-application-de-bureau.md))
 - [x] Écran de démarrage et écran de mise à jour (recherche, téléchargement avec progression,
   installation, redémarrage), source de mises à jour choisie à la fabrication
   ([ADR-0014](adr/0014-ecran-de-demarrage-et-mise-a-jour-au-demarrage.md), proposée)
@@ -230,7 +236,8 @@ E0 (cadrage) et E9 (plateforme modulaire) sont transverses et commencent tout de
   - [ ] Spec de la gestion des plugins : [plateforme-gestion-des-plugins](specs/plateforme-gestion-des-plugins.md)
     (à revoir après l'ADR-0018, repassée en brouillon : la gestion passe sur le serveur)
   - [x] Étape 1 construite (PR 26 à 31) : compatibilité par contrat, livrés et installés, paquets, pont Electron,
-    écran « Plugins », plantages et rétablissement ; reste l'essai d'ensemble à la main, puis avec `Setup.exe`
+    écran « Plugins », plantages et rétablissement ; retirée au lot 3 de la bascule, sauf l'examen et
+    l'extraction des paquets, gardés dans `Voyager.PluginHost/Packages` pour la gestion sur le serveur
   - [ ] Vérifier la signature d'un paquet avec une clé d'essai (critère de la spec), après la question Q31
 - [ ] Contrats versionnés, dépendances entre plugins par contrat et adaptateurs de compatibilité :
   [ADR-0017](adr/0017-contrats-versionnes-et-dependances-entre-plugins.md) (acceptée) ; il remplace la règle

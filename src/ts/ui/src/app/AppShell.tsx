@@ -1,7 +1,6 @@
 // The screens of the main window once a server answers, and the tabs that go from one to the other. A plain state for
-// now, not a router (ADR-0006 names TanStack Router): the navigation comes with the design. The "Plugins" screen of the
-// management of plugins on this machine is no longer shown: that management moves to the server (ADR-0020), and its
-// code goes with the local service (spec of the switch to client-server, lot 3).
+// now, not a router (ADR-0006 names TanStack Router): the navigation comes with the design. The plugins of the server
+// show on "About"; managing them comes with the server (ADR-0020).
 import { Tab, TabList, makeStyles, tokens } from '@fluentui/react-components';
 import { useLocalization } from '@fluent/react';
 

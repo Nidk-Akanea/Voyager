@@ -6,11 +6,9 @@ const HOME = String.raw`C:\Users\someone`;
 
 describe('redactHomeFolder', () => {
   it('hides the home folder in a Windows path', () => {
-    const text = String.raw`spawn C:\Users\someone\AppData\Local\Voyager\Voyager.LocalService.exe ENOENT`;
+    const text = String.raw`open C:\Users\someone\AppData\Local\Voyager\servers.json ENOENT`;
 
-    expect(redactHomeFolder(text, HOME)).toBe(
-      String.raw`spawn ~\AppData\Local\Voyager\Voyager.LocalService.exe ENOENT`,
-    );
+    expect(redactHomeFolder(text, HOME)).toBe(String.raw`open ~\AppData\Local\Voyager\servers.json ENOENT`);
   });
 
   it('hides it with slashes, whatever the case, and every time it appears', () => {

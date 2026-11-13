@@ -338,9 +338,7 @@ public sealed class PluginPackagesTests
         await packages.ExamineAsync(STAGED_NAME, CancellationToken.None);
 
         Directory.Exists(Path.Combine(user.Installed.Path, VIEW_ID)).Should().BeFalse();
-        File.Exists(package).Should().BeTrue();
-        File.Exists(user.RequestsFile).Should().BeFalse();
-        File.Exists(user.StateFile).Should().BeFalse();
+        Directory.EnumerateFiles(user.Path, "*", SearchOption.AllDirectories).Should().Equal([package], "the copy is kept and nothing else is written");
     }
 
     #endregion Public Methods

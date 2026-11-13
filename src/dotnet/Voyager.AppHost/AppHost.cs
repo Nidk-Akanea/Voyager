@@ -12,21 +12,10 @@ var database = builder.AddPostgres("postgres")
     .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase("voyager");
 
-// Shared secret between the desktop app and the local service, generated anew on every run.
-var localToken = builder.AddParameter(
-    "local-token",
-    new GenerateParameterDefault { MinLength = 43, Special = false },
-    secret: true,
-    persist: false);
-
 // The plugins that ship with Voyager, built into artifacts/plugins before anything loads them (ADR-0015): the group
-// server and the local service load them at startup, and the user interface served by Vite reads their modules from
-// the same folder.
+// server loads them at startup, and the desktop app uses their interface modules instead of downloading them.
 var repositoryRoot = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".."));
 var pluginsFolder = Path.Combine(repositoryRoot, "artifacts", "plugins");
-// The plugins folder of the user's data in development (installed plugins, requests, state): under artifacts, never
-// the one of the installed app, which the developer would otherwise share with it (ADR-0016).
-var userPluginsFolder = Path.Combine(repositoryRoot, "artifacts", "user-plugins");
 // A fixed version: development has no use for the one GitVersion computes, and skipping it saves seconds at every start.
 // Debug, so that the code of a plugin can be debugged like the rest. Only the plugins that changed are built again
 // (tools/build-plugins.ps1).
@@ -58,29 +47,15 @@ var groupServer = builder.AddProject<Projects.Voyager_GroupServer>("group-server
 var userInterface = builder.AddViteApp("ui", "../../ts/ui")
     .WithPnpm(install: false);
 
-var localService = builder.AddProject<Projects.Voyager_LocalService>("local-service")
-    .WithHttpEndpoint()
-    .WithEnvironment("Voyager__LocalToken", localToken)
-    .WithEnvironment("Voyager__ShippedPluginsDirectory", pluginsFolder)
-    .WithEnvironment("Voyager__UserPluginsDirectory", userPluginsFolder)
-    .WaitForCompletion(plugins)
-    // The user interface served by Vite calls the local service from its own origin.
-    .WithEnvironment("Voyager__AllowedOrigins__0", userInterface.GetEndpoint("http"));
-
-// The Electron window shows the Vite user interface and talks to the local service started above,
-// instead of starting its own.
+// The Electron window shows the Vite user interface and forwards its calls to the group server.
 builder.AddJavaScriptApp("desktop", "../../ts/desktop", "dev")
     .WithPnpm(install: false)
     .WithEnvironment("VOYAGER_UI_URL", userInterface.GetEndpoint("http"))
     // The group server the window shows: the main process forwards the calls of the page to it (ADR-0019, decision 4).
     .WithEnvironment("VOYAGER_SERVER_URL", groupServer.GetEndpoint("http"))
-    .WithEnvironment("VOYAGER_LOCAL_SERVICE_URL", localService.GetEndpoint("http"))
-    .WithEnvironment("VOYAGER_LOCAL_TOKEN", localToken)
-    // The same folders as the service: the main process reads the plugins from them and writes the requests there.
+    // The same folder as the server: the main process uses its interface modules instead of downloading them.
     .WithEnvironment("VOYAGER_PLUGINS_DIRECTORY", pluginsFolder)
-    .WithEnvironment("VOYAGER_USER_PLUGINS_DIRECTORY", userPluginsFolder)
     .WaitFor(userInterface)
-    .WaitFor(groupServer)
-    .WaitFor(localService);
+    .WaitFor(groupServer);
 
 await builder.Build().RunAsync();

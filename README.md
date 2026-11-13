@@ -38,8 +38,9 @@ pnpm lint
 ```
 
 Lancer tout ce qu'il faut pour développer avec [Aspire](docs/adr/0011-aspire-pour-le-developpement.md) :
-PostgreSQL + PostGIS (Docker doit tourner), le serveur du groupe (`http://localhost:5180`), le
-service local, l'interface servie par Vite, la fenêtre Electron qui l'affiche et le tableau de bord.
+PostgreSQL + PostGIS (Docker doit tourner), le serveur du groupe (`http://localhost:5180`), avec
+l'identité de développement, l'interface servie par Vite, la fenêtre Electron qui l'affiche et le tableau
+de bord.
 Lancez d'abord `pnpm install` une fois. Dans Visual Studio : `Voyager.AppHost` comme projet de
 démarrage, puis F5. En ligne de commande :
 
@@ -60,8 +61,8 @@ lancement à l'autre (volume Docker `voyager-postgres-data`) ; son mot de passe 
 secrets utilisateur. Si la base refuse un jour son mot de passe (« password authentication failed »),
 supprimez ce volume et le conteneur `postgres-…` dans Docker Desktop, puis relancez.
 
-Si vous avez un serveur [Seq](https://datalust.co/seq), le service local et le serveur du groupe y
-écrivent aussi leurs journaux en développement
+Si vous avez un serveur [Seq](https://datalust.co/seq), le serveur du groupe y écrit aussi ses
+journaux en développement
 ([ADR-0012](docs/adr/0012-journaux-de-developpement-dans-seq-avec-serilog.md)). Activez-le dans les
 secrets utilisateur de `Voyager.AppHost`, hors du dépôt :
 
@@ -70,7 +71,7 @@ dotnet user-secrets set "Seq:ServerUrl" "http://localhost:5341" --project src/do
 ```
 
 Si votre Seq demande une clé d'API, ajoutez-la de la même façon sous `Seq:ApiKey`. Dans Seq, filtrez
-avec `Application = 'Voyager.LocalService'` ou `Application = 'Voyager.GroupServer'`. Utilisez un Seq
+avec `Application = 'Voyager.GroupServer'`. Utilisez un Seq
 installé sur votre poste, ou joignable en HTTPS ; sous Docker, publiez son port sur `127.0.0.1`
 seulement (`-p 127.0.0.1:5341:80`). Seq garde les journaux sur disque. L'application installée n'écrit
 jamais dans Seq.
@@ -79,12 +80,12 @@ jamais dans Seq.
 
 Les deux plugins de démonstration (`plugins/diagnostics-runtime` et `plugins/diagnostics-clock`) sont
 construits dans `artifacts/plugins/` par `tools/build-plugins.ps1` : Aspire le lance avant de démarrer le
-service local, qui les charge, et l'interface servie par Vite lit leurs modules dans le même dossier. Pour les
-voir, ouvrez la page « À propos » : sous le service, la liste des plugins et leurs faits, et le panneau de
+serveur du groupe, qui les charge, et l'application de bureau sert leurs modules d'interface depuis le même
+dossier. Pour les voir, ouvrez la page « À propos » : sous le serveur, la liste des plugins et leurs faits, et le panneau de
 l'horloge avec son bouton « Actualiser ». Un plugin modifié se reconstruit en relançant Aspire (pas de
 rechargement à chaud) : seuls les plugins dont les sources ont changé sont reconstruits, la version est fixe
 (`0.0.0-dev`) et la construction est en Debug (on peut y poser des points d'arrêt), donc un lancement sans
-changement ne perd qu'une seconde ou deux ; le paquet installable, lui, est construit en Release. Le service local garde les assemblies
+changement ne perd qu'une seconde ou deux ; le paquet installable, lui, est construit en Release. Le serveur du groupe garde les assemblies
 chargées : pour reconstruire un plugin modifié, arrêtez-le d'abord. Sans Aspire :
 
 ```powershell
@@ -104,10 +105,10 @@ Sous Windows, avec .NET, Node.js et pnpm installés :
 pwsh tools/release.ps1
 ```
 
-Le script calcule la version avec GitVersion, publie le service local, construit l'interface et
-l'application de bureau, puis fabrique avec Velopack l'installateur et les paquets de mise à jour dans
-`artifacts/release/`. Rien n'est publié. L'application installée écrit ses journaux (la sienne et celle
-du service local) dans `%LOCALAPPDATA%\Voyager\logs`, sans nom de compte (le dossier personnel y est remplacé par `~`) ni donnée de voyage. Au
+Le script calcule la version avec GitVersion, construit l'interface, l'application de bureau et les
+modules d'interface des plugins livrés, puis fabrique avec Velopack l'installateur et les paquets de mise à
+jour dans `artifacts/release/`. Avec `-Docker`, il construit aussi l'image du serveur du groupe. Rien n'est
+publié. L'application installée écrit son journal dans `%LOCALAPPDATA%\Voyager\logs`, sans nom de compte (le dossier personnel y est remplacé par `~`) ni donnée de voyage. Au
 démarrage, l'application installée interroge son serveur de mises à jour (par défaut les releases
 GitHub du dépôt) pour chercher une version plus récente : seules l'adresse IP et la version courante
 sont visibles de ce serveur.
@@ -129,8 +130,12 @@ pwsh tools/release.ps1 -Version 0.1.0-alpha.1 -UpdateSource https://votre-serveu
 3. Lancez l'application installée : la petite fenêtre cherche, télécharge avec une barre de progression,
    installe, et Voyager redémarre dans la `0.1.0-alpha.2` (le numéro est dans la page « À propos »).
 
-Pour désinstaller : « Applications installées » de Windows. Vos données restent dans
-`%LOCALAPPDATA%\Voyager`.
+L'application installée ne montre un serveur que s'il est dans `%LOCALAPPDATA%\Voyager\servers.json`
+(sinon : « aucun serveur configuré »). Pour un essai, nommez-y le serveur de développement lancé par Aspire :
+`{ "servers": [ { "id": "dev", "url": "http://localhost:5180" } ] }`.
+
+Pour désinstaller : « Applications installées » de Windows. Vos réglages (`servers.json`), les modules
+d'interface téléchargés et les journaux restent dans `%LOCALAPPDATA%\Voyager`.
 
 ## Contribuer
 

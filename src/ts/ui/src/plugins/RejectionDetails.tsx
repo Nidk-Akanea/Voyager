@@ -1,5 +1,5 @@
-// Why a plugin was set aside, said alike on the "About" page and on the "Plugins" screen: the reason, then each
-// contract the application does not accept when that is the reason.
+// Why a plugin was set aside, as the "About" page says it: the reason, then each contract the application does not
+// accept when that is the reason.
 import { Body1, Caption1 } from '@fluentui/react-components';
 import { useLocalization } from '@fluent/react';
 

@@ -6,7 +6,7 @@ import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DatabaseStatus, GetServiceInfoResponseSchema, type LocalServiceClients } from '@voyager/grpc-client';
+import { DatabaseStatus, GetServiceInfoResponseSchema, type VoyagerClients } from '@voyager/grpc-client';
 
 import { AppProviders } from '../../app/AppProviders';
 import { ShellProviders } from '../../app/ShellProviders';
@@ -26,7 +26,7 @@ function renderAboutPage(getServiceInfo: () => Promise<unknown>, locale: Locale 
   const clients = {
     diagnostics: { getServiceInfo: vi.fn(getServiceInfo) },
     pluginHost: { listPlugins: vi.fn(() => Promise.resolve({ plugins: [] })), getDiagnosticFacts: vi.fn() },
-  } as unknown as LocalServiceClients;
+  } as unknown as VoyagerClients;
   render(
     <ShellProviders locale={locale}>
       <AppProviders locale={locale} clients={clients} queryClient={queryClient}>
@@ -38,7 +38,7 @@ function renderAboutPage(getServiceInfo: () => Promise<unknown>, locale: Locale 
 }
 
 describe('AboutPage', () => {
-  it('shows what the local service reports', async () => {
+  it('shows what the server reports', async () => {
     renderAboutPage(() => Promise.resolve(SERVICE_INFO));
 
     expect(await screen.findByText('0.2.0-alpha.3')).toBeTruthy();

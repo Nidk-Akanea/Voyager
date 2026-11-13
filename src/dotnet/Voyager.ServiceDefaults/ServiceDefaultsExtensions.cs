@@ -23,7 +23,7 @@ namespace Voyager.ServiceDefaults;
 
 /// <summary>
 /// Technical defaults shared by the Voyager hosts (ADR-0011): telemetry, logs sent to Seq in
-/// development and written to files on the user's machine, health checks, resilience of outgoing
+/// development and written to files when a folder is given, health checks, resilience of outgoing
 /// HTTP calls, service discovery, and listening addresses.
 /// </summary>
 public static class ServiceDefaultsExtensions
@@ -82,7 +82,7 @@ public static class ServiceDefaultsExtensions
         }
 
         // Without this, a stopped server, a wrong API key or a full disk would go unnoticed: Serilog
-        // reports its own failures on the error output (the Aspire dashboard, or the desktop app's log).
+        // reports its own failures on the error output (the Aspire dashboard, or the console of the host).
         SelfLog.Enable(Console.Error);
 
         var apiKey = builder.Configuration[SEQ_API_KEY_SETTING];
@@ -111,7 +111,7 @@ public static class ServiceDefaultsExtensions
 
             if (logDirectory is not null)
             {
-                // The file stays on the user's machine but may be attached to a bug report: it never
+                // The file stays on the machine of the host but may be attached to a bug report: it never
                 // holds the name of the account (paths in messages and exceptions).
                 configuration.WriteTo.File(
                     HomeFolderRedactingFormatter.ForCurrentUser(
@@ -173,8 +173,8 @@ public static class ServiceDefaultsExtensions
         && Uri.Compare(target, server, UriComponents.SchemeAndServer, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0;
 
     /// <summary>
-    /// The folder for log files named by Voyager:LogDirectory; null when there is none. Set by the
-    /// desktop app for the service it installs, in a folder of the user's own machine.
+    /// The folder for log files named by Voyager:LogDirectory; null when there is none. Set by whoever
+    /// runs the host, when its logs should stay in files on its machine.
     /// </summary>
     /// <exception cref="InvalidOperationException">Voyager:LogDirectory is not an absolute path.</exception>
     private static string? LogDirectory<TBuilder>(this TBuilder builder)

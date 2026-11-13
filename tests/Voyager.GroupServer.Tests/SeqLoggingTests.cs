@@ -8,10 +8,10 @@ using OpenTelemetry.Instrumentation.Http;
 
 using Serilog.Extensions.Logging;
 
-namespace Voyager.LocalService.Tests;
+namespace Voyager.GroupServer.Tests;
 
 /// <summary>
-/// Logs written to Seq in development (Voyager.ServiceDefaults, ADR-0012), seen through the local service.
+/// Logs written to Seq in development (Voyager.ServiceDefaults, ADR-0012), seen through the group server.
 /// </summary>
 [TestClass]
 public sealed class SeqLoggingTests
@@ -22,7 +22,7 @@ public sealed class SeqLoggingTests
     [TestMethod]
     public void Startup_WithoutSeqServer_WritesNoLogToSeq()
     {
-        using var factory = new LocalServiceFactory();
+        using var factory = new GroupServerFactory();
 
         HasSeqProvider(factory).Should().BeFalse();
     }
@@ -30,7 +30,7 @@ public sealed class SeqLoggingTests
     [TestMethod]
     public void Startup_WithSeqServer_WritesLogsToSeq()
     {
-        using var factory = new LocalServiceFactory(seqServerUrl: UNREACHABLE_SEQ_SERVER);
+        using var factory = new GroupServerFactory(seqServerUrl: UNREACHABLE_SEQ_SERVER);
 
         HasSeqProvider(factory).Should().BeTrue();
     }
@@ -38,7 +38,7 @@ public sealed class SeqLoggingTests
     [TestMethod]
     public void Startup_WithSeqServerOutsideDevelopment_WritesNoLogToSeq()
     {
-        using var factory = new LocalServiceFactory(seqServerUrl: UNREACHABLE_SEQ_SERVER, environment: "Production");
+        using var factory = new GroupServerFactory(seqServerUrl: UNREACHABLE_SEQ_SERVER, environment: "Production", developmentIdentity: false);
 
         HasSeqProvider(factory).Should().BeFalse();
     }
@@ -46,20 +46,20 @@ public sealed class SeqLoggingTests
     [TestMethod]
     public void LogLevels_WithSeqServer_FollowLoggingSettings()
     {
-        using var factory = new LocalServiceFactory(seqServerUrl: UNREACHABLE_SEQ_SERVER);
+        using var factory = new GroupServerFactory(seqServerUrl: UNREACHABLE_SEQ_SERVER);
         var loggers = factory.Services.GetRequiredService<ILoggerFactory>();
 
         // appsettings.json: Information by default, Warning for Microsoft.AspNetCore. A logger is enabled
         // as soon as one provider is, so a Seq provider letting every level through would show here.
         loggers.CreateLogger("Microsoft.AspNetCore.Routing").IsEnabled(LogLevel.Information).Should().BeFalse();
-        loggers.CreateLogger("Voyager.LocalService").IsEnabled(LogLevel.Debug).Should().BeFalse();
-        loggers.CreateLogger("Voyager.LocalService").IsEnabled(LogLevel.Information).Should().BeTrue();
+        loggers.CreateLogger("Voyager.GroupServer").IsEnabled(LogLevel.Debug).Should().BeFalse();
+        loggers.CreateLogger("Voyager.GroupServer").IsEnabled(LogLevel.Information).Should().BeTrue();
     }
 
     [TestMethod]
     public void HttpTraces_WithSeqServer_LeaveOutTheSendsToSeq()
     {
-        using var factory = new LocalServiceFactory(seqServerUrl: UNREACHABLE_SEQ_SERVER);
+        using var factory = new GroupServerFactory(seqServerUrl: UNREACHABLE_SEQ_SERVER);
         var filter = factory.Services.GetRequiredService<IOptionsMonitor<HttpClientTraceInstrumentationOptions>>()
             .Get(Options.DefaultName).FilterHttpRequestMessage;
 
@@ -73,13 +73,13 @@ public sealed class SeqLoggingTests
     [DataRow("http://192.0.2.10:5341", DisplayName = "Plain http to another machine")]
     public void Startup_WithInvalidSeqServer_Fails(string seqServerUrl)
     {
-        using var factory = new LocalServiceFactory(seqServerUrl: seqServerUrl);
+        using var factory = new GroupServerFactory(seqServerUrl: seqServerUrl);
 
         var start = () => factory.Server;
 
         start.Should().Throw<InvalidOperationException>().WithMessage("*Seq:ServerUrl*");
     }
 
-    private static bool HasSeqProvider(LocalServiceFactory factory) =>
+    private static bool HasSeqProvider(GroupServerFactory factory) =>
         factory.Services.GetServices<ILoggerProvider>().Any(provider => provider is SerilogLoggerProvider);
 }

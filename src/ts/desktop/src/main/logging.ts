@@ -1,5 +1,5 @@
-// The desktop app's own log (electron-log, ADR-0006): a file next to the local service's, in the
-// folder of the user's machine, once the app is installed.
+// The desktop app's own log (electron-log, ADR-0006): a file in the data folder of the app on the user's machine,
+// once the app is installed.
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -15,7 +15,7 @@ const MAX_LOG_FILE_BYTES = 1024 * 1024;
 export const desktopLog = log;
 
 export interface LoggingOptions {
-  /** The folder of the log file; shared with the local service. */
+  /** The folder of the log file. */
   readonly directory: string;
   /** Written to the file when installed; to the console in development, where the terminal shows it. */
   readonly toFile: boolean;

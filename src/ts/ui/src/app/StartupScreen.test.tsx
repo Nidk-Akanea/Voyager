@@ -58,13 +58,6 @@ describe('StartupScreen', () => {
     expect(await screen.findByText(/Voyager va redémarrer/)).toBeTruthy();
   });
 
-  it('says the app starts once the update step is over', async () => {
-    const { bridge } = fakeBridge({ status: 'starting-service' });
-    renderScreen(bridge);
-
-    expect(await screen.findByText('Démarrage de Voyager…')).toBeTruthy();
-  });
-
   it('speaks English when English is chosen', async () => {
     const { bridge } = fakeBridge({ status: 'checking-updates' });
     renderScreen(bridge, 'en');
@@ -82,13 +75,6 @@ describe('StartupScreen', () => {
     expect(isListening()).toBe(false);
   });
 
-  it('says the app starts in English too', async () => {
-    const { bridge } = fakeBridge({ status: 'starting-service' });
-    renderScreen(bridge, 'en');
-
-    expect(await screen.findByText('Starting Voyager…')).toBeTruthy();
-  });
-
   it('prefers a change pushed before the first answer', async () => {
     let answer: (state: StartupState) => void = () => undefined;
     let push: (state: StartupState) => void = () => undefined;
@@ -102,14 +88,14 @@ describe('StartupScreen', () => {
     renderScreen(bridge);
 
     act(() => {
-      push({ status: 'starting-service' });
+      push({ status: 'installing-update', version: '0.3.0' });
     });
     await act(async () => {
       answer({ status: 'checking-updates' });
       await Promise.resolve();
     });
 
-    expect(await screen.findByText('Démarrage de Voyager…')).toBeTruthy();
+    expect(await screen.findByText(/Voyager va redémarrer/)).toBeTruthy();
   });
 
   it('keeps saying the app starts when the state cannot be read', async () => {

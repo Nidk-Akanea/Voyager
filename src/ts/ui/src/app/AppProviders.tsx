@@ -25,7 +25,7 @@ export interface AppProvidersProps {
   readonly children: ReactNode;
 }
 
-/** Gives its children the clients of the local service and the data cache. */
+/** Gives its children the clients of the server shown and the data cache. */
 export function AppProviders({
   locale,
   server,

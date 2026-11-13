@@ -18,26 +18,27 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
 
 ## État actuel
 
-- **L'architecture vient de changer** ([ADR-0018](docs/adr/0018-client-serveur-et-copie-de-voyage.md),
-  acceptée) : **client-serveur**. L'application de bureau affiche et saisit les données du serveur du
-  groupe, qui exécute le cœur, les calculs et les plugins ; la copie de voyage hors-ligne va sur le mobile.
-  **La bascule est en cours** ([spec](docs/specs/plateforme-bascule-client-serveur.md)) : le serveur sert
-  « À propos », charge les plugins livrés et accepte l'identité de développement sous Aspire (lot 1) ;
-  l'application lui parle par son processus principal (`voyager://app/api/<serveur>/…`, services permis
-  seulement), connaît ses serveurs par Aspire ou par `%LOCALAPPDATA%\Voyager\servers.json`, et montre
-  l'état de la connexion (lot 2a) ; chaque serveur a sa vue, dans sa propre session Electron, avec un sélecteur
-  quand il y en a plusieurs (lot 2b) ; les modules d'interface des plugins viennent du serveur, vérifiés par leur
-  empreinte et rangés par serveur et par version, et l'écran de démarrage n'attend plus que la mise à jour (lot 2c).
-  Reste le retrait du service local (lot 3), qui tourne encore sans être appelé : n'y construis rien de nouveau.
+- **L'architecture est client-serveur** ([ADR-0018](docs/adr/0018-client-serveur-et-copie-de-voyage.md),
+  acceptée). L'application de bureau affiche et saisit les données du serveur du groupe, qui exécute le cœur, les
+  calculs et les plugins ; la copie de voyage hors-ligne va sur le mobile. **La bascule est faite**
+  ([spec](docs/specs/plateforme-bascule-client-serveur.md)) :
+  - le serveur sert « À propos », charge les plugins livrés et accepte l'identité de développement sous Aspire ;
+  - l'application lui parle par son processus principal (`voyager://app/api/<serveur>/…`, services permis
+    seulement) et connaît ses serveurs par Aspire ou par `%LOCALAPPDATA%\Voyager\servers.json` ;
+  - chaque serveur a sa vue, dans sa propre session Electron, avec l'état de la connexion, et un sélecteur quand
+    il y en a plusieurs ;
+  - les modules d'interface des plugins viennent du serveur, vérifiés par leur empreinte et rangés par serveur et
+    par version ; l'écran de démarrage n'attend que la mise à jour ;
+  - le service local, SQLite sur le poste, `Voyager.Sync` et la gestion des plugins sur le poste sont retirés.
 - **Ce qui est construit** : le squelette (solution .NET, tests d'architecture, pnpm, ESLint, Prettier,
   Buf, CI, Aspire), une tranche « À propos » de bout en bout, le paquet installable (`tools/release.ps1`,
   Velopack, écran de démarrage), la preuve des plugins (SDK, `Voyager.PluginHost`, deux plugins de
-  démonstration, versions par composant, `/new-plugin`) et l'étape 1 de la gestion des plugins sur le poste
-  (PR 26 à 31), qui passera côté serveur. **Aucun code métier encore** ; aucune release publiée.
-- **La suite, dans l'ordre** : l'ADR d'authentification et d'invitations, l'ADR des plugins sur le serveur,
-  la bascule (« À propos » par le serveur, retrait du service local), puis la première brique du cœur, le
-  voyage et ses voyageurs (spec repassée en brouillon, à revoir). Chaque étape se fait **sur demande**.
-- **Décisions prises** : ADR 0002 à 0013 et 0015 à 0018 ([index](docs/adr/README.md)) ; l'ADR-0014 est
+  démonstration, versions par composant, `/new-plugin`). De la gestion des plugins sur le poste (PR 26 à 31), seuls
+  l'examen et l'extraction d'un paquet restent (`Voyager.PluginHost/Packages`), pour la gestion sur le serveur.
+  **Aucun code métier encore** ; aucune release publiée.
+- **La suite** : la première brique du cœur, le voyage et ses voyageurs (spec repassée en brouillon, à revoir).
+  Chaque étape se fait **sur demande**.
+- **Décisions prises** : ADR 0002 à 0013 et 0015 à 0020 ([index](docs/adr/README.md)) ; l'ADR-0014 est
   proposée, révisée au lot 2c de la bascule.
 
 ## Langues
@@ -153,11 +154,11 @@ ou la branche, pas tes conclusions.
 | Lint, types, tests, formatage (TypeScript)                                                                                                                                                               | `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`                                                                                             |
 | Construire l'interface et l'application de bureau                                                                                                                                                        | `pnpm build`                                                                                                                                                |
 | Contrats `.proto` (et régénérer le client TypeScript)                                                                                                                                                    | `pnpm proto:lint`, `pnpm proto:breaking`, `pnpm proto:generate`                                                                                             |
-| Lancer tout en développement (Aspire : PostgreSQL + PostGIS, serveur du groupe avec l'identité de développement, service local, interface Vite, fenêtre Electron, tableau de bord)                       | `pnpm install` une fois, puis F5 sur `Voyager.AppHost` ou `dotnet run --project src/dotnet/Voyager.AppHost` ; tableau de bord sur `https://localhost:17180` |
+| Lancer tout en développement (Aspire : PostgreSQL + PostGIS, serveur du groupe avec l'identité de développement, interface Vite, fenêtre Electron, tableau de bord)                                      | `pnpm install` une fois, puis F5 sur `Voyager.AppHost` ou `dotnet run --project src/dotnet/Voyager.AppHost` ; tableau de bord sur `https://localhost:17180` |
 | Construire l'image du serveur du groupe (avec les plugins livrés et leurs modules d'interface, dans `/app/plugins`)                                                                                      | `docker build -f deploy/GroupServer.Dockerfile .`                                                                                                           |
-| Construire les plugins modifiés (dans `artifacts/plugins/`, lancé par Aspire avant le serveur du groupe et le service local ; `-Force` pour tout refaire, `-SkipInterface` sans les modules d'interface) | `pwsh tools/build-plugins.ps1`                                                                                                                              |
+| Construire les plugins modifiés (dans `artifacts/plugins/`, lancé par Aspire avant le serveur du groupe ; `-Force` pour tout refaire, `-SkipInterface` sans les modules d'interface)                     | `pwsh tools/build-plugins.ps1`                                                                                                                              |
 | Fabriquer le paquet d'un plugin construit (`artifacts/packages/<id>-<version>.voyagerplugin`, avec son empreinte SHA-256)                                                                                | `pwsh tools/pack-plugin.ps1 -Id <id>`                                                                                                                       |
-| Construire le paquet installable (Windows : service publié, application, Velopack ; résultat dans `artifacts/`)                                                                                          | `pwsh tools/release.ps1` (`-Docker` ajoute l'image du serveur du groupe)                                                                                    |
+| Construire le paquet installable (Windows : application, modules d'interface des plugins livrés, Velopack ; résultat dans `artifacts/`)                                                                  | `pwsh tools/release.ps1` (`-Docker` ajoute l'image du serveur du groupe)                                                                                    |
 | Vérifier le Markdown                                                                                                                                                                                     | `npx markdownlint-cli2`                                                                                                                                     |
 | Calculer la version (PowerShell)                                                                                                                                                                         | `pwsh tools/get-version.ps1 -Variable FullSemVer`                                                                                                           |
 | Calculer la version de chaque composant (application, SDK, plugins), ou d'un seul                                                                                                                        | `pwsh tools/get-version.ps1 -All` (`-Component sdk` ou `-Component <id>`)                                                                                   |

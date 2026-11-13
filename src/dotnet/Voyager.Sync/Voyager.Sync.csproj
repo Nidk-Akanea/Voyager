@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <ItemGroup>
-    <ProjectReference Include="..\Voyager.Core\Voyager.Core.csproj" />
-    <ProjectReference Include="..\Voyager.Contracts\Voyager.Contracts.csproj" />
-  </ItemGroup>
-
-</Project>

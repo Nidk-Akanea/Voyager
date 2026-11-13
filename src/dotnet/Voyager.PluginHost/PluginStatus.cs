@@ -15,7 +15,7 @@ public enum PluginStatus
     Disabled,
 
     /// <summary>
-    /// The plugin is suspected of having crashed the service: it is not loaded until the user disables it for good or
+    /// The plugin is suspected of having crashed the server: it is not loaded until the user disables it for good or
     /// enables it again (spec of the plugin management, "Quand Voyager plante à cause d'un plugin").
     /// </summary>
     Suspended,

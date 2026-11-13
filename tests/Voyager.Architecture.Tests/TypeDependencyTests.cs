@@ -30,9 +30,7 @@ public sealed class TypeDependencyTests
     [
         "Voyager.Contracts",
         "Voyager.Persistence",
-        "Voyager.Sync",
         "Voyager.PluginHost",
-        "Voyager.LocalService",
         "Voyager.GroupServer",
         "Voyager.ServiceDefaults",
         "Voyager.AppHost",

@@ -1,9 +1,10 @@
 # Organisation du code
 
-> En place depuis l'étape 1 du squelette ; l'étape 2 a rempli le service local, l'interface et
-> l'application de bureau pour l'écran « À propos ». Découle des ADR
+> En place depuis l'étape 1 du squelette ; l'écran « À propos » a rempli le serveur du groupe, l'interface
+> et l'application de bureau, et la bascule client-serveur a retiré le service local. Découle des ADR
 > [0003](../adr/0003-choix-de-la-stack.md), [0004](../adr/0004-stockage-des-donnees.md) et
-> [0005](../adr/0005-architecture-du-code-hexagonale-par-domaine.md).
+> [0005](../adr/0005-architecture-du-code-hexagonale-par-domaine.md) et
+> [0018](../adr/0018-client-serveur-et-copie-de-voyage.md).
 
 ## Le dépôt
 
@@ -38,23 +39,20 @@ Voyager/
 
 ## Les projets .NET (`src/dotnet/`)
 
-| Projet                           | Rôle                                                                                                                                                                           | Peut dépendre de                              |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| `Voyager.Core`                   | Le métier : domaines, cas d'usage, ports. Aucune dépendance technique                                                                                                          | BCL .NET et NodaTime (ADR-0006)               |
-| `Voyager.Sdk`                    | Les points d'extension .NET que les plugins implémentent ; publié comme paquet versionné                                                                                       | `Voyager.Core`                                |
-| `Voyager.Contracts`              | Code C# généré depuis `proto/`                                                                                                                                                 | bibliothèques gRPC                            |
-| `Voyager.Persistence`            | Adaptateur EF Core commun : modèle de persistance, implémentation des ports de stockage                                                                                        | `Voyager.Core`, EF Core                       |
-| `Voyager.Persistence.Sqlite`     | Fournisseur et migrations SQLite (service local)                                                                                                                               | `Voyager.Persistence`                         |
-| `Voyager.Persistence.PostgreSql` | Fournisseur et migrations PostgreSQL + PostGIS (serveur)                                                                                                                       | `Voyager.Persistence`                         |
-| `Voyager.Sync`                   | Moteur de synchronisation entre service local et serveur                                                                                                                       | `Voyager.Core`, `Voyager.Contracts`           |
-| `Voyager.PluginHost`             | Découverte, chargement, cycle de vie et gestion des plugins (racines, demandes, état, examen et pose des paquets)                                                              | `Voyager.Sdk`                                 |
-| `Voyager.LocalService`           | Hôte ASP.NET Core du service local (gRPC-Web, SQLite)                                                                                                                          | tous les adaptateurs                          |
-| `Voyager.GroupServer`            | Hôte ASP.NET Core du serveur du groupe (gRPC et gRPC-Web, plugins, authentification, PostgreSQL) ; il exécute le cœur et les plugins (ADR-0018)                                | tous les adaptateurs                          |
-| `Voyager.ServiceDefaults`        | Réglages techniques communs aux hôtes : télémétrie OpenTelemetry, journaux dans Seq en développement, points de santé, résilience HTTP, adresses d'écoute (ADR-0011, ADR-0012) | paquets techniques uniquement                 |
-| `Voyager.AppHost`                | Orchestration Aspire, **en développement uniquement** : PostgreSQL + PostGIS, hôtes, tableau de bord (ADR-0011)                                                                | les deux hôtes ; aucun projet ne le référence |
+| Projet                           | Rôle                                                                                                                                                                               | Peut dépendre de                                          |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `Voyager.Core`                   | Le métier : domaines, cas d'usage, ports. Aucune dépendance technique                                                                                                              | BCL .NET et NodaTime (ADR-0006)                           |
+| `Voyager.Sdk`                    | Les points d'extension .NET que les plugins implémentent ; publié comme paquet versionné                                                                                           | `Voyager.Core`                                            |
+| `Voyager.Contracts`              | Code C# généré depuis `proto/`                                                                                                                                                     | bibliothèques gRPC                                        |
+| `Voyager.Persistence`            | Adaptateur EF Core commun : modèle de persistance, implémentation des ports de stockage                                                                                            | `Voyager.Core`, EF Core                                   |
+| `Voyager.Persistence.PostgreSql` | Fournisseur et migrations PostgreSQL + PostGIS (serveur)                                                                                                                           | `Voyager.Persistence`                                     |
+| `Voyager.PluginHost`             | Découverte, chargement et cycle de vie des plugins (catalogue, contrats, collecteur de faits) ; examen et extraction d'un paquet (`Packages/`)                                     | `Voyager.Sdk`                                             |
+| `Voyager.GroupServer`            | Hôte ASP.NET Core du serveur du groupe (gRPC et gRPC-Web, plugins, authentification, PostgreSQL) ; il exécute le cœur et les plugins (ADR-0018)                                    | tous les adaptateurs                                      |
+| `Voyager.ServiceDefaults`        | Réglages techniques communs aux hôtes : télémétrie OpenTelemetry, journaux dans Seq en développement, points de santé, résilience HTTP, adresses d'écoute (ADR-0011, ADR-0012)     | paquets techniques uniquement                             |
+| `Voyager.AppHost`                | Orchestration Aspire, **en développement uniquement** : PostgreSQL + PostGIS, construction des plugins, serveur du groupe, interface, fenêtre Electron, tableau de bord (ADR-0011) | `Voyager.GroupServer` seul ; aucun projet ne le référence |
 
-Règle d'or : **les flèches vont vers `Voyager.Core`**, jamais dans l'autre sens. Les hôtes
-(`LocalService`, `GroupServer`) sont les seuls à tout assembler.
+Règle d'or : **les flèches vont vers `Voyager.Core`**, jamais dans l'autre sens. Le seul hôte,
+`Voyager.GroupServer`, est le seul à tout assembler.
 
 ### L'intérieur de `Voyager.Core`
 
@@ -97,12 +95,12 @@ Un besoin qui casserait ce sens se règle par un port, pas par une référence d
 
 ## Les paquets TypeScript (`src/ts/`)
 
-| Paquet        | Rôle                                                                                                          |
-| ------------- | ------------------------------------------------------------------------------------------------------------- |
-| `desktop`     | Application Electron : processus principal, script `preload`, lancement du service local, gestion des plugins |
-| `ui`          | Interface React : coquille, navigation, écrans des fonctionnalités de base                                    |
-| `plugin-sdk`  | `@voyager/plugin-sdk` : registre des points d'extension d'interface, composants et client fournis aux plugins |
-| `grpc-client` | Client TypeScript généré depuis `proto/`, et les types du pont entre Electron et l'interface                  |
+| Paquet        | Rôle                                                                                                                          |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `desktop`     | Application Electron : processus principal, script `preload`, mises à jour, vues par serveur, modules d'interface des plugins |
+| `ui`          | Interface React : coquille, navigation, écrans des fonctionnalités de base                                                    |
+| `plugin-sdk`  | `@voyager/plugin-sdk` : registre des points d'extension d'interface, composants et client fournis aux plugins                 |
+| `grpc-client` | Client TypeScript généré depuis `proto/`, et les types du pont entre Electron et l'interface                                  |
 
 Dans `ui`, rangement par fonctionnalité, en miroir des domaines :
 
@@ -111,7 +109,6 @@ ui/src/
 ├─ app/           coquille, routes (pour l'instant des onglets, AppShell), fournisseurs (thème, données, i18n)
 ├─ features/
 │  ├─ about/      page « À propos »
-│  ├─ plugins/    écran « Plugins » : liste, détail, boîte de dépôt, demandes en attente
 │  ├─ trips/
 │  ├─ quotes/     QuoteList.tsx, QuoteCard.tsx, useQuotes.ts…
 │  └─ budget/
@@ -129,23 +126,22 @@ quels fichiers d'un plugin sont lisibles (`desktop/src/main/pluginFiles.ts`), et
 L'interface ne tourne donc que dans l'application de bureau, comme pour ses appels aux serveurs.
 
 Pour la preuve des plugins, `@voyager/plugin-sdk` fournit le registre, les types et `formatFactValue` ; les
-services de l'hôte et le client du service local viendront avec les premiers plugins qui en ont besoin.
+services de l'hôte et le client du serveur viendront avec les premiers plugins qui en ont besoin.
 
-Dans `desktop`, un dossier par processus d'Electron :
+Dans `desktop`, un dossier par processus d'Electron, plus la fabrication du paquet :
 
 ```text
 desktop/src/
-├─ main/          processus principal : fenêtre, protocole voyager://, lancement du service local,
-│  │              verrouillage (navigation, permissions)
-│  ├─ plugins/    gestion des plugins : boîte de dépôt, copies de préparation, demandes,
-│  │              confirmations natives (ADR-0016)
-│  └─ i18n/       messages Fluent du processus principal (<langue>/<zone>.ftl), comme ceux de ui
+├─ main/          processus principal : fenêtre, mises à jour, protocole voyager:// (appels transmis aux
+│                 serveurs, fichiers des plugins), vues par serveur, modules d'interface téléchargés,
+│                 verrouillage (navigation, permissions)
+├─ packaging/     fabrication du paquet installable (packageApp.ts)
 ├─ preload/       script preload : la seule porte entre l'interface et Electron (contextBridge)
 └─ shared/        ce que les deux partagent : noms des canaux IPC
 ```
 
 Les adaptateurs gRPC d'un hôte .NET (services générés depuis `proto/`, intercepteurs) sont rangés
-dans son dossier `Api/` (`Voyager.LocalService/Api/`).
+dans son dossier `Api/` (`Voyager.GroupServer/Api/`).
 
 ## Les plugins (`plugins/`)
 
@@ -201,7 +197,6 @@ pour les règles de dépendance. Les tests TypeScript sont à côté du code (`Q
 Détails : [tests](tests.md).
 
 `tests/plugin-fixtures/` contient de petits plugins qui n'existent que pour tester l'hôte de plugins et
-les hôtes qui le chargent (`tests/Voyager.PluginHost.Tests`, `Voyager.LocalService.Tests`,
-`Voyager.GroupServer.Tests`) : un plugin conforme, un par défaut (exception au chargement, source
+l'hôte qui le charge (`tests/Voyager.PluginHost.Tests`, `Voyager.GroupServer.Tests`) : un plugin conforme, un par défaut (exception au chargement, source
 lente, conteneur invalide, inscription non déclarée…). Ils ne sont jamais livrés ; chacun s'appelle
 `Voyager.PluginFixtures.<Nom>` et ne référence que `Voyager.Sdk`.

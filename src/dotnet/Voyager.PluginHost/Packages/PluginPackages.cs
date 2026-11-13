@@ -3,11 +3,12 @@ using System.Text.RegularExpressions;
 namespace Voyager.PluginHost.Packages;
 
 /// <summary>
-/// The packages the desktop app prepared in the staging folder of the user's plugins (ADR-0016, decision 3): it
-/// examines one before the user confirms its installation. An examination extracts the package into a folder of its
-/// own, checks it and deletes the folder: nothing is installed, and nothing of the package runs.
+/// The packages copied into the staging folder, under a random name, to be examined before anyone confirms their
+/// installation (ADR-0016, decision 3). Kept for the management of plugins on the server (ADR-0020), which nothing
+/// calls yet. An examination extracts the package into a folder of its own, checks it and deletes the folder: nothing
+/// is installed, and nothing of the package runs.
 /// </summary>
-/// <param name="locations">Where the plugins and the files that manage them are.</param>
+/// <param name="locations">Where the plugins and the copies of packages are.</param>
 /// <param name="contracts">The versions of contracts the application accepts.</param>
 public sealed partial class PluginPackages(PluginLocations locations, ContractSupport contracts) : IDisposable
 {

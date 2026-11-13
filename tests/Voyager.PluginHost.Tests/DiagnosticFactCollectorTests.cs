@@ -18,13 +18,6 @@ public sealed class DiagnosticFactCollectorTests
     // Short enough for the test of a source that never answers, long enough for a source that answers at once on a busy machine.
     private static readonly PluginHostOptions _shortTimeout = new(TimeSpan.FromSeconds(1), 50);
 
-    // For a source that the test holds past its time limit; long enough for a test to give up on another call first.
-    private static readonly PluginHostOptions _shortWait = new(TimeSpan.FromSeconds(1), 50);
-
-    private const string GATED_ID = "fixture-gated";
-
-    private static readonly PluginKey _gated = new(PluginOrigin.Installed, GATED_ID);
-
     #endregion Fields
 
     #region Private Methods
@@ -43,45 +36,11 @@ public sealed class DiagnosticFactCollectorTests
         return PluginCatalog.Load(folder.Path, _contracts, NullLoggerFactory.Instance);
     }
 
-    // A collector that traces its calls, with these plugins loaded, and nothing registered yet.
-    private static (DiagnosticFactCollector Collector, ExtensionRegistry Registry, PluginActivity Activity, string File) TracingCollector(
-        UserPluginFolder user,
-        PluginHostOptions? options = null,
-        params PluginKey[] loaded)
-    {
-        var file = new PluginLocations(null, user.Path).ActivityFile!;
-        var activity = new PluginActivity(file, NullLogger<PluginActivity>.Instance);
-        foreach (var plugin in loaded)
-        {
-            activity.BeginLoad(plugin);
-            activity.EndLoad(plugin, loaded: true);
-        }
-
-        var registry = new ExtensionRegistry();
-        var collector = new DiagnosticFactCollector(registry, options ?? PluginHostOptions.Default, NullLogger<DiagnosticFactCollector>.Instance, activity);
-        return (collector, registry, activity, file);
-    }
-
-    // The calls the trace names once the service lets go of it, as after a crash; null when a write took the file back
-    // in the meantime.
-    private static IReadOnlyList<PluginKey>? TracedCalls(PluginActivity activity, string file)
-    {
-        activity.Dispose();
-        try
-        {
-            return PluginStoreFiles.ReadActivity(file).Calls;
-        }
-        catch (IOException)
-        {
-            return null;
-        }
-    }
-
     // The end of a call is noted by a continuation of the call itself, which may run just after the caller resumes.
-    private static async Task<bool> EventuallyAsync(Func<bool> condition)
+    private static async Task<bool> EventuallyAsync(Func<Task<bool>> condition)
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        while (!condition())
+        while (!await condition())
         {
             if (stopwatch.Elapsed > TimeSpan.FromSeconds(5))
             {
@@ -92,21 +51,6 @@ public sealed class DiagnosticFactCollectorTests
         }
 
         return true;
-    }
-
-    private static Task<bool> NoLongerTracedAsync(PluginActivity activity, string file) =>
-        EventuallyAsync(() => TracedCalls(activity, file) is { Count: 0 });
-
-    // Starts a call to a source and gives up waiting for it at once: the call goes on, traced, and never reaches its time
-    // limit, which only a caller that still waits can see.
-    private static async Task StartThenGiveUpAsync(DiagnosticFactCollector collector, string sourceId, GatedSource source)
-    {
-        using var cancellation = new CancellationTokenSource();
-        var collect = collector.CollectAsync(sourceId, cancellation.Token);
-        await source.Started.WaitAsync(TimeSpan.FromSeconds(10));
-        await cancellation.CancelAsync();
-        var wait = async () => await collect;
-        await wait.Should().ThrowAsync<OperationCanceledException>();
     }
 
     // "ThrowingSource" becomes "fixture-throwing-source".
@@ -280,165 +224,57 @@ public sealed class DiagnosticFactCollectorTests
     }
 
     [TestMethod]
-    public async Task CollectAsync_CallToAPluginInProgress_IsTraced()
+    public async Task CollectAsync_SourceWhoseCallEnded_IsAskedAgain()
     {
-        using var user = new UserPluginFolder();
-        var (collector, registry, activity, file) = TracingCollector(user, loaded: _gated);
-        using var _ = activity;
+        using var folder = new PluginFolder();
+        using var catalog = LoadFixtures(folder);
         var source = new GatedSource();
-        registry.AddDiagnosticFactSource(GATED_ID, source);
-
-        var collect = collector.CollectAsync(null, CancellationToken.None);
-        await source.Started.WaitAsync(TimeSpan.FromSeconds(10));
-
-        TracedCalls(activity, file).Should().Equal(_gated);
+        catalog.Registry.AddDiagnosticFactSource("fixture-gated", source);
+        var collector = CreateCollector(catalog);
         source.Release();
-        await collect;
+        await collector.CollectAsync(null, CancellationToken.None);
+
+        var askedAgain = await EventuallyAsync(async () =>
+        {
+            await collector.CollectAsync(null, CancellationToken.None);
+            return source.Calls == 2;
+        });
+
+        askedAgain.Should().BeTrue("a call that ended no longer stands for the next ones");
     }
 
     [TestMethod]
-    public async Task CollectAsync_CallThatSucceeded_IsNoLongerTraced()
+    public async Task CollectAsync_SourceThatTimedOutThenEnded_IsAskedAgain()
     {
-        using var user = new UserPluginFolder();
-        var (collector, registry, activity, file) = TracingCollector(user, loaded: _gated);
-        using var _ = activity;
+        using var folder = new PluginFolder();
+        using var catalog = LoadFixtures(folder);
         var source = new GatedSource();
-        registry.AddDiagnosticFactSource(GATED_ID, source);
-        var collect = collector.CollectAsync(null, CancellationToken.None);
-        await source.Started.WaitAsync(TimeSpan.FromSeconds(10));
+        catalog.Registry.AddDiagnosticFactSource("fixture-gated", source);
+        var collector = CreateCollector(catalog, _shortTimeout);
+        var timedOut = await collector.CollectAsync(null, CancellationToken.None);
+        timedOut.Single().Outcome.Should().Be(DiagnosticFactOutcome.TimedOut);
 
         source.Release();
-        var results = await collect;
+        var askedAgain = await EventuallyAsync(async () =>
+            (await collector.CollectAsync(null, CancellationToken.None)).Single().Outcome == DiagnosticFactOutcome.Succeeded
+            && source.Calls == 2);
 
-        results.Single().Outcome.Should().Be(DiagnosticFactOutcome.Succeeded);
-        (await NoLongerTracedAsync(activity, file)).Should().BeTrue("the call ended");
+        askedAgain.Should().BeTrue("a source that answers late is asked again once its call ends");
     }
 
     [TestMethod]
-    public async Task CollectAsync_CallThatThrew_IsNoLongerTraced()
+    public async Task CollectAsync_ListThatBlocksAsItIsRead_IsTimedOutWithoutHoldingTheCaller()
     {
-        using var user = new UserPluginFolder();
-        var plugin = new PluginKey(PluginOrigin.Installed, "fixture-own-timeout");
-        var (collector, registry, activity, file) = TracingCollector(user, loaded: plugin);
-        using var _ = activity;
-        registry.AddDiagnosticFactSource(plugin.Id, new TimeoutThrowingSource());
+        using var folder = new PluginFolder();
+        using var catalog = LoadFixtures(folder);
+        using var list = new BlockingList();
+        catalog.Registry.AddDiagnosticFactSource("fixture-blocking", new ListSource(list));
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        var results = await collector.CollectAsync(null, CancellationToken.None);
-
-        results.Single().Outcome.Should().Be(DiagnosticFactOutcome.Failed);
-        (await NoLongerTracedAsync(activity, file)).Should().BeTrue("the call ended");
-    }
-
-    [TestMethod]
-    public async Task CollectAsync_CallPastItsTimeLimit_IsNoLongerTracedThoughItStillRuns()
-    {
-        using var user = new UserPluginFolder();
-        var (collector, registry, activity, file) = TracingCollector(user, _shortWait, _gated);
-        using var _ = activity;
-        var source = new GatedSource();
-        registry.AddDiagnosticFactSource(GATED_ID, source);
-
-        var results = await collector.CollectAsync(null, CancellationToken.None);
+        var results = await CreateCollector(catalog, _shortTimeout).CollectAsync(null, CancellationToken.None);
 
         results.Single().Outcome.Should().Be(DiagnosticFactOutcome.TimedOut);
-        TracedCalls(activity, file).Should().BeEmpty("a call past its time limit is reported as such, not as a crash");
-        source.Release();
-    }
-
-    [TestMethod]
-    public async Task CollectAsync_CallPastItsTimeLimitThenACallToAnotherPlugin_OnlyTheOtherIsDesignated()
-    {
-        using var user = new UserPluginFolder();
-        var map = new PluginKey(PluginOrigin.Shipped, "fixture-map");
-        var (collector, registry, activity, file) = TracingCollector(user, _shortWait, _gated, map);
-        using var _ = activity;
-        var stuck = new GatedSource();
-        registry.AddDiagnosticFactSource(GATED_ID, stuck);
-        await collector.CollectAsync(GATED_ID, CancellationToken.None);
-        var other = new GatedSource();
-        registry.AddDiagnosticFactSource(map.Id, other);
-        await StartThenGiveUpAsync(collector, map.Id, other);
-
-        activity.Dispose();
-        var suspect = PluginActivity.FindSuspect(file, NullLogger.Instance);
-
-        suspect.Should().Be(map);
-        other.Release();
-        stuck.Release();
-    }
-
-    [TestMethod]
-    public async Task CollectAsync_CallPastItsTimeLimitThatEndsLater_DoesNotEndTheTraceOfAnotherCallToTheSamePlugin()
-    {
-        using var user = new UserPluginFolder();
-        var (collector, registry, activity, file) = TracingCollector(user, _shortWait, _gated);
-        using var _ = activity;
-        var stuck = new GatedSource();
-        var second = new GatedSource();
-        registry.AddDiagnosticFactSource(GATED_ID, stuck);
-        await collector.CollectAsync(null, CancellationToken.None);
-        registry.AddDiagnosticFactSource(GATED_ID, second);
-        await StartThenGiveUpAsync(collector, GATED_ID, second);
-
-        stuck.Release();
-        await EventuallyAsync(() => stuck.Finished);
-        await Task.Delay(200);
-
-        TracedCalls(activity, file).Should().Equal(_gated);
-        second.Release();
-    }
-
-    [TestMethod]
-    public async Task CollectAsync_CallerThatGivesUp_LeavesTheCallTracedWhileItRuns()
-    {
-        using var user = new UserPluginFolder();
-        var (collector, registry, activity, file) = TracingCollector(user, loaded: _gated);
-        using var _ = activity;
-        var source = new GatedSource();
-        registry.AddDiagnosticFactSource(GATED_ID, source);
-        using var cancellation = new CancellationTokenSource();
-        var collect = collector.CollectAsync(null, cancellation.Token);
-        await source.Started.WaitAsync(TimeSpan.FromSeconds(10));
-
-        await cancellation.CancelAsync();
-
-        var wait = async () => await collect;
-        await wait.Should().ThrowAsync<OperationCanceledException>();
-        TracedCalls(activity, file).Should().Equal(_gated);
-        source.Release();
-        (await NoLongerTracedAsync(activity, file)).Should().BeTrue("the call ended");
-    }
-
-    [TestMethod]
-    public async Task CollectAsync_SourceOfTheService_IsNotTraced()
-    {
-        using var user = new UserPluginFolder();
-        var (collector, registry, activity, file) = TracingCollector(user, loaded: _gated);
-        using var _ = activity;
-        var source = new GatedSource();
-        registry.AddDiagnosticFactSource(PluginCatalog.SERVICE_ID, source);
-
-        var collect = collector.CollectAsync(null, CancellationToken.None);
-        await source.Started.WaitAsync(TimeSpan.FromSeconds(10));
-
-        TracedCalls(activity, file).Should().BeEmpty("a crash during a call to the service designates no plugin");
-        source.Release();
-        await collect;
-    }
-
-    [TestMethod]
-    public async Task CollectAsync_ListThatRunsCodeOfThePluginAsItIsRead_IsReadWhileTheCallIsTraced()
-    {
-        using var user = new UserPluginFolder();
-        var (collector, registry, activity, file) = TracingCollector(user, loaded: _gated);
-        using var _ = activity;
-        var source = new ListSource(() => TracedCalls(activity, file));
-        registry.AddDiagnosticFactSource(GATED_ID, source);
-
-        var results = await collector.CollectAsync(null, CancellationToken.None);
-
-        results.Single().Outcome.Should().Be(DiagnosticFactOutcome.Succeeded);
-        source.TracedWhileRead.Should().Equal([_gated], "the plugin's list runs its code as the host reads it");
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(5), "the list is read on the thread pool, not by the caller");
     }
 
     [TestMethod]
@@ -562,55 +398,40 @@ public sealed class DiagnosticFactCollectorTests
         #endregion Public Methods
     }
 
-    // Returns a list of its own type, which looks at the trace when the host reads it.
-    private sealed class ListSource(Func<IReadOnlyList<PluginKey>?> readTrace) : IDiagnosticFactSource
+    // A list of facts whose reading blocks until it is disposed, as a plugin's own list type could.
+    private sealed class BlockingList : IReadOnlyList<DiagnosticFact>, IDisposable
     {
-        #region Fields
+        private readonly ManualResetEventSlim _released = new();
 
-        private readonly Func<IReadOnlyList<PluginKey>?> _readTrace = readTrace;
+        public int Count => 1;
 
-        #endregion Fields
-
-        #region Properties
-
-        public IReadOnlyList<PluginKey>? TracedWhileRead { get; private set; }
-
-        #endregion Properties
-
-        #region Public Methods
-
-        public Task<IReadOnlyList<DiagnosticFact>> GetFactsAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<DiagnosticFact>>(new WatchingList(this));
-
-        #endregion Public Methods
-
-        #region Classes
-
-        private sealed class WatchingList(ListSource owner) : IReadOnlyList<DiagnosticFact>
+        public DiagnosticFact this[int index]
         {
-            private readonly DiagnosticFact _fact = new("fixture-gated-fact", DiagnosticFactValue.FromText("read"));
-
-            public int Count => 1;
-
-            public DiagnosticFact this[int index]
+            get
             {
-                get
-                {
-                    owner.TracedWhileRead ??= owner._readTrace();
-                    return index == 0 ? _fact : throw new ArgumentOutOfRangeException(nameof(index));
-                }
+                _released.Wait();
+                return index == 0 ? Fact : throw new ArgumentOutOfRangeException(nameof(index));
             }
-
-            public IEnumerator<DiagnosticFact> GetEnumerator()
-            {
-                owner.TracedWhileRead ??= owner._readTrace();
-                yield return _fact;
-            }
-
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
         }
 
-        #endregion Classes
+        private static DiagnosticFact Fact => new("fixture-blocking-fact", DiagnosticFactValue.FromText("late"));
+
+        // Lets the reading end; the event itself is left to the collector of the test process, as a reader may still wait on it.
+        public void Dispose() => _released.Set();
+
+        public IEnumerator<DiagnosticFact> GetEnumerator()
+        {
+            _released.Wait();
+            yield return Fact;
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    // Returns the list it was given.
+    private sealed class ListSource(IReadOnlyList<DiagnosticFact> list) : IDiagnosticFactSource
+    {
+        public Task<IReadOnlyList<DiagnosticFact>> GetFactsAsync(CancellationToken cancellationToken) => Task.FromResult(list);
     }
 
     private sealed class LateSource : IDiagnosticFactSource

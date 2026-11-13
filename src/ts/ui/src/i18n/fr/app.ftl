@@ -1,15 +1,8 @@
 app-title = Voyager
 app-not-in-desktop = Voyager doit être ouvert depuis son application de bureau.
-app-local-service-failed = Le service local de Voyager s’est arrêté et n’a pas pu redémarrer.
-app-local-service-restarting = Le service local de Voyager s’est arrêté, redémarrage…
 app-retry = Réessayer
 app-starting = Démarrage de Voyager…
 app-nav-about = À propos
-app-nav-plugins = Plugins
-app-start-without-plugins = Démarrer sans les plugins installés
-app-start-without-plugins-help = Si un plugin installé empêche Voyager de démarrer, démarrez sans eux : vous les réactiverez un à un depuis l’écran « Plugins ».
-app-start-without-plugins-failed = Voyager n’a pas pu préparer le démarrage sans les plugins installés. Le détail est dans le journal de Voyager.
-app-start-without-plugins-not-failed = Le service de Voyager n’est pas arrêté : rien n’a été changé.
 app-no-server = Aucun serveur n’est configuré : Voyager ne sait pas où trouver vos voyages.
 app-server-connecting = Connexion au serveur…
 app-server-unreachable = Le serveur ne répond pas. Voyager réessaie toutes les quelques secondes.

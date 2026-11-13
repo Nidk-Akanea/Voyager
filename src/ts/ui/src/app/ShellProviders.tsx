@@ -1,4 +1,4 @@
-// What every page of the app is drawn in, whether or not the local service is ready: Fluent UI theme and translations.
+// What every page of the app is drawn in, whether or not a server answers: Fluent UI theme and translations.
 import { FluentProvider, webDarkTheme, webLightTheme } from '@fluentui/react-components';
 import { LocalizationProvider } from '@fluent/react';
 import { useMemo, type ReactNode } from 'react';
