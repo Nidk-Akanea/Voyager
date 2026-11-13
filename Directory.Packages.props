@@ -22,10 +22,10 @@
 
   <ItemGroup Label="Plugins (ADR-0015)">
     <!-- The two abstractions the SDK shows to plugins; the implementations serve the plugin host only. -->
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup Label="Persistence">
@@ -45,8 +45,8 @@
   </ItemGroup>
 
   <ItemGroup Label="Development orchestration and observability (ADR-0011)">
-    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.6.1" />
-    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.1" />
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.10.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
@@ -54,12 +54,6 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
-  </ItemGroup>
-
-  <ItemGroup Label="Transitive security pins">
-    <!-- Aspire.Hosting 13.6.1 brings MessagePack 2.5.302 (GHSA-qhrr-8q5h-9q3h); 2.5.303 is patched.
-         Remove when upgrading Aspire to 13.6.4 or later, whose own dependency (>= 2.5.307) is patched. -->
-    <PackageVersion Include="MessagePack" Version="2.5.303" />
   </ItemGroup>
 
   <ItemGroup Label="Tests">
