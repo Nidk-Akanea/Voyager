@@ -6,9 +6,11 @@ using Voyager.PluginHost;
 namespace Voyager.GroupServer;
 
 /// <summary>
-/// The files of the interface part of each plugin in use, that the desktop app downloads, checks and serves to its pages
-/// (ADR-0020, decision 8): the module, what it imports under <c>ui</c>, and the translations. Read once, when the server
-/// starts (<see cref="PluginStartup.LoadPlugins"/>): the plugins only change when it restarts (ADR-0020, decision 3).
+/// The files of the interface of each plugin in use, that the desktop app downloads, checks and serves to its pages
+/// (ADR-0020, decision 8): the module and what it imports under <c>ui</c> for a plugin with an interface part, and the
+/// translations of every plugin, since the page shows the facts of a plugin in its words, with or without a panel. Read once, when
+/// the server starts (<see cref="PluginStartup.LoadPlugins"/>): the plugins only change when it restarts (ADR-0020,
+/// decision 3).
 /// </summary>
 public sealed partial class InterfaceFileCatalog
 {
@@ -48,7 +50,7 @@ public sealed partial class InterfaceFileCatalog
     /// </summary>
     /// <param name="catalog">The plugins found at startup.</param>
     /// <param name="locations">Where the plugins are.</param>
-    /// <param name="logger">Says which plugin publishes no interface, and why.</param>
+    /// <param name="logger">Says which plugin publishes no interface file, and why.</param>
     public InterfaceFileCatalog(PluginCatalog catalog, PluginLocations locations, ILogger<InterfaceFileCatalog> logger)
     {
         _logger = logger;
@@ -76,48 +78,47 @@ public sealed partial class InterfaceFileCatalog
         return Convert.ToHexStringLower(SHA256.HashData(stream));
     }
 
-    // The files of one plugin, or null when it publishes none: the reason is logged.
-    private IReadOnlyList<InterfaceFileEntry>? ReadFiles(PluginState plugin, string folder)
+    // The scripts of a plugin that announces an interface part: the page never loads any other.
+    private static List<string> ListScripts(PluginState plugin, string folder)
     {
-        if (!IsRealFolder(folder))
-        {
-            InterfaceFileLog.ModuleMissing(_logger, plugin.Id);
-            return null;
-        }
-
-        var candidates = new List<string>();
-
         var uiFolder = Path.Combine(folder, "ui");
-        if (IsRealFolder(uiFolder))
+        return plugin.UiModule is null || !IsRealFolder(uiFolder)
+            ? []
+            : [.. Directory.EnumerateFiles(uiFolder, "*", _scriptSearch)
+                .Where(file => _scriptExtensions.Contains(Path.GetExtension(file), StringComparer.Ordinal))];
+    }
+
+    // The translations of a plugin, whether it has an interface part or not: the page names its facts with them.
+    private static List<string> ListTranslations(string folder)
+    {
+        var translations = new List<string>();
+        var i18nFolder = Path.Combine(folder, "i18n");
+        if (!IsRealFolder(i18nFolder))
         {
-            candidates.AddRange(Directory.EnumerateFiles(uiFolder, "*", _scriptSearch)
-                .Where(file => _scriptExtensions.Contains(Path.GetExtension(file), StringComparer.Ordinal)));
+            return translations;
         }
 
-        var i18nFolder = Path.Combine(folder, "i18n");
-        if (IsRealFolder(i18nFolder))
+        foreach (var language in _languages)
         {
-            foreach (var language in _languages)
+            var languageFolder = Path.Combine(i18nFolder, language);
+            var messages = Path.Combine(languageFolder, "messages.ftl");
+            if (IsRealFolder(languageFolder)
+                && File.Exists(messages)
+                && !new FileInfo(messages).Attributes.HasFlag(FileAttributes.ReparsePoint))
             {
-                var languageFolder = Path.Combine(i18nFolder, language);
-                var messages = Path.Combine(languageFolder, "messages.ftl");
-                if (IsRealFolder(languageFolder)
-                    && File.Exists(messages)
-                    && !new FileInfo(messages).Attributes.HasFlag(FileAttributes.ReparsePoint))
-                {
-                    candidates.Add(messages);
-                }
+                translations.Add(messages);
             }
         }
 
-        if (candidates.Count > MAXIMUM_FILES)
-        {
-            InterfaceFileLog.TooManyFiles(_logger, plugin.Id, candidates.Count, MAXIMUM_FILES);
-            return null;
-        }
+        return translations;
+    }
 
-        var files = new List<InterfaceFileEntry>();
-        foreach (var file in candidates)
+    // Describes files of one plugin: path in the plugin's folder, fingerprint and size. A file whose name or size is not
+    // allowed is left out.
+    private List<InterfaceFileEntry> Describe(PluginState plugin, string folder, IEnumerable<string> files)
+    {
+        var entries = new List<InterfaceFileEntry>();
+        foreach (var file in files)
         {
             var relative = Path.GetRelativePath(folder, file).Replace(Path.DirectorySeparatorChar, '/');
             var size = new FileInfo(file).Length;
@@ -128,16 +129,42 @@ public sealed partial class InterfaceFileCatalog
                 continue;
             }
 
-            files.Add(new InterfaceFileEntry(relative, Fingerprint(file), size));
+            entries.Add(new InterfaceFileEntry(relative, Fingerprint(file), size));
         }
 
-        if (!files.Any(file => file.Path == $"ui/{plugin.UiModule}"))
+        return entries;
+    }
+
+    // The files of one plugin, or null when it publishes none: the reason is logged, unless it has nothing to publish. A
+    // plugin whose panel cannot be published (no module, too many scripts) still publishes its translations.
+    private IReadOnlyList<InterfaceFileEntry>? ReadFiles(PluginState plugin, string folder)
+    {
+        if (!IsRealFolder(folder))
         {
-            InterfaceFileLog.ModuleMissing(_logger, plugin.Id);
+            InterfaceFileLog.FolderUnusable(_logger, plugin.Id);
             return null;
         }
 
-        return [.. files.OrderBy(file => file.Path, StringComparer.Ordinal)];
+        var scripts = ListScripts(plugin, folder);
+        var translations = ListTranslations(folder);
+        var count = scripts.Count + translations.Count;
+        List<InterfaceFileEntry> scriptEntries = [];
+        if (count > MAXIMUM_FILES)
+        {
+            InterfaceFileLog.TooManyFiles(_logger, plugin.Id, count, MAXIMUM_FILES);
+        }
+        else
+        {
+            scriptEntries = Describe(plugin, folder, scripts);
+            if (plugin.UiModule is { } module && !scriptEntries.Any(file => file.Path == $"ui/{module}"))
+            {
+                InterfaceFileLog.ModuleMissing(_logger, plugin.Id);
+                scriptEntries = [];
+            }
+        }
+
+        List<InterfaceFileEntry> files = [.. scriptEntries, .. Describe(plugin, folder, translations)];
+        return files.Count == 0 ? null : [.. files.OrderBy(file => file.Path, StringComparer.Ordinal)];
     }
 
     private Dictionary<string, PublishedInterface> ReadAll(PluginCatalog catalog, PluginLocations locations)
@@ -145,7 +172,7 @@ public sealed partial class InterfaceFileCatalog
         var published = new Dictionary<string, PublishedInterface>(StringComparer.Ordinal);
         foreach (var plugin in catalog.Plugins)
         {
-            if (plugin.Status != PluginStatus.Loaded || plugin.UiModule is null || locations.RootOf(plugin.Origin) is not { } root)
+            if (plugin.Status != PluginStatus.Loaded || locations.RootOf(plugin.Origin) is not { } root)
             {
                 continue;
             }
@@ -158,7 +185,7 @@ public sealed partial class InterfaceFileCatalog
                     published[plugin.Id] = new PublishedInterface(plugin.Version, folder, files);
                 }
             }
-            // One plugin that cannot be read costs its panel, never the server nor the other plugins.
+            // One plugin whose files cannot be read costs its interface files, never the server nor the other plugins.
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
                 InterfaceFileLog.Unreadable(_logger, plugin.Id, exception);
@@ -176,7 +203,7 @@ public sealed partial class InterfaceFileCatalog
     /// The files of the interface of a plugin in use.
     /// </summary>
     /// <param name="pluginId">The identifier of the plugin.</param>
-    /// <returns>Empty when the plugin is not in use, has no interface part, or could not publish it.</returns>
+    /// <returns>Empty when the plugin is not in use, has neither an interface part nor translations, or could not publish them.</returns>
     public IReadOnlyList<InterfaceFileEntry> FilesOf(string pluginId) =>
         _published.TryGetValue(pluginId, out var published) ? published.Files : [];
 

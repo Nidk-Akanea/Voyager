@@ -67,7 +67,8 @@ plugins](../../docs/specs/plateforme-gestion-des-plugins.md) est à réécrire p
   qui commencent par `.` ne sont jamais des plugins. L'hôte désigne un plugin par son origine et son **dossier**.
 - Le serveur publie, pour chaque plugin chargé, ses **fichiers d'interface** avec leur empreinte SHA-256 et leur
   taille (`InterfaceFileCatalog`, `interface_files` de `ListPlugins`), et envoie un fichier à la demande
-  (`GetInterfaceFile`).
+  (`GetInterfaceFile`) : les traductions de **tout** plugin (la page nomme ses faits avec, panneau ou non), et le
+  module avec ce qu'il importe sous `ui` seulement pour un plugin qui annonce une partie interface.
 - L'adresse d'un fichier de plugin dans l'application nomme son origine et sa version :
   `voyager://app/plugins/<origine>/<id>/<version>/ui/…` et `…/i18n/<langue>/messages.ftl`. Le processus principal
   ne les sert que depuis des modules **préparés** : livrés avec l'application (si la version et les empreintes sont
