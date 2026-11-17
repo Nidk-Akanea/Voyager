@@ -70,14 +70,73 @@ public sealed class InterfaceFileCatalogTests
     }
 
     [TestMethod]
-    public async Task ListPlugins_ModuleMissing_PublishesNoInterfaceFile()
+    public async Task ListPlugins_PluginWithoutInterfacePart_ListsItsTranslationsOnly()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin(PLUGIN_ID, "Good");
+        var folder = Path.Combine(plugins.Path, PLUGIN_ID);
+        Directory.CreateDirectory(Path.Combine(folder, "i18n", "fr"));
+        Directory.CreateDirectory(Path.Combine(folder, "i18n", "en"));
+        File.WriteAllText(Path.Combine(folder, "i18n", "fr", "messages.ftl"), "fact-label = Processeurs");
+        File.WriteAllText(Path.Combine(folder, "i18n", "en", "messages.ftl"), "fact-label = Processors");
+        // A script nothing announces: the page never loads it, so the server does not publish it.
+        Directory.CreateDirectory(Path.Combine(folder, "ui"));
+        File.WriteAllText(Path.Combine(folder, "ui", "index.js"), MODULE);
+        using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path);
+        var client = factory.CreatePluginHostClient();
+
+        var response = await client.ListPluginsAsync(new ListPluginsRequest());
+
+        response.Plugins.Single(plugin => plugin.Id == PLUGIN_ID).InterfaceFiles.Select(file => file.Path)
+            .Should().Equal("i18n/en/messages.ftl", "i18n/fr/messages.ftl");
+        var file = await client.GetInterfaceFileAsync(
+            new GetInterfaceFileRequest { PluginId = PLUGIN_ID, Version = "1.0.0", Path = "i18n/fr/messages.ftl" });
+        file.Content.ToStringUtf8().Should().Be("fact-label = Processeurs");
+        var script = async () => await client.GetInterfaceFileAsync(
+            new GetInterfaceFileRequest { PluginId = PLUGIN_ID, Version = "1.0.0", Path = "ui/index.js" });
+        (await script.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.NotFound);
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_PluginWithoutInterfacePartNorTranslations_PublishesNoInterfaceFile()
+    {
+        using var plugins = new PluginFolder();
+        plugins.AddPlugin(PLUGIN_ID, "Good");
+        using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path);
+
+        var response = await factory.CreatePluginHostClient().ListPluginsAsync(new ListPluginsRequest());
+
+        response.Plugins.Single(plugin => plugin.Id == PLUGIN_ID).InterfaceFiles.Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_ModuleMissing_PublishesItsTranslationsOnly()
     {
         using var plugins = PluginWithInterface(withModule: false);
         using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path);
 
         var response = await factory.CreatePluginHostClient().ListPluginsAsync(new ListPluginsRequest());
 
-        response.Plugins.Single(plugin => plugin.Id == PLUGIN_ID).InterfaceFiles.Should().BeEmpty();
+        response.Plugins.Single(plugin => plugin.Id == PLUGIN_ID).InterfaceFiles.Select(file => file.Path)
+            .Should().Equal("i18n/fr/messages.ftl");
+    }
+
+    [TestMethod]
+    public async Task ListPlugins_TooManyScripts_PublishesItsTranslationsOnly()
+    {
+        using var plugins = PluginWithInterface();
+        var chunks = Path.Combine(plugins.Path, PLUGIN_ID, "ui", "chunks");
+        for (var index = 0; index < InterfaceFileCatalog.MAXIMUM_FILES; index++)
+        {
+            File.WriteAllText(Path.Combine(chunks, $"chunk-{index}.js"), "export {};");
+        }
+
+        using var factory = new GroupServerFactory(shippedPluginsDirectory: plugins.Path);
+
+        var response = await factory.CreatePluginHostClient().ListPluginsAsync(new ListPluginsRequest());
+
+        response.Plugins.Single(plugin => plugin.Id == PLUGIN_ID).InterfaceFiles.Select(file => file.Path)
+            .Should().Equal("i18n/fr/messages.ftl");
     }
 
     [TestMethod]

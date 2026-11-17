@@ -76,9 +76,10 @@ la première brique du cœur sur la bonne architecture.
    décision 8) : le processus principal les télécharge, vérifie leur empreinte, les range sur le poste par
    (serveur, plugin, version) et les sert par `voyager://app`. Les modules livrés avec l'application servent de
    cache quand leur version est la même.
-   - Le serveur publie, pour chaque plugin en service, la liste des fichiers de son interface (le module, ce
-     qu'il importe sous `ui`, ses traductions) avec l'empreinte SHA-256 et la taille de chacun, et envoie un
-     fichier à la demande. Son image Docker construit ces modules.
+   - Le serveur publie, pour chaque plugin en service, la liste des fichiers de son interface avec
+     l'empreinte SHA-256 et la taille de chacun, et envoie un fichier à la demande : ses traductions, que la
+     page lit même sans panneau pour nommer les faits du plugin, et, s'il a une partie interface, son module et
+     ce qu'il importe sous `ui`. Son image Docker construit ces modules.
    - L'adresse d'un fichier nomme la version : `voyager://app/plugins/<origine>/<id>/<version>/…`. La page la lit
      par le protocole de l'application, en développement aussi. Un fichier d'une version que le processus
      principal ne sert pas encore lui fait relire la liste du serveur (au plus toutes les cinq secondes).
