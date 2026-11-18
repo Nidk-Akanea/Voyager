@@ -1,5 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <!-- CA1716 is about Visual Basic: Shared and Error are keywords there. Voyager is C# only, and the layout of the core
+         (docs/conventions/organisation-du-code.md) names the Shared domain and its Result and Error. -->
+    <NoWarn>$(NoWarn);CA1716</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="NodaTime" />
   </ItemGroup>

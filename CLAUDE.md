@@ -35,9 +35,12 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   Velopack, écran de démarrage), la preuve des plugins (SDK, `Voyager.PluginHost`, deux plugins de
   démonstration, versions par composant, `/new-plugin`). De la gestion des plugins sur le poste (PR 26 à 31), seuls
   l'examen et l'extraction d'un paquet restent (`Voyager.PluginHost/Packages`), pour la gestion sur le serveur.
-  **Aucun code métier encore** ; aucune release publiée.
-- **La suite** : la première brique du cœur, le voyage et ses voyageurs (spec repassée en brouillon, à revoir).
-  Chaque étape se fait **sur demande**.
+  Le cœur du voyage et des voyageurs est construit (`Voyager.Core/Trips`, étape 1 sur 4 de la
+  [spec](docs/specs/projet-voyage-et-voyageurs.md)) ; il n'a pas encore de stockage, de service ni d'écran.
+  Aucune release publiée.
+- **La suite** : finir la première brique du cœur, le voyage et ses voyageurs, en trois étapes : le stockage
+  PostgreSQL avec la première migration, le contrat gRPC et les services du serveur, puis les écrans. Chaque
+  étape se fait **sur demande**.
 - **Décisions prises** : ADR 0002 à 0013 et 0015 à 0020 ([index](docs/adr/README.md)) ; l'ADR-0014 est
   proposée, révisée au lot 2c de la bascule.
 

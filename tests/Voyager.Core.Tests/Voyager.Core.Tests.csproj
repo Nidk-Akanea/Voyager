@@ -1,0 +1,18 @@
+<Project Sdk="MSTest.Sdk">
+
+  <PropertyGroup>
+    <!-- CA1716 is about Visual Basic: Shared is a keyword there. The tests follow the folders of Voyager.Core, which has a
+         Shared domain (same reason as in Voyager.Core.csproj). -->
+    <NoWarn>$(NoWarn);CA1716</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\dotnet\Voyager.Core\Voyager.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="NodaTime.Testing" />
+  </ItemGroup>
+
+</Project>
