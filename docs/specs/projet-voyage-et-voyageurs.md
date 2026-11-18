@@ -64,7 +64,9 @@ par le **serveur du groupe**, qui est la seule source de vérité (ADR-0018).
    groupe, pour y préparer le voyage. Un voyageur qui ne figure dans aucun voyage d'un groupe n'est vu que de
    son propriétaire. Un membre ne modifie ni ne supprime jamais le voyageur d'un autre.
 6. Comme ces informations deviennent visibles du groupe, l'application le **dit** quand on déclare un voyageur
-   et quand on l'ajoute à un voyage.
+   et quand on l'ajoute à un voyage. L'avatar étant gardé **tel que l'utilisateur l'a choisi** (choix de
+   l'utilisateur, question Q61), l'avertissement précise qu'une image peut contenir elle-même des informations,
+   comme l'endroit où elle a été prise, que les membres du groupe peuvent alors retrouver.
 7. Plus tard, un voyageur pourra être **associé à un membre** d'un groupe ; cette brique ne gère pas les
    membres, mais le modèle le permet sans changer.
 
@@ -222,9 +224,6 @@ par le **serveur du groupe**, qui est la seule source de vérité (ADR-0018).
 - **Un voyage dont le créateur a quitté le groupe** (compte supprimé ou membre retiré) ne peut plus être supprimé
   avec la règle « seul le créateur supprime ». Qui peut alors le faire : un administrateur du groupe (piste)
   ? Elle ne bloque pas cette brique, qui n'a pas de groupes, mais elle se pose avec leur spec.
-- **Les métadonnées d'un avatar** : un JPEG pris au téléphone contient souvent la position, la date et l'appareil ;
-  gardé tel quel, il les livre à tous les membres du groupe. Les retirer avant de le garder (sans retoucher
-  l'image) ? À trancher avant le stockage (question Q61).
 - **Un voyageur dont le propriétaire a quitté le groupe** reste vu en entier dans les voyages du groupe, alors
   que l'anonymisation n'est prévue qu'à la suppression du compte : que faire au simple départ ? Elle se pose avec
   la spec des groupes (question Q62).

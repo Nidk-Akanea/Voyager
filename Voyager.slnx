@@ -42,6 +42,7 @@
     <Project Path="tests/Voyager.Architecture.Tests/Voyager.Architecture.Tests.csproj" />
     <Project Path="tests/Voyager.Core.Tests/Voyager.Core.Tests.csproj" />
     <Project Path="tests/Voyager.GroupServer.Tests/Voyager.GroupServer.Tests.csproj" />
+    <Project Path="tests/Voyager.Persistence.Tests/Voyager.Persistence.Tests.csproj" />
     <Project Path="tests/Voyager.PluginHost.Tests/Voyager.PluginHost.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/plugin-fixtures/">

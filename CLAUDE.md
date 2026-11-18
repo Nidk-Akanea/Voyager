@@ -35,12 +35,11 @@ Détails : [docs/vision.md](docs/vision.md). Vocabulaire : [docs/glossaire.md](d
   Velopack, écran de démarrage), la preuve des plugins (SDK, `Voyager.PluginHost`, deux plugins de
   démonstration, versions par composant, `/new-plugin`). De la gestion des plugins sur le poste (PR 26 à 31), seuls
   l'examen et l'extraction d'un paquet restent (`Voyager.PluginHost/Packages`), pour la gestion sur le serveur.
-  Le cœur du voyage et des voyageurs est construit (`Voyager.Core/Trips`, étape 1 sur 4 de la
-  [spec](docs/specs/projet-voyage-et-voyageurs.md)) ; il n'a pas encore de stockage, de service ni d'écran.
-  Aucune release publiée.
-- **La suite** : finir la première brique du cœur, le voyage et ses voyageurs, en trois étapes : le stockage
-  PostgreSQL avec la première migration, le contrat gRPC et les services du serveur, puis les écrans. Chaque
-  étape se fait **sur demande**.
+  Le cœur du voyage et des voyageurs est construit (`Voyager.Core/Trips`) et son stockage PostgreSQL aussi
+  (`Voyager.Persistence`, première migration appliquée au démarrage du serveur) : étapes 1 et 2 sur 4 de la
+  [spec](docs/specs/projet-voyage-et-voyageurs.md) ; il n'a pas encore de service ni d'écran. Aucune release publiée.
+- **La suite** : finir la première brique du cœur, le voyage et ses voyageurs, en deux étapes : le contrat gRPC et
+  les services du serveur, puis les écrans. Chaque étape se fait **sur demande**.
 - **Décisions prises** : ADR 0002 à 0013 et 0015 à 0020 ([index](docs/adr/README.md)) ; l'ADR-0014 est
   proposée, révisée au lot 2c de la bascule.
 
@@ -157,6 +156,7 @@ ou la branche, pas tes conclusions.
 | Lint, types, tests, formatage (TypeScript)                                                                                                                                                               | `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`                                                                                             |
 | Construire l'interface et l'application de bureau                                                                                                                                                        | `pnpm build`                                                                                                                                                |
 | Contrats `.proto` (et régénérer le client TypeScript)                                                                                                                                                    | `pnpm proto:lint`, `pnpm proto:breaking`, `pnpm proto:generate`                                                                                             |
+| Créer une migration de la base après un changement du modèle (`dotnet tool restore` une fois ; jamais à la main)                                                                                         | `dotnet ef migrations add <Nom> --project src/dotnet/Voyager.Persistence.PostgreSql --context VoyagerDbContext --output-dir Migrations`                     |
 | Lancer tout en développement (Aspire : PostgreSQL + PostGIS, serveur du groupe avec l'identité de développement, interface Vite, fenêtre Electron, tableau de bord)                                      | `pnpm install` une fois, puis F5 sur `Voyager.AppHost` ou `dotnet run --project src/dotnet/Voyager.AppHost` ; tableau de bord sur `https://localhost:17180` |
 | Construire l'image du serveur du groupe (avec les plugins livrés et leurs modules d'interface, dans `/app/plugins`)                                                                                      | `docker build -f deploy/GroupServer.Dockerfile .`                                                                                                           |
 | Construire les plugins modifiés (dans `artifacts/plugins/`, lancé par Aspire avant le serveur du groupe ; `-Force` pour tout refaire, `-SkipInterface` sans les modules d'interface)                     | `pwsh tools/build-plugins.ps1`                                                                                                                              |

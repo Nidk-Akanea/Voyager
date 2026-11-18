@@ -66,10 +66,10 @@ public sealed class Avatar
     /// <summary>
     /// Rebuilds an avatar that was already checked, as the storage gives it back.
     /// </summary>
-    /// <param name="content">The bytes of the image.</param>
+    /// <param name="content">The bytes of the image, which the avatar takes as they are: the caller no longer writes to them.</param>
     /// <param name="format">Its format.</param>
     /// <returns>The avatar.</returns>
-    public static Avatar Restore(ReadOnlyMemory<byte> content, AvatarFormat format) => new(content.ToArray(), format);
+    public static Avatar Restore(byte[] content, AvatarFormat format) => new(content, format);
 
     /// <summary>Whether another avatar is the same image.</summary>
     /// <param name="other">The other avatar.</param>

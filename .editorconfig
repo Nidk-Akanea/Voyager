@@ -112,6 +112,10 @@ dotnet_naming_style.suffix_async.required_suffix = Async
 dotnet_naming_rule.types_and_members_pascal.severity = none
 dotnet_naming_rule.async_methods_suffix.severity = none
 
+[**/Migrations/*.cs]
+# Written by `dotnet ef migrations add` (dotnet-tools.json): never edited by hand, and not in the style of the project.
+generated_code = true
+
 [*.{csproj,props,targets,slnx,xml}]
 indent_size = 2
 
