@@ -150,7 +150,7 @@ public sealed class AvatarTests
     {
         var content = TestImages.WebP();
 
-        var avatar = Avatar.Restore(content, AvatarFormat.WebP);
+        var avatar = Avatar.Restore(content.ToArray(), AvatarFormat.WebP);
 
         avatar.Format.Should().Be(AvatarFormat.WebP);
         avatar.Content.ToArray().Should().Equal(content);

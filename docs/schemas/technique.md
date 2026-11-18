@@ -293,9 +293,9 @@ flowchart LR
 
 ## Le voyage et les voyageurs dans le cœur
 
-Première brique du cœur ([spec](../specs/projet-voyage-et-voyageurs.md)). Pour l'instant seul le domaine `Trips` de
-`Voyager.Core` existe : les entités, leurs règles, les cas d'usage et les ports. Le stockage, les services du
-serveur et les écrans viennent ensuite, en plusieurs étapes.
+Première brique du cœur ([spec](../specs/projet-voyage-et-voyageurs.md)). Pour l'instant existent le domaine `Trips` de
+`Voyager.Core` (les entités, leurs règles, les cas d'usage et les ports) et son stockage PostgreSQL
+(`Voyager.Persistence`). Les services du serveur et les écrans viennent ensuite.
 
 ```mermaid
 flowchart LR
@@ -304,7 +304,7 @@ flowchart LR
     UC -. "port" .-> TR["ITravelerRepository"]
     UC -. "port" .-> TP["ITripRepository"]
     UC -. "port" .-> GM["IGroupMembership"]
-    TR --> Store["Stockage PostgreSQL<br/>(plus tard)"]
+    TR --> Store["Stockage PostgreSQL<br/>Voyager.Persistence"]
     TP --> Store
     GM --> Groups["Groupes et comptes<br/>(plus tard ; identité de développement)"]
 ```
@@ -317,6 +317,46 @@ flowchart LR
   ne rien révéler), tout membre le renomme, seul son créateur le supprime ; un voyageur n'est modifié et supprimé
   que par son propriétaire.
 - **Une création renvoyée deux fois** (même identifiant, même appelant, même contenu) réussit sans doublon.
+
+### Le stockage
+
+```mermaid
+erDiagram
+    travelers {
+        uuid id PK
+        uuid owner_id "pas de clé vers un compte"
+        bool is_profile "un seul par propriétaire (index unique)"
+        text name
+        text nickname
+        date birth_date
+        text description
+        bytea avatar_content "jusqu'à 2 Mo, tel quel"
+        int avatar_format
+        timestamptz created_at "ordre de déclaration"
+    }
+    trips {
+        uuid id PK
+        uuid group_id "pas de clé vers un groupe"
+        uuid creator_id "pas de clé vers un compte"
+        text name
+        timestamptz created_at "ordre de création"
+    }
+    trip_travelers {
+        uuid trip_id PK, FK
+        uuid traveler_id PK, FK
+        timestamptz added_at "ordre d'ajout"
+    }
+    trips ||--o{ trip_travelers : "supprimer le voyage les supprime"
+    travelers ||--o{ trip_travelers : "supprimer le voyageur les supprime"
+```
+
+- **Les dépôts** (`TravelerRepository`, `TripRepository`) tiennent le contrat des ports : un changement est **une
+  instruction que la base exécute en entier**, et c'est la base qui arbitre une création (clé primaire, index
+  unique du profil), pas une lecture faite avant l'écriture. Deux membres en même temps ne s'écrasent donc pas.
+- **Le créateur, le propriétaire et le groupe ne sont que des identifiants**, sans clé étrangère : un compte
+  supprimé laisse ses voyageurs, anonymisés, que des voyages citent encore (ADR-0019, décision 8).
+- **La migration** est appliquée au démarrage du serveur ; si la base est injoignable, le serveur démarre quand même et
+  la page « À propos » le dit. Elle est générée par `dotnet ef`, jamais écrite à la main.
 
 ## Un ajout hors-ligne, pas à pas (plus tard)
 

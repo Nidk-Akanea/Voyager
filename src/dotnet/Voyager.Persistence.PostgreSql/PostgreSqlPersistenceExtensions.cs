@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Npgsql;
 
+using Voyager.Persistence.Trips;
+
 namespace Voyager.Persistence.PostgreSql;
 
 /// <summary>
@@ -37,6 +39,8 @@ public static class PostgreSqlPersistenceExtensions
         services.AddDbContext<VoyagerDbContext>(options => options.UseNpgsql(
             connectionString,
             npgsql => npgsql.MigrationsAssembly(typeof(PostgreSqlPersistenceExtensions).Assembly.GetName().Name)));
+
+        services.AddTripsRepositories();
 
         return services;
     }

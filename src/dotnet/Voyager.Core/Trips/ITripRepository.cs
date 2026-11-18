@@ -61,7 +61,7 @@ public interface ITripRepository
     /// Keeps a new trip, unless its identifier is used: the check and the writing are one change, so that two creations at
     /// the same time never both succeed, and none fails with an exception.
     /// </summary>
-    /// <param name="trip">The trip, with the travelers it starts with.</param>
+    /// <param name="trip">The trip, with the travelers it starts with, which must exist: the storage refuses the trip otherwise.</param>
     /// <param name="cancellationToken">Stops the writing.</param>
     /// <returns>True when the trip is kept; false when its identifier is already used.</returns>
     Task<bool> TryAddAsync(Trip trip, CancellationToken cancellationToken);

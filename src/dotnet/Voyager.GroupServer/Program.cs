@@ -74,6 +74,11 @@ try
 
     app.LoadPlugins();
 
+    if (!string.IsNullOrWhiteSpace(connectionString))
+    {
+        await app.MigrateDatabaseAsync();
+    }
+
     app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
     app.UseAuthentication();
     app.UseAuthorization();
