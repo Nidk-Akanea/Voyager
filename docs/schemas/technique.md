@@ -291,6 +291,33 @@ flowchart LR
 - Les messages d'un plugin commencent par son identifiant ; ils rejoignent ceux de la page sans jamais en
   remplacer un.
 
+## Le voyage et les voyageurs dans le cœur
+
+Première brique du cœur ([spec](../specs/projet-voyage-et-voyageurs.md)). Pour l'instant seul le domaine `Trips` de
+`Voyager.Core` existe : les entités, leurs règles, les cas d'usage et les ports. Le stockage, les services du
+serveur et les écrans viennent ensuite, en plusieurs étapes.
+
+```mermaid
+flowchart LR
+    Host["Serveur du groupe<br/>(plus tard : services gRPC)"] -->|"commande + appelant"| UC["Cas d'usage<br/>Trips/UseCases"]
+    UC --> Rules["Traveler · Trip · Avatar<br/>règles et validation"]
+    UC -. "port" .-> TR["ITravelerRepository"]
+    UC -. "port" .-> TP["ITripRepository"]
+    UC -. "port" .-> GM["IGroupMembership"]
+    TR --> Store["Stockage PostgreSQL<br/>(plus tard)"]
+    TP --> Store
+    GM --> Groups["Groupes et comptes<br/>(plus tard ; identité de développement)"]
+```
+
+- **Le cœur ne connaît ni la base ni le réseau** : il reçoit l'appelant (`UserId`) dans chaque commande et parle
+  à trois ports. Le serveur les implémente.
+- **Un échec attendu est une valeur** (`Result` et `Error`, avec un code stable que l'interface traduit), jamais
+  une exception.
+- **Les droits sont dans le cœur** : un voyage n'est vu que des membres de son groupe (sinon « introuvable », pour
+  ne rien révéler), tout membre le renomme, seul son créateur le supprime ; un voyageur n'est modifié et supprimé
+  que par son propriétaire.
+- **Une création renvoyée deux fois** (même identifiant, même appelant, même contenu) réussit sans doublon.
+
 ## Un ajout hors-ligne, pas à pas (plus tard)
 
 Décidé par l'[ADR-0018](../adr/0018-client-serveur-et-copie-de-voyage.md) ; rien n'est encore construit. Le

@@ -1,8 +1,8 @@
 # Spec — Le voyage et ses voyageurs
 
-- **Statut** : Brouillon
-- **Révision** : réécrite pour l'architecture client-serveur (ADR-0018, 0019 et 0020, et la bascule faite), en
-  attente de relecture et de validation
+- **Statut** : Validée
+- **Révision** : réécrite pour l'architecture client-serveur (ADR-0018, 0019 et 0020, et la bascule faite) ;
+  validée par l'utilisateur le 2026-11-18
 - **Épic** : E1 — Projet de voyage et idéation
 - **Date** : 2026-11-18
 
@@ -84,11 +84,13 @@ par le **serveur du groupe**, qui est la seule source de vérité (ADR-0018).
    à ce moment ; il n'ajoute pas ceux d'un autre membre, mais peut retirer n'importe quel voyageur du voyage.
    Un voyageur figure au plus une fois dans un même voyage. Ils sont listés dans l'ordre où on les a ajoutés.
    L'utilisateur est **ajouté d'office** aux voyages qu'il crée, et peut s'en retirer : on peut organiser un
-   voyage sans y partir.
+   voyage sans y partir. (S'il n'a pas encore de profil, ce qui n'arrive pas puisque l'application le demande
+   avant tout, le voyage se crée sans voyageur.)
 5. Un voyage peut n'avoir **aucun voyageur** : on peut le créer avant de savoir qui part (principe « du générique
    au précis »). Rien ne bloque sur une information manquante.
 6. Si deux membres changent le même voyage en même temps (le nom, par exemple), **le dernier enregistrement
-   l'emporte**. Deux membres qui ajoutent en même temps le même voyageur ne l'y mettent qu'une fois.
+   l'emporte**. Deux membres qui ajoutent en même temps le même voyageur ne l'y mettent qu'une fois, et deux qui
+   ajoutent chacun un voyageur différent les y mettent tous les deux : un changement n'en défait pas un autre.
 
 ### Supprimer
 
@@ -96,13 +98,14 @@ par le **serveur du groupe**, qui est la seule source de vérité (ADR-0018).
 2. **Supprimer un voyage** est **définitif**, après un **avertissement** qui le dit ; seul son créateur le
    propose. Les voyageurs du voyage ne sont pas supprimés.
 3. **Supprimer un voyageur** est **définitif**, après un **avertissement** qui le dit et qui nomme les voyages où
-   il figure ; il en est retiré. Seul son propriétaire le supprime. Le profil de l'utilisateur ne peut pas être
+   il figure, parmi ceux des groupes de son propriétaire ; il est retiré de tous. Seul son propriétaire le supprime. Le profil de l'utilisateur ne peut pas être
    supprimé (sauf avec le compte, ci-dessous).
 4. La **suppression du compte** (ADR-0019, décision 8) efface les voyageurs de l'utilisateur, sauf ceux qu'un
    voyage d'un groupe cite encore : ceux-là sont **anonymisés** (« voyageur supprimé », sans date de naissance,
    avatar ni description), pour ne pas casser les budgets des autres. Le voyage qu'il a créé reste au groupe, son
    créateur devenu « ancien membre ». Cette brique ne supprime pas de compte, mais son modèle doit permettre ces
-   deux états.
+   deux états : un créateur et un propriétaire ne sont que des identifiants, que rien n'oblige à retrouver dans les
+   comptes, et un voyageur anonymisé est un voyageur dont il ne reste que le nom « voyageur supprimé ».
 5. Ce que d'autres fonctionnalités rattacheront plus tard à un voyage ou à un voyageur suivra des règles écrites
    avec elles. Dans un voyage commencé, on **annule** au lieu de supprimer (ADR-0018, décision 7) : cela viendra
    avec les dates du voyage.
@@ -219,3 +222,9 @@ par le **serveur du groupe**, qui est la seule source de vérité (ADR-0018).
 - **Un voyage dont le créateur a quitté le groupe** (compte supprimé ou membre retiré) ne peut plus être supprimé
   avec la règle « seul le créateur supprime ». Qui peut alors le faire : un administrateur du groupe (piste)
   ? Elle ne bloque pas cette brique, qui n'a pas de groupes, mais elle se pose avec leur spec.
+- **Les métadonnées d'un avatar** : un JPEG pris au téléphone contient souvent la position, la date et l'appareil ;
+  gardé tel quel, il les livre à tous les membres du groupe. Les retirer avant de le garder (sans retoucher
+  l'image) ? À trancher avant le stockage (question Q61).
+- **Un voyageur dont le propriétaire a quitté le groupe** reste vu en entier dans les voyages du groupe, alors
+  que l'anonymisation n'est prévue qu'à la suppression du compte : que faire au simple départ ? Elle se pose avec
+  la spec des groupes (question Q62).
